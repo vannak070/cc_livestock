@@ -42,6 +42,8 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
   const [step, setStep] = useState<Step>('name');
   const [name, setName] = useState(initialProduct?.name ?? '');
   const [category, setCategory] = useState(initialProduct?.category ?? (kinds.length === 1 ? kinds[0] : ''));
+  // Bought feed is kept as stock; feed grown or cut on the farm only has its daily use recorded.
+  const [grown, setGrown] = useState(initialProduct?.trackStock === false);
   // How the feed is counted: in packs (bags, bales) of a set size, or loose in kg (grass).
   const [unit, setUnit] = useState(feedUnit(initialProduct ?? { unit: 'bag' }));
   const unitChoices = [...new Set(['bag', 'bale', 'kg', unit])];
@@ -71,8 +73,9 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
   const fail = (msg: string) => { setError(msg); return false; };
   const valid: Partial<Record<Step, () => boolean>> = {
     name: () => (!name.trim() ? fail('Type the name of the feed.') : !category ? fail('Choose the kind of feed.') : true),
-    size: () => (!(kg > 0) ? fail(`Type how many kg are in one ${unit}.`) : !(Number(warnBags) >= 0) || warnBags === '' ? fail(`Type the number of ${packs} to warn at.`) : true),
-    price: () => (!(priceNum > 0) ? fail(byPack ? `Type the price of one ${unit}.` : 'Type the price of one kg.') : true),
+    size: () => (!(kg > 0) ? fail(`Type how many kg are in one ${unit}.`) : !grown && (!(Number(warnBags) >= 0) || warnBags === '') ? fail(`Type the number of ${packs} to warn at.`) : true),
+    // A farm-grown feed may have no price (0); a bought one needs its price.
+    price: () => (grown ? (priceNum >= 0 || price === '' ? true : fail('The cost cannot be below 0.')) : !(priceNum > 0) ? fail(byPack ? `Type the price of one ${unit}.` : 'Type the price of one kg.') : true),
   };
 
   const save = async () => {
@@ -94,6 +97,7 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
         description: notes.trim(),
         supplier: supplier.trim(),
         status: active ? 'Active' : 'Inactive',
+        trackStock: !grown,
       });
       onClose();
     } catch (e) {
@@ -114,7 +118,7 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
   const heading: Record<Step, { title: string; sub: string }> = {
     name: { title: edit ? 'Edit feed' : 'Add a feed', sub: 'What it is called, and what kind it is.' },
     size: { title: 'How it is counted', sub: loose ? 'Loose feed such as grass is counted in kg.' : `How big one ${unit} is, and when to warn.` },
-    price: { title: 'Price', sub: 'Choose how you know the price.' },
+    price: { title: grown ? 'Cost (optional)' : 'Price', sub: grown ? 'What it costs you to grow or cut, if you know it. Used for the feed cost in reports.' : 'Choose how you know the price.' },
     extra: { title: 'A few more details', sub: 'All optional.' },
   };
 
@@ -142,6 +146,12 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
               <button type="button" onClick={onManageCategories} className="mt-2 min-h-11 text-base font-medium text-emerald-800 underline-offset-4 hover:underline">Change the list of kinds</button>
             )}
           </Question>
+          <Question label="Where does it come from?" hint={grown ? 'Its daily use is recorded, but it is not kept as stock: no Feed in and no running-low warning.' : undefined}>
+            <div className="grid grid-cols-2 gap-3">
+              <Choice selected={!grown} onClick={() => setGrown(false)}>We buy it</Choice>
+              <Choice selected={grown} onClick={() => { setGrown(true); if (!edit) setUnit('kg'); }}>We grow or cut it</Choice>
+            </div>
+          </Question>
         </>
       )}
 
@@ -157,9 +167,9 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
               <Input aria-label={`Kg in one ${unit}`} type="number" step="any" inputMode="decimal" value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
             </Question>
           )}
-          <Question label={loose ? 'Warn me when less than (kg)' : `Warn me when fewer ${packs} than`} hint={!loose && Number(warnBags) > 0 && kg > 0 ? `That is ${(Number(warnBags) * kg).toLocaleString()} kg.` : undefined}>
+          {!grown && <Question label={loose ? 'Warn me when less than (kg)' : `Warn me when fewer ${packs} than`} hint={!loose && Number(warnBags) > 0 && kg > 0 ? `That is ${(Number(warnBags) * kg).toLocaleString()} kg.` : undefined}>
             <Input aria-label={`Warn at this many ${packs}`} type="number" step="any" inputMode="numeric" value={warnBags} onChange={e => { setWarnBags(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
-          </Question>
+          </Question>}
         </>
       )}
 
@@ -173,7 +183,7 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
               </div>
             </Question>
           )}
-          <Question label={byPack ? `Price of one ${unit} (៛)` : 'Price of one kg (៛)'}>
+          <Question label={grown ? (byPack ? `Cost of one ${unit} (៛, optional)` : 'Cost of one kg (៛, optional)') : byPack ? `Price of one ${unit} (៛)` : 'Price of one kg (៛)'}>
             <Input aria-label="Price" type="number" step="any" inputMode="numeric" autoFocus value={price} onChange={e => { setPrice(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
             {priceNum > 0 && kg > 0 && !loose && (
               <p className="mt-3 rounded-xl bg-slate-50 p-3 text-lg text-ink">

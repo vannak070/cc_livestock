@@ -4,13 +4,15 @@ import { activeCattleIds, activeHeadcount, matchIngredientProduct } from './feed
 
 /**
  * Daily feed records: what each batch was actually fed on a day, written down
- * by the farm (or by the office for them). Kept pure so the screens, the
- * server and the daily job share one set of rules.
+ * by the farm (or by the office for them). Kept pure so the screens and the
+ * server share one set of rules.
  *
- * A record is a STOCK_OUT per batch, day and feed with reference
- * `DAILY-<batch>-<day>-<product>`. The daily job writes an estimate from the
- * feeding plan (`AUTO-RATION-<batch>-<day>-...`) only for days nobody
- * recorded, and recording a day replaces that day's estimate.
+ * Feed only leaves stock when someone records the day: a STOCK_OUT per batch,
+ * day and feed with reference `DAILY-<batch>-<day>-<product>`. Nothing is
+ * automatic. Days nobody recorded are flagged (`missedFeedDays`) so the farm
+ * or the office fills them in. Rows named `AUTO-RATION-...` were written by
+ * the automatic job that ran until 2026-10-05; they stay as history, shown as
+ * "Automatic (old)", and recording such a day replaces them.
  */
 
 /** The farms are in Cambodia: a "day" is a Phnom Penh calendar day, whatever the server's clock says. */
@@ -130,7 +132,7 @@ export function recordedUnits(transactions: FeedStockTransaction[], batchId: str
 
 export type FeedDayStatus = 'recorded' | 'partly' | 'estimated' | 'missing';
 
-/** Whether a farm's day was written down, only estimated from the plan, or has nothing. */
+/** Whether a farm's day was written down, has only an old automatic entry, or has nothing. */
 export function feedDayStatus(transactions: FeedStockTransaction[], batchIds: string[], day: string): FeedDayStatus {
   const recorded = new Set<string>();
   let estimated = false;
@@ -143,6 +145,51 @@ export function feedDayStatus(transactions: FeedStockTransaction[], batchIds: st
   if (batchIds.length > 0 && recorded.size === batchIds.length) return 'recorded';
   if (recorded.size > 0) return 'partly';
   return estimated ? 'estimated' : 'missing';
+}
+
+/** How many past days the alerts look back over. */
+export const MISSED_DAYS_LOOKBACK = 7;
+
+/**
+ * Past days (yesterday and the days before, up to `lookback`) on which a farm
+ * fed cattle but nobody wrote down all of its batches. Only days on or after
+ * the earliest start of its fed batches count. Oldest first. Days that only
+ * have an old automatic entry already took stock, so they are not flagged.
+ */
+export function missedFeedDays(
+  farm: string,
+  batches: BatchItem[],
+  stock: StockItem[],
+  products: FeedProductItem[],
+  transactions: FeedStockTransaction[],
+  today: string,
+  lookback: number = MISSED_DAYS_LOOKBACK
+): string[] {
+  const rations = farmRations(farm, batches, stock, products).filter(r => r.items.some(i => i.product));
+  if (rations.length === 0) return [];
+  const batchIds = rations.map(r => r.batch.id);
+  const starts = rations.map(r => (r.batch.startDate || '').slice(0, 10)).filter(isDay).sort();
+  const from = starts[0] && starts[0] > addDays(today, -lookback) ? starts[0] : addDays(today, -lookback);
+  const missed: string[] = [];
+  for (let day = from; day < today; day = addDays(day, 1)) {
+    const status = feedDayStatus(transactions, batchIds, day);
+    if (status === 'missing' || status === 'partly') missed.push(day);
+  }
+  return missed;
+}
+
+/** Fed batches whose plan has a feed that is not in the feed list: it cannot be recorded until it is chosen. */
+export function unlinkedRationFeeds(batches: BatchItem[], products: FeedProductItem[], onlyFarm?: string): { batch: BatchItem; names: string[] }[] {
+  return batches
+    .filter(b => b.status === 'Active' && b.feedingProgram?.status === 'Active' && (!onlyFarm || b.farmLocation === onlyFarm))
+    .map(batch => ({ batch, names: (batch.feedingProgram!.ingredients || []).filter(i => !matchIngredientProduct(i, products)).map(i => i.name) }))
+    .filter(x => x.names.length > 0);
+}
+
+/** Whether a farm still has to write down today's feed. */
+export function todayNotRecorded(farm: string, batches: BatchItem[], stock: StockItem[], products: FeedProductItem[], transactions: FeedStockTransaction[], today: string): boolean {
+  const batchIds = farmRations(farm, batches, stock, products).filter(r => r.items.some(i => i.product)).map(r => r.batch.id);
+  return batchIds.length > 0 && feedDayStatus(transactions, batchIds, today) !== 'recorded';
 }
 
 // ─── Saving a day ────────────────────────────────────────────────────────────

@@ -1,6 +1,5 @@
 import app from './app';
 import { connectWithRetry } from '../config/database';
-import { startFeedJob } from '../lib/feed-job-scheduler';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
@@ -8,9 +7,6 @@ async function startServer() {
   try {
     console.log('[Server Init] Connecting to PostgreSQL database...');
     await connectWithRetry(10, 1000);
-
-    // Hourly; also run by the web app. Idempotent, so it also catches up after downtime.
-    startFeedJob('API server');
 
     app.listen(PORT, () => {
       console.log(`=======================================================`);

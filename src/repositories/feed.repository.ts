@@ -64,6 +64,7 @@ export class FeedRepository {
         description: row.description ? String(row.description) : undefined,
         supplier: row.supplier ? String(row.supplier) : undefined,
         status: row.status === 'Inactive' ? 'Inactive' : 'Active',
+        trackStock: row.track_stock !== false,
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined
       };
     });
@@ -106,6 +107,13 @@ export class FeedRepository {
       product.status || 'Active'
     ];
     await this.executeQuery(sql, params, client);
+    // Written separately so saving bought feed keeps working on a database that has not had migration 007 yet.
+    if (product.trackStock === false || product.trackStock === true) {
+      await this.executeQuery('UPDATE feed_products SET track_stock = $1 WHERE id = $2', [product.trackStock, product.id], client)
+        .catch(err => {
+          if (product.trackStock === false) throw new Error(`Could not mark ${product.name} as grown on the farm: run "npm run safe-migrate" first (${err instanceof Error ? err.message : err}).`);
+        });
+    }
     return product;
   }
 

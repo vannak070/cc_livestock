@@ -21,6 +21,8 @@ interface BatchesPageProps {
   onDeleteBatch?: (batchId: string) => Promise<void>;
   /** Opens the Treat dialog with these animals already chosen. */
   onTreatGroup: (cowIds: string[]) => void;
+  onMoveBatchFarm?: (batchId: string, farm: string, moveCattle: boolean) => Promise<void>;
+  onMoveCow?: (cowId: string, fromBatchId: string, toBatchId: string) => Promise<void>;
   currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
@@ -30,7 +32,7 @@ type Show = 'Active' | 'Closed' | 'All';
 const SELECT = 'h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-base text-ink focus:border-emerald-600 focus:outline-none';
 const riel = (n: number) => `${Math.round(n).toLocaleString()} ៛`;
 
-export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemoveCow, onUpdateBatch, onRecordBatchWeights, onDeleteBatch, onTreatGroup, currentUser, farms = [] }: BatchesPageProps) {
+export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemoveCow, onUpdateBatch, onRecordBatchWeights, onDeleteBatch, onTreatGroup, onMoveBatchFarm, onMoveCow, currentUser, farms = [] }: BatchesPageProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [show, setShow] = useState<Show>('Active');
   const [farm, setFarm] = useState('');
@@ -71,6 +73,8 @@ export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemov
           if (cowIds.length > 0) await onAssignCows(batch.id, cowIds);
         }}
         onUpdate={onUpdateBatch}
+        onMoveFarm={onMoveBatchFarm}
+        batchHead={flow?.kind === 'edit' && flowBatch ? batchCattle(flowBatch, data.stock).length : 0}
         onOpen={id => setOpenId(id)}
       />
       {flowBatch && (
@@ -99,6 +103,8 @@ export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemov
           onUpdateBatch={onUpdateBatch}
           onRemoveCow={onRemoveCow}
           onDelete={onDeleteBatch}
+          otherBatches={data.batches}
+          onMoveCow={onMoveCow ? (cowId, toBatchId) => onMoveCow(cowId, opened.id, toBatchId) : undefined}
         />
         {dialogs}
       </>

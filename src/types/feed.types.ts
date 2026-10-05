@@ -14,6 +14,8 @@ export interface FeedProductItem {
   description?: string;
   supplier?: string;
   status: 'Active' | 'Inactive';
+  /** False for feed grown or cut on the farm: its daily use is recorded, but it is not kept as stock. */
+  trackStock?: boolean;
   createdAt?: string;
 }
 

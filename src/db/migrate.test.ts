@@ -21,7 +21,7 @@ describe.skipIf(!enabled)('schema migrations (PostgreSQL)', () => {
     const cols = (await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'")).rows.map(r => r.column_name);
     expect(cols).toEqual(expect.arrayContaining(['farm_location', 'permissions', 'pin_hash']));
     const ledger = (await pool.query('SELECT version FROM schema_migrations ORDER BY version')).rows.map(r => r.version);
-    expect(ledger).toEqual(['001', '002', '003', '004', '005', '006']);
+    expect(ledger).toEqual(['001', '002', '003', '004', '005', '006', '007']);
   });
 
   it('is idempotent: a second run applies nothing', async () => {

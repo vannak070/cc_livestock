@@ -25,6 +25,8 @@ import {
   deleteFeedProductAction,
   addFeedTransactionAction,
   recordDailyFeedAction,
+  moveBatchFarmAction,
+  moveCowToBatchAction,
   saveProposalPlanAction,
   deleteProposalPlanAction,
   logoutAction
@@ -348,6 +350,24 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     }
   });
 
+  const moveBatchFarmMutation = useMutation({
+    mutationFn: async ({ batchId, farm, moveCattle }: { batchId: string; farm: string; moveCattle: boolean }) => {
+      const res = await moveBatchFarmAction(batchId, farm, moveCattle);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
+  });
+
+  const moveCowMutation = useMutation({
+    mutationFn: async ({ cowId, fromBatchId, toBatchId }: { cowId: string; fromBatchId: string; toBatchId: string }) => {
+      const res = await moveCowToBatchAction(cowId, fromBatchId, toBatchId);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
+  });
+
   const recordDailyFeedMutation = useMutation({
     mutationFn: async (input: DailyFeedInput) => {
       const res = await recordDailyFeedAction(input);
@@ -432,7 +452,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           currentUser={currentUser}
           recordActions={recordActions}
           onNavigate={setActiveTab}
-          onRecordFeed={hasPermission(currentUser, 'feed_record') ? farm => setDailyFeed({ farm }) : undefined}
+          onRecordFeed={hasPermission(currentUser, 'feed_record') ? (farm, day) => setDailyFeed({ farm, day }) : undefined}
         />
       )}
 
@@ -496,6 +516,12 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           }}
           onDeleteBatch={async (batchId) => {
             await deleteBatchMutation.mutateAsync(batchId);
+          }}
+          onMoveBatchFarm={currentUser?.farmLocation ? undefined : async (batchId, farm, moveCattle) => {
+            await moveBatchFarmMutation.mutateAsync({ batchId, farm, moveCattle });
+          }}
+          onMoveCow={async (cowId, fromBatchId, toBatchId) => {
+            await moveCowMutation.mutateAsync({ cowId, fromBatchId, toBatchId });
           }}
           onTreatGroup={(cowIds) => {
             setQuickEntryTab('treat');
@@ -650,6 +676,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         stock={dbData.stock}
         products={dbData.feedProducts || []}
         transactions={dbData.feedTransactions || []}
+        farms={dbData.settings?.farms ?? []}
         currentUser={currentUser}
         presetFarm={dailyFeed?.farm}
         presetDay={dailyFeed?.day}

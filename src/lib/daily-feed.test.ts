@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  addDays, amountText, dailyFeedProblem, dailyFeedReport, farmRations, farmToday, feedDayStatus, kgPerUnit, parseFeedRef, recordedUnits
+  addDays, amountText, dailyFeedProblem, dailyFeedReport, farmRations, farmToday, feedDayStatus, kgPerUnit, missedFeedDays, parseFeedRef, recordedUnits, todayNotRecorded, unlinkedRationFeeds
 } from './daily-feed';
 import type { BatchItem, FeedProductItem, FeedStockTransaction } from './types';
 import type { StockItem } from './xlsx-parser';
@@ -91,5 +91,25 @@ describe('dailyFeedReport', () => {
     const txs = [tx('DAILY-BULLS-2026-10-05-PROD-F01', { quantityBags: 6, quantityKg: 180 }), tx('AUTO-RATION-BULLS-2026-10-05-PROD-F01', { quantityBags: 9, quantityKg: 270 })];
     const [row] = dailyFeedReport({ batches: [batch()], stock, feedProducts: [dsr, grass], feedTransactions: txs }, '2026-10-05', '2026-10-05');
     expect(row.kg).toBe(180);
+  });
+});
+
+describe('alerts for days nobody wrote down', () => {
+  const b = (over: Partial<BatchItem> = {}) => batch({ startDate: '2026-09-01', ...over } as Partial<BatchItem>);
+  it('lists the past days of the last week that were not recorded, oldest first', () => {
+    const txs = [tx('DAILY-BULLS-2026-10-04-PROD-F01'), tx('DAILY-BULLS-2026-10-02-PROD-F01'), tx('AUTO-RATION-BULLS-2026-09-29-0')];
+    expect(missedFeedDays('SNR Farm', [b()], stock, [dsr, grass], txs, '2026-10-05')).toEqual(['2026-09-28', '2026-09-30', '2026-10-01', '2026-10-03']);
+  });
+  it('does not count days before the batch started, or farms with nothing to record', () => {
+    expect(missedFeedDays('SNR Farm', [b({ startDate: '2026-10-03' })], stock, [dsr], [], '2026-10-05')).toEqual(['2026-10-03', '2026-10-04']);
+    expect(missedFeedDays('Other', [b()], stock, [dsr], [], '2026-10-05')).toEqual([]);
+  });
+  it('says whether today is still to be written down', () => {
+    expect(todayNotRecorded('SNR Farm', [b()], stock, [dsr], [], '2026-10-05')).toBe(true);
+    expect(todayNotRecorded('SNR Farm', [b()], stock, [dsr], [tx('DAILY-BULLS-2026-10-05-PROD-F01')], '2026-10-05')).toBe(false);
+  });
+  it('points out plan feeds that are not in the feed list', () => {
+    expect(unlinkedRationFeeds([b()], [dsr]).map(u => u.names)).toEqual([['Fresh Grass']]);
+    expect(unlinkedRationFeeds([b()], [dsr, grass])).toEqual([]);
   });
 });

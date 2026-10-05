@@ -6,7 +6,6 @@
     "dev": "next dev",
     "dev:all": "bash scripts/dev-all.sh",
     "server": "npx tsx src/server/index.ts",
-    "feed:daily": "npx tsx src/lib/run-daily-feed.ts",
     "seed": "npx tsx src/db/seed.ts",
     "build": "next build",
     "start": "next start",

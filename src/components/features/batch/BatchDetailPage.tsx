@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, Download, Pencil, Plus, Scale, Syringe, Trash2, UserPlus, X } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, Download, Pencil, Plus, Scale, Syringe, Trash2, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { BatchItem, FeedProductItem, FeedingProgramConfig, UserRoleItem } from '@/lib/types';
 import type { StockItem, WeightRecord } from '@/lib/xlsx-parser';
 import { getErrorMessage, hasPermission } from '@/lib/utils';
@@ -27,6 +28,9 @@ interface BatchDetailPageProps {
   onUpdateBatch: (batchId: string, updates: Partial<BatchItem>) => Promise<void>;
   onRemoveCow: (batchId: string, cowId: string) => Promise<void>;
   onDelete?: (batchId: string) => Promise<void>;
+  /** The other active batches, to move an animal into. */
+  otherBatches?: BatchItem[];
+  onMoveCow?: (cowId: string, toBatchId: string) => Promise<void>;
 }
 
 type Tab = 'cattle' | 'feeding' | 'growth';
@@ -58,10 +62,11 @@ function sellText(daysToTarget: number | null): { text: string; late: boolean } 
   return { text: `${-daysToTarget} ${-daysToTarget === 1 ? 'day' : 'days'} past the sell date`, late: true };
 }
 
-export default function BatchDetailPage({ batch, stock, weightTracking, feedProducts, currentUser, onBack, onWeigh, onAddCattle, onTreat, onEdit, onUpdateBatch, onRemoveCow, onDelete }: BatchDetailPageProps) {
+export default function BatchDetailPage({ batch, stock, weightTracking, feedProducts, currentUser, onBack, onWeigh, onAddCattle, onTreat, onEdit, onUpdateBatch, onRemoveCow, onDelete, otherBatches = [], onMoveCow }: BatchDetailPageProps) {
   const [tab, setTab] = useState<Tab>('cattle');
   const [ingredientDialog, setIngredientDialog] = useState<null | { existing: IngredientChoice | null }>(null);
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger' | 'warning'; confirmText: string; onConfirm?: () => void }>(null);
+  const [moving, setMoving] = useState<StockItem | null>(null);
 
   const isActive = batch.status === 'Active';
   const canEdit = hasPermission(currentUser, 'batch_edit');
@@ -106,6 +111,19 @@ export default function BatchDetailPage({ batch, stock, weightTracking, feedProd
     confirmText: 'Remove',
     onConfirm: async () => { try { await saveProgram({ ingredients: program.ingredients.filter(i => i.name !== name) }); } catch (e) { fail(e, 'Could not remove it.'); } },
   });
+
+  // An animal can move only into an active batch on its own farm.
+  const targetsFor = (cow: StockItem) => otherBatches.filter(b => b.id !== batch.id && b.status === 'Active' && (!b.farmLocation || b.farmLocation === cow.location));
+  const moveTo = (cow: StockItem, to: BatchItem) => {
+    setMoving(null);
+    setConfirm({
+      title: `Move ${cow.id} to ${to.name}?`,
+      description: `It leaves ${batch.name} and is fed with ${to.name} from now on. Its records stay.`,
+      type: 'warning',
+      confirmText: 'Move',
+      onConfirm: async () => { try { await onMoveCow!(cow.id, to.id); } catch (e) { fail(e, 'Could not move it.'); } },
+    });
+  };
 
   const askRemoveCow = (cowId: string) => setConfirm({
     title: 'Take out of the batch?',
@@ -203,7 +221,12 @@ export default function BatchDetailPage({ batch, stock, weightTracking, feedProd
                   <p className="text-base text-ink-muted">{[cow.sex, cow.breed].filter(Boolean).join(' · ')}</p>
                   <p className="mt-1 text-lg font-semibold text-ink">{kgText(g.currentWeight)}{g.gain !== 0 && <span className={`ml-2 text-base font-medium ${g.gain < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{signed(g.gain)} kg</span>}</p>
                 </div>
-                {canAdd && <Button variant="ghost" size="icon" aria-label={`Take ${cow.id} out of the batch`} onClick={() => askRemoveCow(cow.id)}><X /></Button>}
+                {canAdd && (
+                  <div className="flex shrink-0">
+                    {onMoveCow && targetsFor(cow).length > 0 && <Button variant="ghost" size="icon" aria-label={`Move ${cow.id} to another batch`} title="Move to another batch" onClick={() => setMoving(cow)}><ArrowRightLeft /></Button>}
+                    <Button variant="ghost" size="icon" aria-label={`Take ${cow.id} out of the batch`} title="Take out of the batch" onClick={() => askRemoveCow(cow.id)}><X /></Button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -215,7 +238,7 @@ export default function BatchDetailPage({ batch, stock, weightTracking, feedProd
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
             <div>
               <p className={`text-lg font-semibold ${feedingStatusText === 'Feeding is on' ? 'text-emerald-800' : 'text-ink'}`}>{feedingStatusText}</p>
-              <p className="text-base text-ink-muted">{feedingOn ? 'Stock is taken off each day for the cattle in this batch.' : 'No stock is taken off while it is paused.'}</p>
+              <p className="text-base text-ink-muted">{feedingOn ? 'Record what they eat each day (Feed, Record today\'s feed). The plan fills in the amounts.' : 'Paused: the batch is left out of the daily feed record.'}</p>
             </div>
             {isActive && canEdit && program.ingredients.length > 0 && (
               <Button variant="outline" onClick={async () => { try { await saveProgram({ status: feedingOn ? 'Paused' : 'Active' }); } catch (e) { fail(e, 'Could not change feeding.'); } }}>{feedingOn ? 'Pause feeding' : 'Start feeding'}</Button>
@@ -300,6 +323,27 @@ export default function BatchDetailPage({ batch, stock, weightTracking, feedProd
         headCount={summary.head}
         onSave={saveIngredient}
       />
+
+      {moving && (
+        <Dialog open onOpenChange={open => { if (!open) setMoving(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-2xl font-semibold text-ink">Move {moving.id}</DialogTitle>
+              <DialogDescription className="text-base text-ink-muted">Choose the batch it joins. Only active batches on {moving.location || 'its farm'} are listed.</DialogDescription>
+            </DialogHeader>
+            <ul className="space-y-2">
+              {targetsFor(moving).map(b => (
+                <li key={b.id}>
+                  <button type="button" onClick={() => moveTo(moving, b)} className="flex min-h-14 w-full flex-col items-start rounded-xl border-2 border-slate-200 bg-white px-4 py-2 text-left hover:border-emerald-600">
+                    <span className="text-lg font-semibold text-ink">{b.name}</span>
+                    <span className="text-base text-ink-muted">{batchCattle(b, stock).length} cattle</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {confirm && (
         <ConfirmModal isOpen onClose={() => setConfirm(null)} onConfirm={confirm.onConfirm} title={confirm.title} description={confirm.description} type={confirm.type} confirmText={confirm.confirmText} />

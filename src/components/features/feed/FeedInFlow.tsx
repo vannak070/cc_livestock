@@ -34,7 +34,8 @@ export default function FeedInFlow(props: FeedInFlowProps) {
 
 function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in' }: FeedInFlowProps) {
   const out = mode === 'out';
-  const active = products.filter(p => p.status !== 'Inactive');
+  // Feed grown on the farm is not kept as stock, so it never comes in or goes out by hand.
+  const active = products.filter(p => p.status !== 'Inactive' && p.trackStock !== false);
   const single = active.length === 1;
   const lockedFarm = currentUser?.farmLocation && !['Super Admin', 'Admin', 'Company'].includes(currentUser.role)
     ? currentUser.farmLocation

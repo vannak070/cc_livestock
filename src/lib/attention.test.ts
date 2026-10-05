@@ -84,6 +84,12 @@ describe('feed', () => {
     expect(level).toMatchObject({ bags: 9, kg: 270, isLow: true, dailyUseKg: 10, daysLeft: 27 });
   });
 
+  it('never calls feed grown on the farm "running low", but still counts what is eaten', () => {
+    const grown = products.map(p => ({ ...p, trackStock: false }));
+    const [level] = feedStockLevels(data({ batches, feedProducts: grown }));
+    expect(level).toMatchObject({ tracked: false, isLow: false, daysLeft: null, dailyUseKg: 10 });
+  });
+
   it('reports no days-left estimate when nothing is being fed', () => {
     const [level] = feedStockLevels(data({ feedProducts: products }));
     expect(level.daysLeft).toBeNull();

@@ -132,8 +132,8 @@ export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
       proposalPlans
     };
 
-    // Reads must not write: the daily feed ration deduction runs on its own
-    // schedule (see src/lib/daily-feed-cron.ts, started by src/server/index.ts).
+    // Reads must not write. Feed only leaves stock when a farm or the office
+    // records the day (src/services/daily-feed.service.ts); nothing is automatic.
 
     return erpData;
   } catch (err) {

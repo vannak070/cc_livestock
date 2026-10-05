@@ -44,6 +44,7 @@ import { MasterSetup, BatchItem, HealthLogItem, FeedProductItem, FeedStockTransa
 import { runAction } from '@/lib/run-action';
 import { authService } from '@/services/auth.service';
 import { dailyFeedService } from '@/services/daily-feed.service';
+import { batchMoveService } from '@/services/batch-move.service';
 import type { DailyFeedInput } from '@/lib/daily-feed';
 import { startSession, endSession } from '@/lib/session';
 import { scopeDataForActor } from '@/lib/data-scope';
@@ -187,6 +188,15 @@ export async function removeCowFromBatchAction(batchId: string, cowId: string) {
     await farmGuard.cows(actor, [cowId]);
     return removeCowFromBatch(batchId, cowId);
   });
+}
+
+// Moving a batch between farms is for the office; it can take the batch's cattle along.
+export async function moveBatchFarmAction(batchId: string, farm: string, moveCattle: boolean) {
+  return runAction('Failed to move the batch', ['batch_edit'], actor => batchMoveService.moveToFarm(actor, batchId, farm, moveCattle));
+}
+
+export async function moveCowToBatchAction(cowId: string, fromBatchId: string, toBatchId: string) {
+  return runAction('Failed to move the animal', ['batch_edit'], actor => batchMoveService.moveCow(actor, cowId, fromBatchId, toBatchId));
 }
 
 export async function deleteBatchAction(batchId: string) {

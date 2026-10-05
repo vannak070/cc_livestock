@@ -19,6 +19,8 @@ interface DailyFeedFlowProps {
   stock: StockItem[];
   products: FeedProductItem[];
   transactions: FeedStockTransaction[];
+  /** Every farm, so the office can choose any of them. */
+  farms?: { name: string }[];
   currentUser?: UserRoleItem;
   /** Start with this farm (the office recording for a farm) and/or day (filling in a missed day). */
   presetFarm?: string;
@@ -45,12 +47,17 @@ export default function DailyFeedFlow(props: DailyFeedFlowProps) {
   );
 }
 
-function DailyFeedBody({ onClose, batches, stock, products, transactions, currentUser, presetFarm, presetDay, onSave }: DailyFeedFlowProps) {
+function DailyFeedBody({ onClose, batches, stock, products, transactions, farms = [], currentUser, presetFarm, presetDay, onSave }: DailyFeedFlowProps) {
   const todayDay = farmToday();
   const lockedFarm = currentUser?.farmLocation && !OFFICE_ROLES.includes(currentUser.role) ? currentUser.farmLocation : null;
-  const farmOptions = useMemo(() => (lockedFarm ? [lockedFarm] : farmsToRecord(batches)), [lockedFarm, batches]);
+  // Farms with a batch being fed come first; the office can still pick any farm.
+  const fedFarms = useMemo(() => farmsToRecord(batches), [batches]);
+  const farmOptions = useMemo(
+    () => (lockedFarm ? [lockedFarm] : [...new Set([...fedFarms, ...farms.map(f => f.name).sort((a, b) => a.localeCompare(b))])]),
+    [lockedFarm, fedFarms, farms]
+  );
 
-  const [farm, setFarm] = useState(lockedFarm ?? presetFarm ?? (farmOptions.length === 1 ? farmOptions[0] : ''));
+  const [farm, setFarm] = useState(lockedFarm ?? presetFarm ?? (fedFarms.length === 1 ? fedFarms[0] : farmOptions.length === 1 ? farmOptions[0] : ''));
   const [day, setDay] = useState(presetDay ?? todayDay);
   const [step, setStep] = useState<Step>(farm && presetDay ? 'amounts' : 'where');
   const [values, setValues] = useState<Record<string, string>>({});
@@ -156,10 +163,10 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, curren
           {lockedFarm ? (
             <Question label="Farm"><p className="rounded-xl bg-slate-50 px-4 py-3 text-lg font-medium text-ink">{lockedFarm}</p></Question>
           ) : farmOptions.length === 0 ? (
-            <p className="rounded-xl bg-amber-50 p-4 text-lg text-amber-900">No farm has a batch being fed yet. Set up feeding in a batch&apos;s Feeding tab first.</p>
+            <p className="rounded-xl bg-amber-50 p-4 text-lg text-amber-900">There are no farms yet. Add one on the Farms page first.</p>
           ) : (
-            <Question label="Which farm?">
-              <PickList options={farmOptions} value={farm} onChange={v => { setFarm(v); setValues({}); setError(''); }} />
+            <Question label="Which farm?" hint={farm && !fedFarms.includes(farm) ? `${farm} has no batch being fed yet. Turn feeding on in one of its batches (Feeding tab) to record its feed.` : undefined}>
+              <PickList options={farmOptions} value={farm} labelFor={o => (fedFarms.includes(o) ? o : `${o} (no feeding yet)`)} onChange={v => { setFarm(v); setValues({}); setError(''); }} />
             </Question>
           )}
           <Question label="Which day?">

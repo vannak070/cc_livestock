@@ -154,6 +154,20 @@ export class BatchRepository {
     return (await this.findById(batchId, client))!;
   }
 
+  /** Moves a batch to another farm; with `moveCattle`, its cattle still on the farm (status Active) go too. Returns how many cattle moved. */
+  async moveToFarm(batchId: string, farm: string, moveCattle: boolean, client: PoolClient): Promise<number> {
+    await this.executeQuery('UPDATE batches SET farm_location = $1 WHERE id = $2', [farm, batchId], client);
+    if (!moveCattle) return 0;
+    const res = await this.executeQuery(
+      `UPDATE stock SET location = $1
+       WHERE id IN (SELECT cow_id FROM batch_cows WHERE batch_id = $2)
+         AND lower(status) = 'active'`,
+      [farm, batchId],
+      client
+    );
+    return res.rowCount ?? 0;
+  }
+
   async delete(id: string, client?: PoolClient): Promise<boolean> {
     const res = await this.executeQuery('DELETE FROM batches WHERE id = $1 RETURNING id', [id], client);
     return res.rows.length > 0;

@@ -114,8 +114,10 @@ export interface FeedStockLevel {
   isLow: boolean;
   /** Ration use per day from active feeding programs, counting only active cattle. */
   dailyUseKg: number;
-  /** Whole days of stock left at that rate; null when nothing is being used. */
+  /** Whole days of stock left at that rate; null when nothing is being used or the feed is not kept as stock. */
   daysLeft: number | null;
+  /** False for feed grown on the farm: only its use counts, never "running low". */
+  tracked: boolean;
 }
 
 /**
@@ -158,6 +160,7 @@ export function feedStockLevels(
     const thresholdBags = p.minThresholdBags || 50;
     const thresholdKg = p.minThresholdKg || thresholdBags * (p.weightPerUnit || 30);
     const dailyUseKg = dailyUse.get(p.id) || 0;
+    const tracked = p.trackStock !== false;
     return {
       productId: p.id,
       productName: p.name,
@@ -165,9 +168,10 @@ export function feedStockLevels(
       kg,
       thresholdBags,
       thresholdKg,
-      isLow: bags <= thresholdBags || kg <= thresholdKg,
+      isLow: tracked && (bags <= thresholdBags || kg <= thresholdKg),
       dailyUseKg,
-      daysLeft: dailyUseKg > 0 ? Math.floor(kg / dailyUseKg) : null
+      daysLeft: tracked && dailyUseKg > 0 ? Math.floor(kg / dailyUseKg) : null,
+      tracked
     };
   });
 }

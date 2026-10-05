@@ -5,7 +5,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { BatchItem, FarmItem, UserRoleItem } from '@/lib/types';
 import type { StockItem } from '@/lib/xlsx-parser';
-import { FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, today } from '../flow/FlowShell';
+import { Choice, FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, today } from '../flow/FlowShell';
 import CattlePicker from './CattlePicker';
 
 interface BatchFlowProps {
@@ -19,6 +19,10 @@ interface BatchFlowProps {
   currentUser?: UserRoleItem;
   onCreate: (batch: Omit<BatchItem, 'cowIds'>, cowIds: string[]) => Promise<void>;
   onUpdate: (batchId: string, updates: Partial<BatchItem>) => Promise<void>;
+  /** Moves an edited batch to another farm, with or without its cattle. */
+  onMoveFarm?: (batchId: string, farm: string, moveCattle: boolean) => Promise<void>;
+  /** Cattle still on the farm in the batch being edited. */
+  batchHead?: number;
   /** Called with the new batch's id when the person chooses to open it. */
   onOpen?: (batchId: string) => void;
 }
@@ -37,7 +41,7 @@ export default function BatchFlow(props: BatchFlowProps) {
   );
 }
 
-function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, onUpdate, onOpen }: BatchFlowProps) {
+function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, onUpdate, onOpen, onMoveFarm, batchHead = 0 }: BatchFlowProps) {
   const edit = !!batch;
   const lockedFarm = currentUser?.farmLocation && !['Super Admin', 'Admin', 'Company'].includes(currentUser.role) ? currentUser.farmLocation : null;
   const farmNames = useMemo(() => farms.map(f => f.name), [farms]);
@@ -52,6 +56,9 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [createdId, setCreatedId] = useState('');
+  // Moving an existing batch to another farm normally takes its cattle along.
+  const [moveCattle, setMoveCattle] = useState(true);
+  const farmChanged = !!batch && !!farm && farm !== (batch.farmLocation ?? '');
 
   const showFarmStep = !lockedFarm && farmNames.length > 0;
   const steps: Step[] = [
@@ -93,7 +100,15 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
         expectedSellingPrice: priceNum > 0 ? priceNum : undefined,
       };
       if (batch) {
-        await onUpdate(batch.id, common);
+        if (farmChanged && onMoveFarm) {
+          // The farm (and the cattle, when chosen) change together on the server.
+          await onMoveFarm(batch.id, farm, moveCattle && batchHead > 0);
+          const { farmLocation: _farm, ...rest } = common;
+          void _farm;
+          await onUpdate(batch.id, rest);
+        } else {
+          await onUpdate(batch.id, common);
+        }
         onClose();
       } else {
         const id = newBatchId();
@@ -102,7 +117,7 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
           type: 'Fattening Program',
           status: 'Active',
           ...common,
-          // Feeding starts empty on purpose: the daily job takes real stock off for every ingredient.
+          // Feeding starts empty on purpose: the farm sets up what the batch eats, then records it daily.
           feedingProgram: { ingredients: [], frequency: 'Twice Daily', startDate: start, status: 'Active' },
         }, picked);
         setCreatedId(id);
@@ -149,7 +164,17 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
       )}
 
       {step === 'where' && (
-        <PickList options={farmNames} value={farm} onChange={v => { setFarm(v); setPicked([]); setError(''); }} />
+        <>
+          <PickList options={farmNames} value={farm} onChange={v => { setFarm(v); setPicked([]); setError(''); }} />
+          {farmChanged && batchHead > 0 && (
+            <Question label={`Move its ${batchHead} ${batchHead === 1 ? 'animal' : 'cattle'} to ${farm} too?`} hint={moveCattle ? 'Recommended: the batch and its cattle stay on the same farm.' : `The cattle stay on ${batch?.farmLocation || 'their farm'} while the batch is on ${farm}.`}>
+              <div className="grid grid-cols-2 gap-3">
+                <Choice selected={moveCattle} onClick={() => setMoveCattle(true)}>Yes, move them</Choice>
+                <Choice selected={!moveCattle} onClick={() => setMoveCattle(false)}>No</Choice>
+              </div>
+            </Question>
+          )}
+        </>
       )}
 
       {step === 'when' && (

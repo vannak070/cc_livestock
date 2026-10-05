@@ -8,7 +8,7 @@ import { ConfirmModal } from '@/components/ui/confirm-modal';
 import type { ERPLivestockData, FarmItem, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import { format2DecimalsWithCommas, getErrorMessage, hasPermission } from '@/lib/utils';
 import { feedStockLevels } from '@/lib/attention';
-import { addDays, amountText, dailyFeedReport, farmToday, feedUnit, round1, unitWord, type FeedDayStatus } from '@/lib/daily-feed';
+import { addDays, amountText, dailyFeedReport, farmToday, farmsToRecord, feedUnit, missedFeedDays, round1, unitWord, type FeedDayStatus } from '@/lib/daily-feed';
 import { dayLabel } from './DailyFeedFlow';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
@@ -40,7 +40,7 @@ const num = (n: number) => (Math.round(n * 10) / 10).toLocaleString();
 const day = (d: string | null | undefined) => (d ? d.slice(0, 10) : '—');
 const isPlace = (s?: string) => !!s && !s.startsWith('Daily Feed') && s !== 'Supplier' && s !== 'Central Warehouse';
 
-const STATUS_TEXT: Record<FeedDayStatus, string> = { recorded: 'Recorded', partly: 'Partly recorded', estimated: 'Estimated', missing: 'Not recorded' };
+const STATUS_TEXT: Record<FeedDayStatus, string> = { recorded: 'Recorded', partly: 'Partly recorded', estimated: 'Automatic (old)', missing: 'Not recorded' };
 const STATUS_STYLE: Record<FeedDayStatus, string> = {
   recorded: 'bg-emerald-100 text-emerald-800',
   partly: 'bg-amber-100 text-amber-900',
@@ -106,8 +106,9 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
   }, [levels, query]);
 
   const lowItems = levels.filter(l => l.isLow);
-  const totalKg = levels.reduce((s, l) => s + l.kg, 0);
-  const totalBags = levels.reduce((s, l) => s + l.bags, 0);
+  const stocked = levels.filter(l => l.tracked);
+  const totalKg = stocked.reduce((s, l) => s + l.kg, 0);
+  const totalBags = stocked.reduce((s, l) => s + l.bags, 0);
   const dailyKg = levels.reduce((s, l) => s + l.dailyUseKg, 0);
   const tightest = levels.filter(l => l.daysLeft !== null).sort((a, b) => (a.daysLeft ?? 0) - (b.daysLeft ?? 0))[0];
   const daysTone = tightest ? (tightest.daysLeft! < 7 ? 'bad' : tightest.daysLeft! < 14 ? 'warn' : undefined) : undefined;
@@ -134,6 +135,13 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
     [data.batches, data.stock, data.healthLogs, products, transactions, days, todayDay, effectiveFarm]
   );
   const reportRecorded = report.filter(r => r.status === 'recorded').length;
+  // Past days nobody wrote down, per farm: feed only leaves stock when a day is recorded.
+  const missed = useMemo(
+    () => (effectiveFarm ? [effectiveFarm] : farmsToRecord(data.batches || []))
+      .map(f => ({ farm: f, days: missedFeedDays(f, data.batches || [], data.stock || [], products, transactions, todayDay) }))
+      .filter(m => m.days.length > 0),
+    [effectiveFarm, data.batches, data.stock, products, transactions, todayDay]
+  );
   const reportCost = report.reduce((s, r) => s + r.cost, 0);
 
   const exportReport = () => exportToExcel({
@@ -227,6 +235,16 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
         <Tile label="In store" value={`${num(totalKg)} kg`} sub={`${num(totalBags)} bags`} />
         <Tile label="Eaten daily" value={dailyKg > 0 ? `${num(dailyKg)} kg` : '—'} sub="all active batches" />
       </section>
+
+      {missed.map(m => (
+        <div key={m.farm} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-300 bg-rose-50 p-4">
+          <p className="text-lg text-ink">
+            <span className="font-semibold">Feed not written down{effectiveFarm ? '' : ` at ${m.farm}`}: </span>
+            {m.days.map(dayLabel).join(', ')}. No feed was taken from stock for {m.days.length === 1 ? 'that day' : 'those days'}.
+          </p>
+          {onRecordDay && <Button onClick={() => onRecordDay(m.farm, m.days[0])}><Wheat /> Record {dayLabel(m.days[0])}</Button>}
+        </div>
+      ))}
 
       {lowItems.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4">
@@ -355,7 +373,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
                 ))}
               </ul>
               {report.length > visible && <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>Show more ({report.length - visible} left)</Button></div>}
-              <p className="text-base text-ink-muted">Estimated days use the feeding plan because nobody wrote them down. Head counts are today&apos;s numbers.</p>
+              <p className="text-base text-ink-muted">Feed is only taken from stock when a day is recorded. &quot;Automatic (old)&quot; days were filled in by the app before 5 Oct 2026; recording such a day replaces it. Head counts are today&apos;s numbers.</p>
             </>
           )}
         </div>
@@ -368,6 +386,22 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {stockRows.map(l => {
               const p = productById.get(l.productId);
+              if (!l.tracked) {
+                // Grown or cut on the farm: only how much is eaten matters.
+                return (
+                  <li key={l.productId} className="rounded-2xl border-2 border-slate-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xl font-semibold text-ink">{l.productName}</p>
+                        <p className="text-base text-ink-muted">{p?.category}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-ink">Grown on the farm</span>
+                    </div>
+                    <p className="mt-3 text-3xl font-semibold text-ink">{num(l.dailyUseKg)} <span className="text-lg font-medium text-ink-muted">kg a day</span></p>
+                    <p className="text-base text-ink-muted">{l.dailyUseKg > 0 ? 'From the feeding plans. Not kept as stock.' : 'Not in any feeding plan yet.'}</p>
+                  </li>
+                );
+              }
               return (
                 <li key={l.productId} className={`rounded-2xl border-2 bg-white p-4 ${l.isLow ? 'border-amber-300' : 'border-slate-200'}`}>
                   <div className="flex items-start justify-between gap-3">
@@ -441,7 +475,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
                     <p className="text-xl font-semibold text-ink">{p.name}</p>
                     <p className="text-base text-ink-muted">{[p.category, feedUnit(p) === 'kg' ? 'counted in kg' : `${p.weightPerUnit} kg per ${feedUnit(p)}`].filter(Boolean).join(' · ')}</p>
                     <p className="text-base text-ink">{feedUnit(p) === 'kg' ? `${riel(p.unitCost)} a kg` : `${riel(p.costPerBag || p.unitCost * p.weightPerUnit)} a ${feedUnit(p)} · ${riel(p.unitCost)} a kg`}</p>
-                    <p className="text-base text-ink-muted">Warn below {amountText(p, p.minThresholdBags || 50)}{p.supplier ? ` · ${p.supplier}` : ''}</p>
+                    <p className="text-base text-ink-muted">{p.trackStock === false ? 'Grown or cut on the farm, not kept as stock' : `Warn below ${amountText(p, p.minThresholdBags || 50)}`}{p.supplier ? ` · ${p.supplier}` : ''}</p>
                   </div>
                   {canManage && (
                     <div className="flex shrink-0">

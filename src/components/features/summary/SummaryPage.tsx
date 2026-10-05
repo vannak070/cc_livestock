@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import type { ERPLivestockData } from '@/lib/types';
 import type { ActiveTabType } from '../../layout/SidebarLayout';
 import { batchesNearSelling, feedStockLevels, sickCattle, weighSchedules } from '@/lib/attention';
+import { farmToday, farmsToRecord, missedFeedDays } from '@/lib/daily-feed';
 import { batchSummary } from '@/lib/batch-stats';
 import { monthlyMoney } from '@/lib/report-stats';
 
@@ -62,7 +63,14 @@ export default function SummaryPage({ data, onNavigateToTab }: SummaryPageProps)
     return list[0];
   }, [activeBatches, data.stock, data.weightTracking, products]);
 
+  // Feed only leaves stock when a farm records the day, so missed days are the owner's first worry.
+  const feedToday = farmToday();
+  const missedFeed = farmsToRecord(data.batches)
+    .map(farm => ({ farm, days: missedFeedDays(farm, data.batches, data.stock, products, data.feedTransactions || [], feedToday) }))
+    .filter(m => m.days.length > 0);
+
   const needs: { key: string; text: string; sub?: string; tab: ActiveTabType; tone: 'bad' | 'warn' }[] = [
+    missedFeed.length > 0 && { key: 'feed-missed', text: `Feed not written down: ${missedFeed.map(m => `${m.farm} (${plural(m.days.length, 'day', 'days')})`).join(', ')}`, sub: 'Open Feed, Daily, to record the missing days', tab: 'feed-inventory' as const, tone: 'bad' as const },
     sick.length > 0 && { key: 'sick', text: `${plural(sick.length, 'animal is', 'animals are')} sick`, sub: 'Open Health to treat them', tab: 'health-tracking' as const, tone: 'bad' as const },
     lowFeed.length > 0 && { key: 'feed', text: `${lowFeed[0].productName}${lowFeed.length > 1 ? ` and ${lowFeed.length - 1} more` : ''} running low`, sub: 'Order or record a delivery under Feed', tab: 'feed-inventory' as const, tone: 'warn' as const },
     nearSelling.length > 0 && { key: 'sell', text: `${plural(nearSelling.length, 'batch is', 'batches are')} near the sell date`, sub: nearSelling[0].daysRemaining < 0 ? `${nearSelling[0].batchName} is ${-nearSelling[0].daysRemaining} days past it` : `${nearSelling[0].batchName} in ${nearSelling[0].daysRemaining} days`, tab: 'batch-management' as const, tone: 'warn' as const },

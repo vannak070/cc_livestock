@@ -14,7 +14,8 @@ import {
   WEIGH_INTERVAL_DAYS,
   SELL_WARNING_DAYS
 } from '@/lib/attention';
-import { farmRations, farmToday, farmsToRecord, feedDayStatus } from '@/lib/daily-feed';
+import { farmToday, farmsToRecord, missedFeedDays, todayNotRecorded, unlinkedRationFeeds } from '@/lib/daily-feed';
+import { dayLabel } from './features/feed/DailyFeedFlow';
 import type { ActiveTabType, RecordAction } from './layout/SidebarLayout';
 
 interface TodayTabProps {
@@ -22,8 +23,8 @@ interface TodayTabProps {
   currentUser: UserRoleItem;
   recordActions: RecordAction[];
   onNavigate: (tab: ActiveTabType) => void;
-  /** Opens today's feed record for a farm; only for people who may record feed. */
-  onRecordFeed?: (farm: string) => void;
+  /** Opens the feed record for a farm and day (today when no day); only for people who may record feed. */
+  onRecordFeed?: (farm: string, day?: string) => void;
 }
 
 type Severity = 'urgent' | 'attention';
@@ -57,21 +58,44 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
 
   const items: AttentionItem[] = [];
 
-  // Each farm writes down what its batches ate today (the office can do it for them).
+  // Feed only leaves stock when someone writes the day down, so every missed day is flagged.
   if (onRecordFeed) {
     const today = farmToday(now);
+    const products = data.feedProducts || [];
+    const txs = data.feedTransactions || [];
     const farms = currentUser.farmLocation ? [currentUser.farmLocation] : farmsToRecord(data.batches);
+    const many = farms.length > 1;
     for (const farm of farms) {
-      const batchIds = farmRations(farm, data.batches, data.stock, data.feedProducts || []).map(r => r.batch.id);
-      if (batchIds.length === 0) continue;
-      if (feedDayStatus(data.feedTransactions || [], batchIds, today) === 'recorded') continue;
+      const missed = missedFeedDays(farm, data.batches, data.stock, products, txs, today);
+      if (missed.length > 0) {
+        items.push({
+          key: `feed-missed-${farm}`,
+          severity: 'urgent',
+          title: `Feed not written down for ${plural(missed.length, 'day', 'days')}${many ? ` at ${farm}` : ''}`,
+          detail: `${missed.map(dayLabel).join(', ')}. Stock is only taken when the day is recorded.`,
+          actionLabel: 'Record',
+          onAction: () => onRecordFeed(farm, missed[0])
+        });
+      }
+      if (todayNotRecorded(farm, data.batches, data.stock, products, txs, today)) {
+        items.push({
+          key: `feed-day-${farm}`,
+          severity: 'attention',
+          title: many ? `Today's feed is not written down at ${farm}` : 'Today\'s feed is not written down yet',
+          detail: 'Record the bags and grass the cattle ate today.',
+          actionLabel: 'Record feed',
+          onAction: () => onRecordFeed(farm)
+        });
+      }
+    }
+    for (const u of unlinkedRationFeeds(data.batches, products, currentUser.farmLocation || undefined)) {
       items.push({
-        key: `feed-day-${farm}`,
+        key: `feed-unlinked-${u.batch.id}`,
         severity: 'attention',
-        title: farms.length > 1 ? `Today's feed is not written down at ${farm}` : 'Today\'s feed is not written down yet',
-        detail: 'Record the bags and grass the cattle ate today.',
-        actionLabel: 'Record feed',
-        onAction: () => onRecordFeed(farm)
+        title: `${u.batch.name}: feed not in your feed list`,
+        detail: `${u.names.join(', ')} cannot be recorded. Open the batch, Feeding tab, tap the pencil and choose the feed.`,
+        actionLabel: 'Open batches',
+        onAction: () => onNavigate('batch-management')
       });
     }
   }
