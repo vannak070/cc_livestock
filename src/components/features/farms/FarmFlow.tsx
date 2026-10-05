@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { FarmItem, MasterSetup } from '@/lib/types';
 import { validateFarm, type FarmErrors, type FarmInput } from '@/lib/farm-settings';
-import { FlowFooter, FlowShell, NUM, Question } from '../flow/FlowShell';
+import { Choice, FlowFooter, FlowShell, NUM, Question } from '../flow/FlowShell';
 
 interface FarmFlowProps {
   isOpen: boolean;
@@ -39,12 +39,13 @@ function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps
   const [capacity, setCapacity] = useState(farm?.capacity ? String(farm.capacity) : '');
   const [address, setAddress] = useState(farm?.address ?? '');
   const [notes, setNotes] = useState(farm?.notes ?? '');
+  const [companyRun, setCompanyRun] = useState(!!farm?.companyRun);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState<FarmItem | null>(null);
 
   const steps: Step[] = ['farm', 'more'];
-  const input = (): FarmInput => ({ name, address, capacity: Number(capacity), notes });
+  const input = (): FarmInput => ({ name, address, capacity: Number(capacity), notes, companyRun });
 
   const problem = (): string | null => {
     const errors: FarmErrors = validateFarm(settings, input(), farm ?? null);
@@ -94,6 +95,12 @@ function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps
           <Question label="Cattle it can hold" hint="Used to show how full the farm is.">
             <Input aria-label="Cattle it can hold" type="number" inputMode="numeric" value={capacity} onChange={e => { setCapacity(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
           </Question>
+          <Question label="Who runs this farm?" hint={companyRun ? 'The company runs it. Office accounts record its work, so it needs no farm owner.' : 'A farm owner signs in and runs it. You add the owner after saving.'}>
+            <div className="flex flex-wrap gap-3">
+              <Choice selected={!companyRun} onClick={() => setCompanyRun(false)}>A farm owner</Choice>
+              <Choice selected={companyRun} onClick={() => setCompanyRun(true)}>The company</Choice>
+            </div>
+          </Question>
         </>
       )}
 
@@ -109,11 +116,11 @@ function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps
           <div className="space-y-5 pt-4 text-center">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-11 w-11" aria-hidden /></div>
             <p className="text-2xl text-ink"><span className="font-semibold">{saved.name}</span> was added</p>
-            <p className="text-lg text-ink-muted">Next, add the person who owns and runs it. They sign in with their own email and password.</p>
+            <p className="text-lg text-ink-muted">{saved.companyRun ? 'The company runs this farm. Office accounts can record its work, and you can still add people to it later.' : 'Next, add the person who owns and runs it. They sign in with their own email and password.'}</p>
           </div>
           <div className="flex flex-col gap-3">
-            {onAddOwner && <Button type="button" size="lg" onClick={() => { onAddOwner(saved); onClose(); }}>Add the owner</Button>}
-            <Button type="button" size="lg" variant="secondary" onClick={onClose}>Later</Button>
+            {onAddOwner && !saved.companyRun && <Button type="button" size="lg" onClick={() => { onAddOwner(saved); onClose(); }}>Add the owner</Button>}
+            <Button type="button" size="lg" variant={saved.companyRun ? 'default' : 'secondary'} onClick={onClose}>{saved.companyRun ? 'Done' : 'Later'}</Button>
           </div>
         </div>
       )}

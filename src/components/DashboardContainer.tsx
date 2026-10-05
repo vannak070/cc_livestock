@@ -64,7 +64,7 @@ import { costCategoriesFrom, type FarmCostInput } from '@/lib/farm-costs';
 import { ERPLivestockData, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import { ProposalPlanParams } from '@/types';
 import { SalesRecord } from '@/lib/xlsx-parser';
-import { hasPermission } from '@/lib/utils';
+import { canUsePlanning, hasPermission } from '@/lib/utils';
 import { canOpenPeople } from '@/lib/user-admin';
 import { scopeDataToFarm } from '@/lib/farm-view';
 import { readFocus, saveFocus, validFocus } from '@/lib/working-on';
@@ -470,11 +470,12 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     else if (activeTab === 'analytics') permissionKey = 'analytics_view';
     else if (activeTab === 'farms') permissionKey = 'farms_manage';
     else if (activeTab === 'feed-inventory') permissionKey = 'feed_view';
-    else if (activeTab === 'proposal-plan') permissionKey = 'analytics_view';
     else if (activeTab === 'costs') permissionKey = 'costs_view';
 
-    // Settings is also a farm owner's People page, so it has its own rule.
-    const blocked = activeTab === 'settings' ? !canOpenPeople(currentUser) : !!permissionKey && !hasPermission(currentUser, permissionKey);
+    // Settings is also a farm owner's People page, and Planning is for a few roles only, so they have their own rules.
+    const blocked = activeTab === 'settings' ? !canOpenPeople(currentUser)
+      : activeTab === 'proposal-plan' ? !canUsePlanning(currentUser)
+      : !!permissionKey && !hasPermission(currentUser, permissionKey);
     if (blocked && activeTab !== 'today') {
       setActiveTab('today');
     }

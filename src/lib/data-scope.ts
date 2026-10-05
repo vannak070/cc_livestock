@@ -1,6 +1,7 @@
 import { ERPLivestockData } from './types';
 import { Actor, can, redactSettingsFor } from './authz';
 import { scopeDataToFarm } from './farm-view';
+import { canUsePlanning } from './utils';
 
 /**
  * Trims the full dataset down to what this user is allowed to receive.
@@ -12,7 +13,9 @@ export function scopeDataForActor(data: ERPLivestockData, actor: Actor): ERPLive
   const settings = redactSettingsFor(actor, data.settings);
   // Running costs only go to people allowed to see them.
   const farmCosts = can(actor, 'costs_view') ? data.farmCosts ?? [] : [];
-  if (!actor.farmLocation) return { ...data, settings, farmCosts }; // not tied to a farm: sees every farm
+  // Plans only go to the Planning roles (Super Admin, Admin, Management).
+  const proposalPlans = canUsePlanning(actor) ? data.proposalPlans ?? [] : [];
+  if (!actor.farmLocation) return { ...data, settings, farmCosts, proposalPlans }; // not tied to a farm: sees every farm
 
-  return { ...scopeDataToFarm({ ...data, farmCosts }, actor.farmLocation), settings };
+  return { ...scopeDataToFarm({ ...data, farmCosts }, actor.farmLocation), settings, proposalPlans };
 }

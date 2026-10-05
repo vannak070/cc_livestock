@@ -137,7 +137,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
   // Read-only oversight: sees every report, changes nothing. This is the
   // role intended for PIN sign-in on the mobile app, so it deliberately
   // holds no create/edit/delete permission at all — a shorter credential
-  // must not unlock a wider set of actions.
+  // must not unlock a wider set of actions. The one exception is Planning
+  // (PLANNING_ROLES in lib/utils.ts): Management may save and delete plans,
+  // which never change the real herd.
   'Management': ['dashboard_view', 'stock_view', 'batch_view', 'weight_view', 'health_view', 'sales_view', 'costs_view', 'analytics_view', 'feed_view']
 };
 
@@ -181,6 +183,8 @@ export interface FarmItem {
   address?: string;
   capacity?: number;
   notes?: string;
+  /** Run by the company itself: office accounts do its work, so having no farm owner is normal. */
+  companyRun?: boolean;
 }
 
 export interface MasterSetup {

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyAuthToken, AuthTokenPayload } from '../lib/jwt';
 import { Actor, loadActor, can } from '../lib/authz';
 import { PermissionKey } from '../lib/types';
+import { canUsePlanning } from '../lib/utils';
 
 export interface AuthedRequest extends Request {
   authUser?: AuthTokenPayload;
@@ -52,4 +53,13 @@ export function requirePermission(...anyOf: PermissionKey[]) {
     }
     res.status(403).json({ success: false, message: 'You do not have permission to perform this action.', data: null });
   };
+}
+
+// Must run after requireAuth. Planning is only for Super Admin, Admin and Management.
+export function requirePlanningAccess(req: AuthedRequest, res: Response, next: NextFunction): void {
+  if (req.actor && canUsePlanning(req.actor)) {
+    next();
+    return;
+  }
+  res.status(403).json({ success: false, message: 'Planning is only for Super Admin, Admin and Management.', data: null });
 }

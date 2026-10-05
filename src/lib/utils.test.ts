@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasPermission } from './utils';
+import { canUsePlanning, hasPermission } from './utils';
 
 describe('hasPermission', () => {
   it('denies everything without a user', () => {
@@ -26,5 +26,17 @@ describe('hasPermission', () => {
     expect(hasPermission({ role: 'Management' }, 'dashboard_view')).toBe(true);
     expect(hasPermission({ role: 'Management' }, 'stock_delete')).toBe(false);
     expect(hasPermission({ role: 'No Such Role' }, 'dashboard_view')).toBe(false);
+  });
+});
+
+describe('canUsePlanning', () => {
+  it('allows only Super Admin, Admin and Management, whatever their access list says', () => {
+    expect(canUsePlanning({ role: 'Super Admin' })).toBe(true);
+    expect(canUsePlanning({ role: 'Admin' })).toBe(true);
+    expect(canUsePlanning({ role: 'Management' })).toBe(true);
+    for (const role of ['Company', 'Company Admin', 'Farm Owner', 'Farm Staff', 'Veterinarian', '']) {
+      expect(canUsePlanning({ role })).toBe(false);
+    }
+    expect(canUsePlanning(null)).toBe(false);
   });
 });

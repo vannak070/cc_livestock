@@ -65,3 +65,17 @@ describe('deleteFarm', () => {
     expect(deleteFarm(base(), 'nope').farms).toHaveLength(2);
   });
 });
+
+describe('company-run farms', () => {
+  it('saves the company-run flag, and clears it again when edited', () => {
+    const added = saveFarm(base(), input({ name: 'Company Farm', companyRun: true }), null, newId);
+    const farm = added.farms.find(f => f.name === 'Company Farm')!;
+    expect(farm.companyRun).toBe(true);
+    const cleared = saveFarm({ farms: added.farms }, input({ name: 'Company Farm', companyRun: false }), farm, newId).farms.find(f => f.id === farm.id)!;
+    expect(cleared.companyRun).toBeUndefined();
+  });
+  it('a farm that is not company-run has no flag', () => {
+    expect(saveFarm(base(), input({ name: 'Plain' }), null, newId).farms.find(f => f.name === 'Plain')!.companyRun).toBeUndefined();
+  });
+});
+

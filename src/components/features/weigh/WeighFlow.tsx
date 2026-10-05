@@ -50,6 +50,8 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
   const [step, setStep] = useState<Step>(known ? 'kg' : canBatch ? 'kind' : 'pick');
   const [cowId, setCowId] = useState<string | null>(known?.id ?? null);
   const [query, setQuery] = useState('');
+  // Choosing a batch leaves this dialog for the group weigh-in, so that path only has two steps here.
+  const [viaBatch, setViaBatch] = useState(false);
   const [weight, setWeight] = useState('');
   const [health, setHealth] = useState(known?.healthStatus || statuses[0]);
   const [date, setDate] = useState(today());
@@ -72,7 +74,7 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
       .filter(c => c && (!q || c.id.toLowerCase().includes(q) || c.breed?.toLowerCase().includes(q)));
   }, [schedules, cowById, query]);
 
-  const steps: Step[] = known ? ['kg', 'check'] : canBatch ? ['kind', 'pick', 'kg', 'check'] : ['pick', 'kg', 'check'];
+  const steps: Step[] = known ? ['kg', 'check'] : canBatch ? (viaBatch ? ['kind', 'batch'] : ['kind', 'pick', 'kg', 'check']) : ['pick', 'kg', 'check'];
   const kg = Number(weight);
   const change = cow && kg > 0 && cow.weight ? Math.round((kg - cow.weight) * 10) / 10 : null;
 
@@ -108,7 +110,8 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
     } else if (step === 'check') save();
   };
 
-  const back = () => { setError(''); setStep(step === 'check' ? 'kg' : step === 'batch' ? 'kind' : canBatch && step === 'pick' ? 'kind' : 'pick'); };
+  const back = () => { setError(''); if (step === 'batch') setViaBatch(false); setStep(step === 'check' ? 'kg' : step === 'batch' ? 'kind' : canBatch && step === 'pick' ? 'kind' : 'pick'); };
+
 
   const another = () => { setCowId(null); setQuery(''); setWeight(''); setError(''); setStep(canBatch ? 'kind' : 'pick'); };
 
@@ -142,13 +145,13 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
       {step === 'kind' && (
         <ul className="space-y-3">
           <li>
-            <button type="button" onClick={() => setStep('pick')} className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600">
+            <button type="button" onClick={() => { setViaBatch(false); setStep('pick'); }} className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600">
               <span className="text-xl font-semibold text-ink">One animal</span>
               <span className="text-base text-ink-muted">Weigh and record a single animal.</span>
             </button>
           </li>
           <li>
-            <button type="button" onClick={() => setStep('batch')} className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600">
+            <button type="button" onClick={() => { setViaBatch(true); setStep('batch'); }} className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600">
               <span className="text-xl font-semibold text-ink">A whole batch</span>
               <span className="text-base text-ink-muted">One total for the group, each animal, or a 3-animal estimate.</span>
             </button>

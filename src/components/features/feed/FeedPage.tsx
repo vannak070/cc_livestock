@@ -110,7 +110,9 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
       .sort((a, b) => Number(b.isLow) - Number(a.isLow) || (a.daysLeft ?? 9999) - (b.daysLeft ?? 9999) || a.productName.localeCompare(b.productName));
   }, [levels, query]);
 
-  const lowItems = levels.filter(l => l.isLow);
+  // The banner asks someone to buy more, so someone who restocks only hears about what they can restock:
+  // a farm owner is not nagged about the office's default feeds. People who cannot restock still see everything.
+  const lowItems = levels.filter(l => l.isLow && (!canFeedIn || canManage || canEditProduct(currentUser, productById.get(l.productId) ?? { ownerFarm: undefined })));
   const stocked = levels.filter(l => l.tracked);
   const totalKg = stocked.reduce((s, l) => s + l.kg, 0);
   const totalBags = stocked.reduce((s, l) => s + l.bags, 0);

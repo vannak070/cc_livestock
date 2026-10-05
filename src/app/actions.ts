@@ -50,6 +50,7 @@ import { startSession, endSession } from '@/lib/session';
 import { scopeDataForActor } from '@/lib/data-scope';
 import { scopeFor } from '@/lib/farm-scope';
 import { farmGuard } from '@/lib/farm-guard';
+import { assertPlanningAccess } from '@/lib/authz';
 import { feedProductService } from '@/services/feed-product.service';
 
 // Every action below is a public endpoint as far as the network is
@@ -311,9 +312,15 @@ export async function deleteFarmAction(farmId: string) {
 }
 
 export async function saveProposalPlanAction(slot: number, name: string, params: ProposalPlanParams) {
-  return runAction('Failed to save plan', ['analytics_view'], actor => saveProposalPlan(slot, name, params, actor.name));
+  return runAction('Failed to save plan', [], actor => {
+    assertPlanningAccess(actor);
+    return saveProposalPlan(slot, name, params, actor.name);
+  });
 }
 
 export async function deleteProposalPlanAction(slot: number) {
-  return runAction('Failed to delete plan', ['analytics_view'], () => deleteProposalPlan(slot));
+  return runAction('Failed to delete plan', [], actor => {
+    assertPlanningAccess(actor);
+    return deleteProposalPlan(slot);
+  });
 }

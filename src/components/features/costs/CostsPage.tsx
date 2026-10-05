@@ -8,6 +8,7 @@ import type { FarmCostItem, FarmItem, UserRoleItem } from '@/lib/types';
 import { getErrorMessage, hasPermission } from '@/lib/utils';
 import { addDays, farmToday } from '@/lib/daily-feed';
 import { farmMatcher } from '@/lib/farm-scope';
+import { useCostText } from './useCostText';
 
 interface CostsPageProps {
   costs: FarmCostItem[];
@@ -19,18 +20,17 @@ interface CostsPageProps {
 
 type Period = 'this' | 'last' | 'all';
 const PERIODS: { key: Period; label: string }[] = [
-  { key: 'this', label: 'This month' },
-  { key: 'last', label: 'Last month' },
-  { key: 'all', label: 'All' },
+  { key: 'this', label: 'thisMonth' },
+  { key: 'last', label: 'lastMonth' },
+  { key: 'all', label: 'all' },
 ];
 
 const SELECT = 'h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-base text-ink focus:border-emerald-600 focus:outline-none';
 const PAGE = 30;
 const riel = (n: number) => `${Math.round(n).toLocaleString()} ៛`;
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const monthName = (key: string) => `${MONTHS[Number(key.slice(5, 7)) - 1]} ${key.slice(0, 4)}`;
 
 export default function CostsPage({ costs, currentUser, farms = [], onRecordCost, onDeleteCost }: CostsPageProps) {
+  const { text, category: label, monthName } = useCostText();
   const [period, setPeriod] = useState<Period>('this');
   const [farm, setFarm] = useState('');
   const [visible, setVisible] = useState(PAGE);
@@ -57,18 +57,18 @@ export default function CostsPage({ costs, currentUser, farms = [], onRecordCost
   }, [shown]);
   const max = Math.max(1, ...byCategory.map(c => c.amount));
 
-  const periodText = period === 'this' ? monthName(thisMonth) : period === 'last' ? monthName(lastMonth) : 'all time';
+  const periodText = period === 'this' ? monthName(thisMonth) : period === 'last' ? monthName(lastMonth) : text('allTime');
 
   const askDelete = (c: FarmCostItem) => setConfirm({
-    title: 'Delete this cost?',
-    description: `${c.category}, ${riel(c.amount)} on ${c.date} at ${c.farmLocation}. Only delete it if it was written down by mistake.`,
+    title: text('deleteTitle'),
+    description: text('deleteBody', { category: label(c.category), amount: riel(c.amount), date: c.date, farm: c.farmLocation }),
     type: 'danger',
-    confirmText: 'Delete',
+    confirmText: text('deleteConfirm'),
     onConfirm: async () => {
       try {
         await onDeleteCost(c.id);
       } catch (e) {
-        setConfirm({ title: 'Could not delete', description: getErrorMessage(e, 'Something went wrong.'), type: 'danger', confirmText: 'OK' });
+        setConfirm({ title: text('deleteFailed'), description: getErrorMessage(e, text('somethingWrong')), type: 'danger', confirmText: text('ok') });
       }
     },
   });
@@ -77,24 +77,24 @@ export default function CostsPage({ costs, currentUser, farms = [], onRecordCost
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">Costs</h2>
-          <p className="text-base text-ink-muted">Wages, power and water, fuel, repairs and other farm costs. Feed, medicine and cattle are counted from their own pages.</p>
+          <h2 className="text-2xl font-semibold text-ink">{text('title')}</h2>
+          <p className="text-base text-ink-muted">{text('intro')}</p>
         </div>
-        {canRecord && <Button size="lg" onClick={onRecordCost}><Receipt /> Record a cost</Button>}
+        {canRecord && <Button size="lg" onClick={onRecordCost}><Receipt /> {text('record')}</Button>}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div role="tablist" aria-label="Period" className="flex rounded-xl bg-slate-100 p-1">
+        <div role="tablist" aria-label={text('period')} className="flex rounded-xl bg-slate-100 p-1">
           {PERIODS.map(p => (
             <button key={p.key} role="tab" type="button" aria-selected={period === p.key} onClick={() => { setPeriod(p.key); setVisible(PAGE); }}
               className={`min-h-11 whitespace-nowrap rounded-lg px-3 text-base font-medium sm:px-5 ${period === p.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-              {p.label}
+              {text(p.label)}
             </button>
           ))}
         </div>
         {showFarmFilter && (
-          <select aria-label="Farm" value={farm} onChange={e => { setFarm(e.target.value); setVisible(PAGE); }} className={SELECT}>
-            <option value="">All farms</option>
+          <select aria-label={text('farm')} value={farm} onChange={e => { setFarm(e.target.value); setVisible(PAGE); }} className={SELECT}>
+            <option value="">{text('allFarms')}</option>
             {farms.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
           </select>
         )}
@@ -102,18 +102,18 @@ export default function CostsPage({ costs, currentUser, farms = [], onRecordCost
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-sm text-ink-muted">Running costs, {periodText}</p>
+          <p className="text-sm text-ink-muted">{text('totalFor', { period: periodText })}</p>
           <p className="mt-1 text-2xl font-semibold text-ink">{riel(total)}</p>
-          <p className="mt-0.5 text-sm text-ink-muted">{shown.length} {shown.length === 1 ? 'cost' : 'costs'} written down</p>
+          <p className="mt-0.5 text-sm text-ink-muted">{text(shown.length === 1 ? 'countOne' : 'countMany', { n: shown.length })}</p>
         </div>
         {byCategory.length > 0 && (
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h3 className="mb-3 text-lg font-semibold text-ink">What it went on</h3>
+            <h3 className="mb-3 text-lg font-semibold text-ink">{text('wentOn')}</h3>
             <ul className="space-y-3">
               {byCategory.map(c => (
                 <li key={c.category}>
                   <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-base text-ink">{c.category}</span>
+                    <span className="text-base text-ink">{label(c.category)}</span>
                     <span className="shrink-0 text-base font-medium text-ink">{riel(c.amount)}</span>
                   </div>
                   <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
@@ -128,8 +128,8 @@ export default function CostsPage({ costs, currentUser, farms = [], onRecordCost
 
       {shown.length === 0 ? (
         <div className="space-y-4 rounded-2xl bg-slate-50 p-8 text-center">
-          <p className="text-lg text-ink-muted">{costs.length === 0 ? 'No costs written down yet.' : `No costs for ${periodText}.`}</p>
-          {canRecord && costs.length === 0 && <Button size="lg" onClick={onRecordCost}><Receipt /> Record a cost</Button>}
+          <p className="text-lg text-ink-muted">{costs.length === 0 ? text('noneYet') : text('noneFor', { period: periodText })}</p>
+          {canRecord && costs.length === 0 && <Button size="lg" onClick={onRecordCost}><Receipt /> {text('record')}</Button>}
         </div>
       ) : (
         <>
@@ -137,14 +137,14 @@ export default function CostsPage({ costs, currentUser, farms = [], onRecordCost
             {shown.slice(0, visible).map(c => (
               <li key={c.id} className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 last:border-0">
                 <div className="min-w-0">
-                  <p className="text-lg font-semibold text-ink">{c.category}</p>
-                  <p className="text-base text-ink-muted">{[c.date, !currentUser?.farmLocation ? c.farmLocation : null, c.recordedBy ? `by ${c.recordedBy}` : null].filter(Boolean).join(' · ')}</p>
+                  <p className="text-lg font-semibold text-ink">{label(c.category)}</p>
+                  <p className="text-base text-ink-muted">{[c.date, !currentUser?.farmLocation ? c.farmLocation : null, c.recordedBy ? text('by', { name: c.recordedBy }) : null].filter(Boolean).join(' · ')}</p>
                   {c.note && <p className="mt-1 break-words text-base text-ink">{c.note}</p>}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <p className="text-lg font-semibold text-ink">{riel(c.amount)}</p>
                   {canDelete && (
-                    <button type="button" onClick={() => askDelete(c)} aria-label={`Delete ${c.category} cost of ${riel(c.amount)} on ${c.date}`}
+                    <button type="button" onClick={() => askDelete(c)} aria-label={text('deleteAria', { category: label(c.category), amount: riel(c.amount), date: c.date })}
                       className="flex h-11 w-11 items-center justify-center rounded-xl text-ink-muted hover:bg-rose-50 hover:text-rose-700">
                       <Trash2 className="h-5 w-5" aria-hidden />
                     </button>
@@ -155,7 +155,7 @@ export default function CostsPage({ costs, currentUser, farms = [], onRecordCost
           </ul>
           {shown.length > visible && (
             <div className="text-center">
-              <Button variant="outline" size="lg" onClick={() => setVisible(v => v + PAGE)}>Show more ({shown.length - visible} left)</Button>
+              <Button variant="outline" size="lg" onClick={() => setVisible(v => v + PAGE)}>{text('showMore', { n: shown.length - visible })}</Button>
             </div>
           )}
         </>

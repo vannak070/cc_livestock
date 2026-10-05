@@ -109,7 +109,13 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
             <h2 className="break-words text-2xl font-semibold text-ink">People on {peopleOf.name}</h2>
             <p className="text-base text-ink-muted">The owner runs the farm; staff and vets record the daily work. A farm has one owner.</p>
           </div>
-          {peopleOwners.length === 0 && (
+          {peopleOwners.length === 0 && peopleOf.companyRun && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4">
+              <p className="text-base text-ink">Run by the company, so no farm owner is needed. You can still add one.</p>
+              <Button variant="outline" onClick={() => setAdd({ farm: peopleOf, kind: 'owner' })}><UserPlus /> Add an owner</Button>
+            </div>
+          )}
+          {peopleOwners.length === 0 && !peopleOf.companyRun && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50 p-4">
               <p className="text-base text-amber-900">This farm has no owner yet.</p>
               <Button onClick={() => setAdd({ farm: peopleOf, kind: 'owner' })}><UserPlus /> Add the owner</Button>
@@ -122,6 +128,7 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
             settings={settings}
             actor={currentUser}
             farm={peopleOf.name}
+            companyRun={peopleOf.companyRun}
             onChanged={refresh}
             extraActions={u => (u.role !== 'Farm Owner' || peopleOwners.length > 1) && ['Farm Staff', 'Veterinarian', 'Farm Owner'].includes(u.role) && u.status === 'Active'
               ? <Button variant="outline" size="sm" onClick={() => askMakeOwner(peopleOf, u.id, u.name)}><Crown /> Make owner</Button>
@@ -158,6 +165,7 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="break-words text-2xl font-semibold text-ink">{farm.name}</h3>
+                    {farm.companyRun && <span className="mt-1 inline-block rounded-full bg-sky-100 px-3 py-0.5 text-sm font-medium text-sky-900">Run by the company</span>}
                     {farm.address && <p className="mt-1 flex items-start gap-1.5 text-base text-ink-muted"><MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> <span className="break-words">{farm.address}</span></p>}
                   </div>
                   <div className="flex shrink-0">
@@ -184,7 +192,9 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
                 <div className="border-t border-slate-100 pt-3 text-base">
                   <p className="text-ink-muted">Owner</p>
                   {owners.length === 0 ? (
-                    <p className="font-semibold text-amber-800">No owner yet</p>
+                    farm.companyRun
+                      ? <p className="font-semibold text-ink">Run by the company</p>
+                      : <p className="font-semibold text-amber-800">No owner yet</p>
                   ) : (
                     <>
                       <p className="font-semibold text-ink">{owners[0].name}</p>
@@ -195,7 +205,7 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => setPeopleOfId(farm.id)}><Users /> People ({people.length})</Button>
                     {onRecordFeed && farmBatches > 0 && <Button variant="outline" size="sm" onClick={() => onRecordFeed(farm.name)}><Wheat /> Record feed</Button>}
-                    {owners.length === 0 && <Button size="sm" onClick={() => setAdd({ farm, kind: 'owner' })}><UserPlus /> Add the owner</Button>}
+                    {owners.length === 0 && !farm.companyRun && <Button size="sm" onClick={() => setAdd({ farm, kind: 'owner' })}><UserPlus /> Add the owner</Button>}
                   </div>
                 </div>
                 {farm.notes && <p className="rounded-xl bg-slate-50 p-3 text-base text-ink">{farm.notes}</p>}

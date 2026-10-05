@@ -24,6 +24,7 @@ const data = {
   healthLogs: [{ cowId: 'A1' }, { cowId: 'B1' }],
   salesTracking: [{ cowId: 'A1' }, { cowId: 'B1' }],
   farmCosts: [{ id: 'C-A', farmLocation: 'Farm A' }, { id: 'C-B', farmLocation: 'Farm B' }],
+  proposalPlans: [{ slot: 1, name: 'Plan' }],
   common: { locations: ['Farm A', 'Farm B'] },
   settings: { users: [{ id: 'u', email: 'e@x.test' }], breeds: [] }
 } as unknown as ERPLivestockData;
@@ -60,6 +61,16 @@ describe('scopeDataForActor', () => {
     expect(scopeDataForActor(data, user({ farmLocation: 'Farm A', permissions: ['costs_view'] })).farmCosts?.map(c => c.id)).toEqual(['C-A']);
     expect(scopeDataForActor(data, user({ farmLocation: 'Farm A', role: 'Veterinarian', permissions: ['health_view'] })).farmCosts).toEqual([]);
     expect(scopeDataForActor(data, user({ role: 'Company', permissions: ['sales_view'] })).farmCosts).toEqual([]);
+  });
+
+  it('sends plans only to Super Admin, Admin and Management', () => {
+    for (const role of ['Super Admin', 'Admin', 'Management']) {
+      expect(scopeDataForActor(data, user({ role, permissions: [] })).proposalPlans).toHaveLength(1);
+    }
+    for (const role of ['Company', 'Farm Owner', 'Farm Staff', 'Veterinarian', 'Company Admin']) {
+      expect(scopeDataForActor(data, user({ role, permissions: ['analytics_view'] })).proposalPlans).toEqual([]);
+    }
+    expect(scopeDataForActor(data, user({ role: 'Farm Owner', farmLocation: 'Farm A', permissions: ['analytics_view'] })).proposalPlans).toEqual([]);
   });
 
   it('matches farm names case- and whitespace-insensitively', () => {

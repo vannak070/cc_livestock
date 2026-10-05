@@ -11,6 +11,8 @@ export interface FarmInput {
   address: string;
   capacity: number;
   notes: string;
+  /** Run by the company itself, with no separate farm owner. */
+  companyRun?: boolean;
 }
 
 export type FarmErrors = Partial<Record<'name' | 'capacity', string>>;
@@ -48,15 +50,15 @@ export function validateFarm(settings: Pick<MasterSetup, 'farms'>, input: FarmIn
  */
 export function saveFarm(settings: Pick<MasterSetup, 'farms'>, input: FarmInput, editing: FarmItem | null, newId: () => string): { farms: FarmItem[]; renamedFrom: string | null } {
   const name = input.name.trim();
-  const details = { name, address: input.address.trim(), capacity: input.capacity, notes: input.notes.trim() };
+  const details = { name, address: input.address.trim(), capacity: input.capacity, notes: input.notes.trim(), ...(input.companyRun ? { companyRun: true } : {}) };
   let farms = [...(settings.farms || [])];
 
   if (editing) {
     // Owner details used to be copied onto the farm; they live on the person now.
     farms = farms.map(f => {
       if (f.id !== editing.id) return f;
-      const { ownerName: _n, ownerEmail: _e, ...rest } = f;
-      void _n; void _e;
+      const { ownerName: _n, ownerEmail: _e, companyRun: _c, ...rest } = f; // companyRun is re-set from the input below
+      void _n; void _e; void _c;
       return { ...rest, ...details };
     });
     return { farms, renamedFrom: editing.name !== name ? editing.name : null };

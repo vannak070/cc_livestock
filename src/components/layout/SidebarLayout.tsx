@@ -24,7 +24,7 @@ import {
   Receipt
 } from 'lucide-react';
 import { UserRoleItem } from '@/lib/types';
-import { hasPermission } from '@/lib/utils';
+import { canUsePlanning, hasPermission } from '@/lib/utils';
 import { canOpenPeople, isFarmOwner } from '@/lib/user-admin';
 import { useLanguage } from '@/context/LanguageContext';
 import LanguageSwitcher from '../LanguageSwitcher';
@@ -168,7 +168,7 @@ export default function SidebarLayout({
   // "Office" pages are for people who look at money and reports; farm staff
   // and vets (who have none of these permissions) see only daily work.
   const showSummary = can('dashboard_view') && (can('sales_view') || can('analytics_view'));
-  const hasOffice = showSummary || can('sales_view') || can('analytics_view') || can('farms_manage') || canOpenPeople(currentUser);
+  const hasOffice = showSummary || can('sales_view') || can('analytics_view') || canUsePlanning(currentUser) || can('farms_manage') || canOpenPeople(currentUser);
 
   const userInitials = currentUser?.name
     ? currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
@@ -249,10 +249,10 @@ export default function SidebarLayout({
               <NavItem icon={<DollarSign className="h-5 w-5" />} label={tabLabels['sales-finance']} isActive={activeTab === 'sales-finance'} onClick={() => handleTabChange('sales-finance')} />
             )}
             {can('analytics_view') && (
-              <>
-                <NavItem icon={<PieChart className="h-5 w-5" />} label={tabLabels['analytics']} isActive={activeTab === 'analytics'} onClick={() => handleTabChange('analytics')} />
-                <NavItem icon={<Calculator className="h-5 w-5" />} label={tabLabels['proposal-plan']} isActive={activeTab === 'proposal-plan'} onClick={() => handleTabChange('proposal-plan')} />
-              </>
+              <NavItem icon={<PieChart className="h-5 w-5" />} label={tabLabels['analytics']} isActive={activeTab === 'analytics'} onClick={() => handleTabChange('analytics')} />
+            )}
+            {canUsePlanning(currentUser) && (
+              <NavItem icon={<Calculator className="h-5 w-5" />} label={tabLabels['proposal-plan']} isActive={activeTab === 'proposal-plan'} onClick={() => handleTabChange('proposal-plan')} />
             )}
             {can('farms_manage') && (
               <NavItem icon={<Building className="h-5 w-5" />} label={tabLabels['farms']} isActive={activeTab === 'farms'} onClick={() => handleTabChange('farms')} />

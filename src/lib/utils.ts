@@ -6,6 +6,17 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Planning (fattening plans) is for these roles only, whatever access a
+ * person or a custom role has been given: farm accounts and other office
+ * roles never see it. Checked on the server too (authz.ts).
+ */
+export const PLANNING_ROLES: readonly string[] = ['Super Admin', 'Admin', 'Management'];
+
+export function canUsePlanning(user: { role?: string } | null | undefined): boolean {
+  return !!user?.role && PLANNING_ROLES.includes(user.role);
+}
+
 export function hasPermission(
   currentUser: { role?: string; permissions?: readonly string[] } | null | undefined,
   key: PermissionKey

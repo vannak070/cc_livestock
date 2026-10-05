@@ -49,7 +49,7 @@ const SEARCH_FROM = 9;
  * farms or breeds) becomes full-width rows that never clip a long name, with a
  * search box once it is long enough to need one.
  */
-export function PickList({ options, value, onChange, labelFor = o => o }: { options: string[]; value: string; onChange: (v: string) => void; labelFor?: (o: string) => string }) {
+export function PickList({ options, value, onChange, labelFor = o => o, searchText = 'Search', searchAria = 'Search the list', noMatchText = 'Nothing matches that.' }: { options: string[]; value: string; onChange: (v: string) => void; labelFor?: (o: string) => string; searchText?: string; searchAria?: string; noMatchText?: string }) {
   const [q, setQ] = useState('');
   if (options.length <= MAX_BUTTONS) {
     return (
@@ -65,7 +65,7 @@ export function PickList({ options, value, onChange, labelFor = o => o }: { opti
       {options.length >= SEARCH_FROM && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
-          <Input value={q} onChange={e => setQ(e.target.value)} placeholder="Search" aria-label="Search the list" className="h-12 pl-10 text-lg" />
+          <Input value={q} onChange={e => setQ(e.target.value)} placeholder={searchText} aria-label={searchAria} className="h-12 pl-10 text-lg" />
         </div>
       )}
       <ul className="space-y-2">
@@ -82,7 +82,7 @@ export function PickList({ options, value, onChange, labelFor = o => o }: { opti
             </button>
           </li>
         ))}
-        {shown.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">Nothing matches that.</li>}
+        {shown.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">{noMatchText}</li>}
       </ul>
     </div>
   );
@@ -111,7 +111,7 @@ export function FlowFooter({ onBack, label, busy }: { onBack?: () => void; label
   );
 }
 
-export function FlowDone({ message, detail, again, onAgain, onClose }: { message: React.ReactNode; detail?: React.ReactNode; again: string; onAgain: () => void; onClose: () => void }) {
+export function FlowDone({ message, detail, again, onAgain, onClose, doneText = "I'm done" }: { message: React.ReactNode; detail?: React.ReactNode; again: string; onAgain: () => void; onClose: () => void; doneText?: string }) {
   return (
     <div className="flex h-full flex-col justify-between gap-6">
       <div className="space-y-5 pt-4 text-center">
@@ -123,7 +123,7 @@ export function FlowDone({ message, detail, again, onAgain, onClose }: { message
       </div>
       <div className="flex flex-col gap-3">
         <Button type="button" size="lg" onClick={onAgain}>{again}</Button>
-        <Button type="button" size="lg" variant="secondary" onClick={onClose}>I&apos;m done</Button>
+        <Button type="button" size="lg" variant="secondary" onClick={onClose}>{doneText}</Button>
       </div>
     </div>
   );

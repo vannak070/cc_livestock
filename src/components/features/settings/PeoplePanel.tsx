@@ -21,6 +21,8 @@ interface PeoplePanelProps {
   farm?: string;
   /** Extra buttons on a person's card, such as Make owner. */
   extraActions?: (u: UserRoleItem) => React.ReactNode;
+  /** The farm is run by the company, so an empty list does not ask for an owner. */
+  companyRun?: boolean;
   /** Opens the Farms page, where farm people are managed; given only to people who may open it. */
   onOpenFarms?: () => void;
 }
@@ -34,7 +36,7 @@ async function ok<T>(res: { success: true; data: T } | { success: false; error: 
 const SELECT = 'h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-base text-ink focus:border-emerald-600 focus:outline-none';
 const norm = (s?: string) => (s ?? '').trim().toLowerCase();
 
-export default function PeoplePanel({ settings, actor, onChanged, farm, extraActions, onOpenFarms }: PeoplePanelProps) {
+export default function PeoplePanel({ settings, actor, onChanged, farm, companyRun, extraActions, onOpenFarms }: PeoplePanelProps) {
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [status, setStatus] = useState<'All' | 'Active' | 'Inactive'>('All');
@@ -164,7 +166,7 @@ export default function PeoplePanel({ settings, actor, onChanged, farm, extraAct
       </div>
 
       {list.length === 0 ? (
-        <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{all.length === 0 ? (mode === 'farm' ? 'No one works on this farm yet. Add the owner first.' : 'No one yet. Add the first person.') : 'No one matches what you chose.'}</p>
+        <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{all.length === 0 ? (mode === 'farm' ? (companyRun ? 'No one works on this farm yet. The company runs it, so you can add staff when you need them.' : 'No one works on this farm yet. Add the owner first.') : 'No one yet. Add the first person.') : 'No one matches what you chose.'}</p>
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {list.map(u => {

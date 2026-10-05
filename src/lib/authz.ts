@@ -1,5 +1,5 @@
 import { settingsRepository } from '../repositories/settings.repository';
-import { hasPermission } from './utils';
+import { canUsePlanning, hasPermission } from './utils';
 import { isFarmOwner, visibleUsers } from './user-admin';
 import { MasterSetup, PermissionKey, UserRoleItem } from './types';
 
@@ -31,6 +31,11 @@ export function can(actor: Actor, key: PermissionKey): boolean {
 export function assertPermission(actor: Actor, ...anyOf: PermissionKey[]): void {
   if (anyOf.length === 0 || anyOf.some(key => can(actor, key))) return;
   throw new AuthzError('You do not have permission to perform this action.', 403);
+}
+
+/** Planning is only for Super Admin, Admin and Management (see PLANNING_ROLES). */
+export function assertPlanningAccess(actor: Actor): void {
+  if (!canUsePlanning(actor)) throw new AuthzError('Planning is only for Super Admin, Admin and Management.', 403);
 }
 
 /** Who may see and change the account roster (Settings → Users, Farms → owners). */
