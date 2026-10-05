@@ -1,6 +1,7 @@
 import { alertSettings } from '../lib/alerts';
 import { addDays, farmToday } from '../lib/daily-feed';
-import { alertsDue, buildSaleAlertMessage, planSaleAlerts } from '../lib/sale-alerts';
+import { alertsDue, batchAlertDetail, buildSaleAlertHeader, buildSaleAlertMessages, planSaleAlerts } from '../lib/sale-alerts';
+import { MAX_MESSAGES } from '../lib/sale-alerts';
 import { saleReviewRows, saleWindowDays } from '../lib/sale-review';
 import { alertLogRepository } from '../repositories/alert-log.repository';
 import { batchRepository } from '../repositories/batch.repository';
@@ -55,19 +56,33 @@ export class SaleAlertService {
       return { sent: 0, skipped: 'nothing-new' };
     }
 
-    const claimed = await alertLogRepository.claim(plan, today);
+    // Newest-worst first, and no more than one go's worth of messages; the rest follow on the next check.
+    const claimed = await alertLogRepository.claim(plan.slice(0, MAX_MESSAGES), today);
     if (claimed.length === 0) return { sent: 0, skipped: 'nothing-new' }; // another server just sent them
-    const message = buildSaleAlertMessage(claimed.map(c => c.item), { today, windowDays, appUrl: process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '') || undefined });
-    const ids = claimed.map(c => c.id);
+    const claimIds = new Map(claimed.map(c => [c.item, c.id]));
+    const { items } = buildSaleAlertMessages(
+      claimed.map(c => c.item),
+      alert => batchAlertDetail(alert.row.batch, stock, weights, today),
+      { today, appUrl: process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '') || undefined }
+    );
+    // The header counts everything due, even the batches that follow on a later check.
+    const headerText = plan.length > 1 ? buildSaleAlertHeader(plan, { today, sending: claimed.length }) : null;
+
+    let sent = 0;
     try {
-      await telegramService.send(cfg.chatId, message);
-      await alertLogRepository.confirm(ids);
-      await this.markRun(null, claimed.length);
-      return { sent: claimed.length };
+      if (headerText) await telegramService.send(cfg.chatId, headerText);
+      for (const item of items) {
+        await telegramService.send(cfg.chatId, item.text);
+        await alertLogRepository.confirm([claimIds.get(item.alert)!]);
+        sent++;
+      }
+      await this.markRun(null, sent);
+      return { sent };
     } catch (err) {
-      await alertLogRepository.release(ids);
+      // What went out stays recorded; only the batches not yet sent are given back to try again.
+      await alertLogRepository.release(items.slice(sent).map(i => claimIds.get(i.alert)!));
       const text = err instanceof Error ? err.message : 'Telegram could not be reached.';
-      await this.markRun(text).catch(() => undefined);
+      await this.markRun(text, sent || undefined).catch(() => undefined);
       throw err;
     }
   }

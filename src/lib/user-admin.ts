@@ -60,6 +60,15 @@ export function officeRoleNames(roles: CustomRoleDefinition[]): string[] {
  * still carry keys of removed features (the old expenses_* ones), which must
  * not count ("27 of 24").
  */
+/**
+ * Only the permissions that exist today, each once. Stored roles and people can
+ * still carry keys of removed features (the old expenses_* ones); they grant
+ * nothing, so they are dropped rather than checked or saved.
+ */
+export function knownPermissions(perms: readonly string[] | undefined): PermissionKey[] {
+  return [...new Set((perms || []).filter((p): p is PermissionKey => (ALL_PERMISSIONS as readonly string[]).includes(p)))];
+}
+
 export function knownPermissionCount(perms: readonly string[] | undefined): number {
   return new Set((perms || []).filter(p => (ALL_PERMISSIONS as readonly string[]).includes(p))).size;
 }
@@ -139,7 +148,7 @@ export function validatePerson(settings: Pick<MasterSetup, 'users' | 'roles' | '
   }
 
   const before = editing ? effectivePermissions(editing, roles) : [];
-  const notHeld = input.permissions.filter(p => !before.includes(p) && !hasPermission(actor, p));
+  const notHeld = knownPermissions(input.permissions).filter(p => !before.includes(p) && !hasPermission(actor, p));
   if (notHeld.length > 0) errors.permissions = `You cannot give access you do not have yourself (${notHeld.join(', ')}).`;
 
   // Nobody changes their own role, farm or access, so no one can lock themselves
@@ -176,7 +185,7 @@ export function validateRole(settings: Pick<MasterSetup, 'roles'>, input: RoleIn
   else if (rolesOf(settings).some(r => r.id !== editing?.id && norm(r.name) === norm(name))) errors.name = `There is already a role called "${name}".`;
   if (input.permissions.length === 0) errors.permissions = 'Choose at least one thing this role can do.';
   const before = editing?.permissions ?? [];
-  const notHeld = input.permissions.filter(p => !before.includes(p) && !hasPermission(actor, p));
+  const notHeld = knownPermissions(input.permissions).filter(p => !before.includes(p) && !hasPermission(actor, p));
   if (notHeld.length > 0) errors.permissions = `You cannot give access you do not have yourself (${notHeld.join(', ')}).`;
   return errors;
 }

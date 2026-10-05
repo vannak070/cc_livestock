@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assignableRoles, canChangeUser, canOpenPeople, followsRole, isOfficePerson, officeRoleNames, deleteRole, grantable, roleDeleteBlock, rolesOf, saveRole, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
+import { assignableRoles, canChangeUser, canOpenPeople, followsRole, isOfficePerson, knownPermissions, officeRoleNames, deleteRole, grantable, roleDeleteBlock, rolesOf, saveRole, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
 import { ALL_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS, type MasterSetup, type UserRoleItem } from '@/types/settings.types';
 
 const user = (id: string, role: string, farmLocation?: string, email = `${id}@x.com`): UserRoleItem => ({ id, name: id, email, role, status: 'Active', farmLocation });
@@ -51,6 +51,13 @@ describe('validatePerson', () => {
     const s = settings();
     const st = s.users.find(u => u.id === 'st')!;
     expect(validatePerson(s, input({ email: 'st@x.com' }), st, sa)).toEqual({});
+  });
+  it('ignores permission keys of removed features instead of refusing them', () => {
+    // A stored Management role that still lists the old expenses_view key.
+    const company = { id: 'co', name: 'Co', email: 'co@x.com', role: 'Company', status: 'Active' as const, permissions: [...ALL_PERMISSIONS] };
+    const stale = [...DEFAULT_ROLE_PERMISSIONS['Management'], 'expenses_view'] as never[];
+    expect(validatePerson(settings(), input({ role: 'Management', farmLocation: '', permissions: stale }), null, company).permissions).toBeUndefined();
+    expect(knownPermissions(['stock_view', 'expenses_view', 'stock_view'])).toEqual(['stock_view']);
   });
   it('needs a farm for farm roles but not for office roles', () => {
     expect(validatePerson(settings(), input({ farmLocation: '' }), null, sa).farmLocation).toBeTruthy();

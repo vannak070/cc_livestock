@@ -15,6 +15,7 @@ import { proposalPlanService } from '../services/proposal-plan.service';
 import { userAdminService } from '../services/user-admin.service';
 import { farmService } from '../services/farm.service';
 import { farmCostService } from '../services/farm-cost.service';
+import { farmLoanService } from '../services/farm-loan.service';
 import type { PersonInput } from './user-admin';
 import type { FarmInput } from './farm-settings';
 import { FeedProductItem, FeedStockTransaction, ProposalPlanParams, ProposalPlanRecord } from './types';
@@ -96,7 +97,7 @@ async function requireDb<T>(operation: string, run: () => Promise<T>): Promise<T
  */
 export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
   try {
-    const [stock, weightTracking, salesTracking, batches, healthLogs, settings, feedProducts, feedTransactions, proposalPlans, farmCosts] = await Promise.all([
+    const [stock, weightTracking, salesTracking, batches, healthLogs, settings, feedProducts, feedTransactions, proposalPlans, farmCosts, farmLoans] = await Promise.all([
       stockService.getAllStock(scope),
       weightService.getAllWeightRecords(scope),
       salesService.getAllSales(scope),
@@ -107,7 +108,9 @@ export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
       feedRepository.getTransactions().catch(() => []),
       proposalPlanRepository.findAll().catch(() => []),
       // Empty until migration 008 has created the table.
-      farmCostService.getAll(scope).catch(() => [])
+      farmCostService.getAll(scope).catch(() => []),
+      // Only the Planning roles get loans (data-scope.ts), and they are never tied to one farm.
+      scope ? Promise.resolve([]) : farmLoanService.getAll().catch(() => [])
     ]);
 
     const common = {
@@ -133,7 +136,8 @@ export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
       feedProducts: feedProducts || [],
       feedTransactions: feedTransactions || [],
       proposalPlans,
-      farmCosts
+      farmCosts,
+      farmLoans
     };
 
     // Reads must not write. Feed only leaves stock when a farm or the office

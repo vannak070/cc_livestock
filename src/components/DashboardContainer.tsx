@@ -32,6 +32,8 @@ import {
   deleteProposalPlanAction,
   addFarmCostAction,
   deleteFarmCostAction,
+  saveFarmLoanAction,
+  deleteFarmLoanAction,
   logoutAction
 } from '@/app/actions';
 import { useRouter } from 'next/navigation';
@@ -381,6 +383,24 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     }
   });
 
+  const saveFarmLoanMutation = useMutation({
+    mutationFn: async ({ farm, terms, assumptions, notes }: { farm: string; terms: Parameters<typeof saveFarmLoanAction>[1]; assumptions: Parameters<typeof saveFarmLoanAction>[2]; notes: string }) => {
+      const res = await saveFarmLoanAction(farm, terms, assumptions, notes);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
+  });
+
+  const deleteFarmLoanMutation = useMutation({
+    mutationFn: async (farm: string) => {
+      const res = await deleteFarmLoanAction(farm);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
+  });
+
   const addFeedTransactionMutation = useMutation({
     mutationFn: async (tx: FeedStockTransaction) => {
       const res = await addFeedTransactionAction(tx);
@@ -698,6 +718,15 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           }}
           onDeletePlan={async (slot) => {
             await deleteProposalPlanMutation.mutateAsync(slot);
+          }}
+          farms={dbData.settings?.farms ?? []}
+          loans={dbData.farmLoans ?? []}
+          data={dbData}
+          onSaveLoan={async (farm, terms, assumptions, notes) => {
+            await saveFarmLoanMutation.mutateAsync({ farm, terms, assumptions, notes });
+          }}
+          onDeleteLoan={async farm => {
+            await deleteFarmLoanMutation.mutateAsync(farm);
           }}
         />
       )}

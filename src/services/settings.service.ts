@@ -3,6 +3,7 @@ import { CustomRoleDefinition, MasterSetup, PermissionKey } from '../lib/types';
 import { withTransaction } from '../config/database';
 import { Actor, AuthzError, assertPermission, can, redactSettingsFor } from '../lib/authz';
 import { costCategoriesProblem } from '../lib/farm-costs';
+import { knownPermissions } from '../lib/user-admin';
 import { saleWindowProblem } from '../lib/sale-review';
 import { alertSettings, alertSettingsProblem } from '../lib/alerts';
 
@@ -107,7 +108,7 @@ export class SettingsService {
       if (names.has(r.name.trim().toLowerCase())) throw new Error(`There is already a role called "${r.name}".`);
       names.add(r.name.trim().toLowerCase());
       const old = before.find(b => b.id === r.id);
-      const notHeld = (r.permissions || []).filter(p => !(old?.permissions ?? []).includes(p) && !can(actor, p));
+      const notHeld = knownPermissions(r.permissions).filter(p => !(old?.permissions ?? []).includes(p) && !can(actor, p));
       if (notHeld.length > 0) throw new AuthzError(`You cannot give a role access you do not have yourself (${notHeld.join(', ')}).`, 403);
     }
     return { renames, access };

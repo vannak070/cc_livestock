@@ -15,7 +15,8 @@ export function scopeDataForActor(data: ERPLivestockData, actor: Actor): ERPLive
   const farmCosts = can(actor, 'costs_view') ? data.farmCosts ?? [] : [];
   // Plans only go to the Planning roles (Super Admin, Admin, Management).
   const proposalPlans = canUsePlanning(actor) ? data.proposalPlans ?? [] : [];
-  if (!actor.farmLocation) return { ...data, settings, farmCosts, proposalPlans }; // not tied to a farm: sees every farm
+  const farmLoans = canUsePlanning(actor) ? data.farmLoans ?? [] : [];
+  if (!actor.farmLocation) return { ...data, settings, farmCosts, proposalPlans, farmLoans }; // not tied to a farm: sees every farm
 
-  return { ...scopeDataToFarm({ ...data, farmCosts }, actor.farmLocation), settings, proposalPlans };
+  return { ...scopeDataToFarm({ ...data, farmCosts }, actor.farmLocation), settings, proposalPlans, farmLoans };
 }

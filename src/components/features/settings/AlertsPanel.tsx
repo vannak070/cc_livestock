@@ -5,8 +5,9 @@ import { Send, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { MasterSetup } from '@/types/settings.types';
-import { findTelegramChatsAction, sendTelegramTestAction, telegramStatusAction } from '@/app/actions';
+import { findTelegramChatsAction, runSaleAlertsAction, sendTelegramTestAction, telegramStatusAction } from '@/app/actions';
 import { alertSettings, alertSettingsProblem } from '@/lib/alerts';
+import { saleWindowDays } from '@/lib/sale-review';
 import { getErrorMessage } from '@/lib/utils';
 import { Choice } from '../flow/FlowShell';
 
@@ -30,7 +31,7 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
   const [status, setStatus] = useState<Status>(null);
   const [chats, setChats] = useState<Chat[] | null>(null);
   const [message, setMessage] = useState<{ tone: 'ok' | 'bad'; text: string } | null>(null);
-  const [busy, setBusy] = useState<'' | 'save' | 'find' | 'test'>('');
+  const [busy, setBusy] = useState<'' | 'save' | 'find' | 'test' | 'run'>('');
 
   useEffect(() => {
     let live = true;
@@ -74,6 +75,16 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
     say(res.success ? 'ok' : 'bad', res.success ? 'Test message sent. Check your Telegram group.' : res.error);
   };
 
+  const runNow = async () => {
+    setBusy('run');
+    setMessage(null);
+    const res = await runSaleAlertsAction();
+    setBusy('');
+    if (!res.success) { say('bad', res.error); return; }
+    say('ok', res.data.sent > 0 ? `Sent an alert for ${res.data.sent} ${res.data.sent === 1 ? 'batch' : 'batches'}.` : 'Nothing new to send: every batch near its selling date has already been reported.');
+  };
+
+  const last = settings.alertStatus;
   const connected = status?.configured && !status.error && status.bot;
 
   return (
@@ -136,6 +147,21 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
           <Button type="button" size="lg" variant="outline" onClick={test} disabled={!connected || !saved.chatId || dirty || busy !== ''}><Send /> {busy === 'test' ? 'Sending…' : 'Send test message'}</Button>
         </div>
         {dirty && saved.chatId && <p className="text-base text-ink-muted">Save your changes before sending a test.</p>}
+      </section>
+
+      <section className="space-y-3 rounded-2xl border-2 border-slate-200 bg-white p-4">
+        <h3 className="text-lg font-semibold text-ink">What is sent</h3>
+        <ul className="list-disc space-y-1 pl-5 text-base text-ink">
+          <li>One message a day, at the hour above, only when something is new.</li>
+          <li>A batch is reported when it comes within {saleWindowDays(settings)} days of its selling date, again at 7 days, and when it passes the date.</li>
+          <li>While a batch stays past its date and nobody has decided, a reminder follows every 3 days.</li>
+          <li>A batch marked &quot;Ready to sell&quot; is never reported. Choosing &quot;Keep feeding&quot; with a new date starts it over.</li>
+        </ul>
+        <p className="text-base text-ink-muted">Change how many days ahead in Settings, Lists, Selling reminder.</p>
+        {last?.lastSentAt && <p className="text-base text-ink">Last alert: {last.lastSentAt.slice(0, 16).replace('T', ' ')} UTC, {last.lastSentCount ?? 0} {last.lastSentCount === 1 ? 'batch' : 'batches'}.</p>}
+        {last?.lastError && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-base text-rose-800">The last attempt failed: {last.lastError}. It tries again every 10 minutes.</p>}
+        <Button type="button" size="lg" variant="outline" onClick={runNow} disabled={!connected || !saved.telegramEnabled || !saved.chatId || dirty || busy !== ''}>{busy === 'run' ? 'Checking…' : 'Check and send now'}</Button>
+        {!saved.telegramEnabled && <p className="text-base text-ink-muted">Switch alerts on and save to use this.</p>}
       </section>
     </div>
   );

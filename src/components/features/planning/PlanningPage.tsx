@@ -4,28 +4,36 @@ import React, { useMemo, useState } from 'react';
 import { Copy, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
-import type { ProposalPlanParams, ProposalPlanRecord } from '@/types';
+import type { ERPLivestockData, FarmItem, FarmLoanAssumptions, FarmLoanRecord, FarmLoanTerms, ProposalPlanParams, ProposalPlanRecord } from '@/types';
 import { MAX_PLANS } from '@/types';
 import { calculatePlan } from '@/lib/proposal-plan';
 import { getErrorMessage } from '@/lib/utils';
 import PlanEditor from './PlanEditor';
 import PlanComparison from './PlanComparison';
+import FarmLoansPanel from './FarmLoansPanel';
+import FarmLoanEditor from './FarmLoanEditor';
 
 interface PlanningPageProps {
   /** The saved plans, in any order; each has its own slot from 1 to 10. */
   plans: ProposalPlanRecord[];
   onSavePlan: (slot: number, name: string, params: ProposalPlanParams) => Promise<void>;
   onDeletePlan: (slot: number) => Promise<void>;
+  farms: FarmItem[];
+  loans: FarmLoanRecord[];
+  /** The farms' records, for starting a loan plan from real numbers. */
+  data: ERPLivestockData;
+  onSaveLoan: (farm: string, terms: FarmLoanTerms, assumptions: FarmLoanAssumptions, notes: string) => Promise<void>;
+  onDeleteLoan: (farm: string) => Promise<void>;
 }
 
-type Tab = 'plans' | 'compare';
-type View = { kind: 'list' } | { kind: 'edit'; slot: number; startFrom?: ProposalPlanParams };
+type Tab = 'loans' | 'plans' | 'compare';
+type View = { kind: 'list' } | { kind: 'edit'; slot: number; startFrom?: ProposalPlanParams } | { kind: 'loan'; farm: string };
 
 const riel = (n: number) => `${n < 0 ? '−' : ''}${Math.round(Math.abs(n)).toLocaleString()} ៛`;
 const day = (iso: string) => iso.slice(0, 10);
 
-export default function PlanningPage({ plans, onSavePlan, onDeletePlan }: PlanningPageProps) {
-  const [tab, setTab] = useState<Tab>('plans');
+export default function PlanningPage({ plans, onSavePlan, onDeletePlan, farms, loans, data, onSaveLoan, onDeleteLoan }: PlanningPageProps) {
+  const [tab, setTab] = useState<Tab>('loans');
   const [view, setView] = useState<View>({ kind: 'list' });
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger'; confirmText: string; onConfirm?: () => void }>(null);
   const [error, setError] = useState('');
@@ -34,6 +42,24 @@ export default function PlanningPage({ plans, onSavePlan, onDeletePlan }: Planni
   const saved = useMemo(() => [...plans].sort((a, b) => a.slot - b.slot), [plans]);
   // A new plan takes the lowest free slot, and only shows in the list once it is saved.
   const firstEmpty = Array.from({ length: MAX_PLANS }, (_, i) => i + 1).find(n => !bySlot.has(n));
+
+  if (view.kind === 'loan') {
+    const farm = farms.find(f => f.name === view.farm);
+    if (farm) {
+      const loan = loans.find(l => l.farmLocation === farm.name);
+      return (
+        <FarmLoanEditor
+          key={`${farm.name}-${loan?.updatedAt ?? 'new'}`}
+          farm={farm}
+          loan={loan}
+          data={data}
+          onBack={() => setView({ kind: 'list' })}
+          onSave={(terms, assumptions, notes) => onSaveLoan(farm.name, terms, assumptions, notes)}
+          onDelete={async () => { await onDeleteLoan(farm.name); setView({ kind: 'list' }); }}
+        />
+      );
+    }
+  }
 
   if (view.kind === 'edit') {
     const slot = view.slot;
@@ -76,13 +102,13 @@ export default function PlanningPage({ plans, onSavePlan, onDeletePlan }: Planni
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-semibold text-ink">Planning</h2>
-          <p className="text-base text-ink-muted">Up to {MAX_PLANS} fattening plans to try and compare. They do not change your real herd.</p>
+          <p className="text-base text-ink-muted">Each farm’s bank loan over 24 months, and up to {MAX_PLANS} fattening plans to compare. Nothing here changes your real herd.</p>
         </div>
-        {firstEmpty !== undefined && <Button size="lg" onClick={() => setView({ kind: 'edit', slot: firstEmpty })}><Plus /> New plan</Button>}
+        {tab !== 'loans' && firstEmpty !== undefined && <Button size="lg" onClick={() => setView({ kind: 'edit', slot: firstEmpty })}><Plus /> New plan</Button>}
       </div>
 
       <div role="tablist" aria-label="Planning" className="flex rounded-xl bg-slate-100 p-1 sm:w-fit">
-        {([['plans', `Plans (${plans.length} of ${MAX_PLANS})`], ['compare', 'Compare']] as [Tab, string][]).map(([k, label]) => (
+        {([['loans', `Farm loans (${loans.length})`], ['plans', `Plans (${plans.length} of ${MAX_PLANS})`], ['compare', 'Compare']] as [Tab, string][]).map(([k, label]) => (
           <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)}
             className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-4 text-base font-medium sm:px-6 ${tab === k ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
             {label}
@@ -91,6 +117,8 @@ export default function PlanningPage({ plans, onSavePlan, onDeletePlan }: Planni
       </div>
 
       {error && <p role="alert" className="text-base font-medium text-rose-700">{error}</p>}
+
+      {tab === 'loans' && <FarmLoansPanel farms={farms} loans={loans} onOpen={f => setView({ kind: 'loan', farm: f.name })} />}
 
       {tab === 'plans' && (
         saved.length === 0 ? (

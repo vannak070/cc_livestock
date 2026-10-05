@@ -5,6 +5,7 @@ import { MasterSetup } from './settings.types';
 import { FeedProductItem, FeedStockTransaction } from './feed.types';
 import { ProposalPlanRecord } from './proposal.types';
 import { FarmCostItem } from './cost.types';
+import { FarmLoanRecord } from './loan.types';
 
 export * from './stock.types';
 export * from './batch.types';
@@ -13,6 +14,7 @@ export * from './settings.types';
 export * from './feed.types';
 export * from './proposal.types';
 export * from './cost.types';
+export * from './loan.types';
 
 export interface ERPLivestockData {
   stock: StockItem[];
@@ -26,4 +28,5 @@ export interface ERPLivestockData {
   feedTransactions?: FeedStockTransaction[];
   proposalPlans?: ProposalPlanRecord[];
   farmCosts?: FarmCostItem[];
+  farmLoans?: FarmLoanRecord[];
 }
