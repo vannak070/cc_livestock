@@ -30,13 +30,13 @@ import {
 import { useRouter } from 'next/navigation';
 import SidebarLayout, { ActiveTabType, RecordAction } from './layout/SidebarLayout';
 import TodayTab from './TodayTab';
-import DashboardHome from './DashboardHome';
+import SummaryPage from './features/summary/SummaryPage';
 import BatchesPage from './features/batch/BatchesPage';
 import FeedPage from './features/feed/FeedPage';
 import HealthPage from './features/health/HealthPage';
 import WeightsPage from './features/weight/WeightsPage';
 import SalesPage from './features/sales/SalesPage';
-import AnalyticsTab from './AnalyticsTab';
+import ReportsPage from './features/reports/ReportsPage';
 import ProposalPlanTab from './ProposalPlanTab';
 import SettingsTab from './SettingsTab';
 import FarmsTab from './FarmsTab';
@@ -405,7 +405,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       )}
 
       {activeTab === 'dashboard' && (
-        <DashboardHome
+        <SummaryPage
           data={dbData}
           onNavigateToTab={(tab) => setActiveTab(tab)}
         />
@@ -540,7 +540,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       )}
 
       {activeTab === 'analytics' && (
-        <AnalyticsTab
+        <ReportsPage
           data={dbData}
           currentUser={currentUser}
           farms={dbData.settings?.farms ?? []}
