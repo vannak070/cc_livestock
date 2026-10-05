@@ -66,20 +66,46 @@ export async function connectWithRetry(maxRetries = 10, initialDelayMs = 1000): 
   return false;
 }
 
+/**
+ * True when getting a connection failed, so the query never reached the
+ * database and running it again is safe (also for writes). This happens for a
+ * moment when Docker or the Mac wakes up, or the pool is briefly busy.
+ */
+export function isConnectFailure(error: unknown): boolean {
+  const e = error as { message?: string; code?: string } | null;
+  return !!e && (e.code === 'ECONNREFUSED' || /timeout exceeded when trying to connect/i.test(e.message ?? ''));
+}
+
+const RETRY_DELAY_MS = 500;
+const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/** Runs `fn` once more after a short pause if it failed only because no connection could be made. */
+async function retryConnect<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: unknown) {
+    if (!isConnectFailure(error)) throw error;
+    console.warn('[Database] Could not get a connection, trying once more...');
+    await pause(RETRY_DELAY_MS);
+    return fn();
+  }
+}
+
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[]
 ): Promise<QueryResult<T>> {
   const start = Date.now();
   try {
-    const res = await pool.query<T>(text, params);
+    const res = await retryConnect(() => pool.query<T>(text, params));
     const duration = Date.now() - start;
     if (process.env.NODE_ENV !== 'production' && duration > 200) {
       console.log(`[Database Slow Query] Executed query in ${duration}ms: ${text.slice(0, 100)}`);
     }
     return res;
   } catch (error: unknown) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
+    // A refused connection arrives with an empty message and only a code.
+    const errorMsg = (error instanceof Error ? error.message : String(error)) || (error as { code?: string })?.code || 'unknown error';
     console.error(`[Database Query Error] Query failed: ${errorMsg} | SQL: ${text}`);
     throw error;
   }
@@ -88,7 +114,7 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
 export async function withTransaction<T>(
   callback: (client: PoolClient) => Promise<T>
 ): Promise<T> {
-  const client = await pool.connect();
+  const client = await retryConnect(() => pool.connect());
   try {
     await client.query('BEGIN');
     const result = await callback(client);
