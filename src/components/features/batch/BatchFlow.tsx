@@ -182,7 +182,7 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
           <Question label="Start date"><Input aria-label="Start date" type="date" value={start} onChange={e => { setStart(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
           <Question label="Plan to sell by (optional)"><Input aria-label="Sell date" type="date" value={target} min={start} onChange={e => { setTarget(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
           <Question label="Hoped-for price for each kg (៛, optional)">
-            <Input aria-label="Price for each kg" type="number" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)} className={`h-14 text-lg ${NUM}`} />
+            <Input aria-label="Price for each kg" type="number" step="any" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)} className={`h-14 text-lg ${NUM}`} />
           </Question>
         </>
       )}

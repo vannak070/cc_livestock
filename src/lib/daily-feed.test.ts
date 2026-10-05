@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  addDays, amountText, dailyFeedProblem, dailyFeedReport, farmRations, farmToday, feedDayStatus, kgPerUnit, missedFeedDays, parseFeedRef, recordedUnits, todayNotRecorded, unlinkedRationFeeds
+  addDays, amountText, dailyFeedProblem, dailyFeedReport, farmHeadCount, farmRations, farmToday, feedDayStatus, kgPerUnit, missedFeedDays, parseFeedRef, recordedUnits, todayNotRecorded, unlinkedRationFeeds
 } from './daily-feed';
 import type { BatchItem, FeedProductItem, FeedStockTransaction } from './types';
 import type { StockItem } from './xlsx-parser';
@@ -111,5 +111,12 @@ describe('alerts for days nobody wrote down', () => {
   it('points out plan feeds that are not in the feed list', () => {
     expect(unlinkedRationFeeds([b()], [dsr]).map(u => u.names)).toEqual([['Fresh Grass']]);
     expect(unlinkedRationFeeds([b()], [dsr, grass])).toEqual([]);
+  });
+});
+
+describe('farmHeadCount', () => {
+  it('counts the cattle on the farm and how many are in a fed batch', () => {
+    const extra = [...stock, cow('C9', 'Female'), { ...cow('X1', 'Male'), location: 'Other' } as StockItem];
+    expect(farmHeadCount('SNR Farm', [batch()], extra)).toEqual({ onFarm: 4, bulls: 2, cows: 2, inFedBatches: 2 });
   });
 });

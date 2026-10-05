@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import type { BatchItem, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import type { StockItem } from '@/lib/xlsx-parser';
 import {
-  addDays, amountText, farmRations, farmToday, farmsToRecord, feedUnit, kgPerUnit, recordedUnits, round1, unitWord,
+  addDays, amountText, farmHeadCount, farmRations, farmToday, farmsToRecord, feedUnit, kgPerUnit, recordedUnits, round1, unitWord,
   type DailyFeedInput
 } from '@/lib/daily-feed';
 import { Choice, FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, money } from '../flow/FlowShell';
@@ -89,6 +89,7 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
   }
   const totals = [...totalsBy.values()];
   const totalCost = totals.reduce((s, t) => s + t.kg * (t.product.unitCost || 0), 0);
+  const heads = farm ? farmHeadCount(farm, batches, stock) : null;
   const unlinked = rations.flatMap(r => r.items.filter(i => !i.product).map(i => ({ batch: r.batch.name, name: i.name })));
 
   const steps: Step[] = ['where', 'amounts', 'check'];
@@ -181,6 +182,12 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
 
       {step === 'amounts' && (
         <div className="space-y-4 pb-2">
+          {heads && (
+            <div className="rounded-xl bg-slate-50 p-3 text-base text-ink">
+              <p><span className="font-semibold">{heads.onFarm} cattle</span> on {farm} in the app ({heads.bulls} bulls, {heads.cows} cows){heads.inFedBatches !== heads.onFarm ? `, ${heads.inFedBatches} of them in a batch being fed` : ''}.</p>
+              <p className="text-ink-muted">Different from your count? Update the cattle list (sold, dead or moved animals){heads.inFedBatches < heads.onFarm ? ' or add the others to a batch' : ''}.</p>
+            </div>
+          )}
           {unlinked.length > 0 && (
             <p className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">
               {unlinked.map(u => `${u.name} (${u.batch})`).join(', ')} {unlinked.length === 1 ? 'is' : 'are'} not in your feed list, so {unlinked.length === 1 ? 'it' : 'they'} cannot be recorded. Open the batch, Feeding tab, tap the pencil and choose the feed.

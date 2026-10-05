@@ -385,7 +385,7 @@ export default function WeightsPage({ data, onOpenLogWeight, onDeleteWeightRecor
             <form onSubmit={e => { e.preventDefault(); saveEdit(); }} className="space-y-5">
               <label className="block">
                 <span className="mb-1 block text-lg font-medium text-ink">Weight (kg)</span>
-                <Input type="number" inputMode="decimal" autoFocus value={editing.weight} onChange={e => { setEditing({ ...editing, weight: e.target.value }); setEditError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+                <Input type="number" step="any" inputMode="decimal" autoFocus value={editing.weight} onChange={e => { setEditing({ ...editing, weight: e.target.value }); setEditError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
               </label>
               <div>
                 <p className="mb-2 text-lg font-medium text-ink">Health</p>

@@ -403,7 +403,7 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
               <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Given by</span><Input value={editing.by} onChange={e => { setEditing({ ...editing, by: e.target.value }); setEditError(''); }} className="h-14 text-lg" /></label>
               <div className="grid grid-cols-2 gap-3">
                 <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Date</span><Input type="date" value={editing.date} onChange={e => setEditing({ ...editing, date: e.target.value })} className="h-14 text-lg" /></label>
-                <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Cost (៛)</span><Input type="number" inputMode="numeric" value={editing.cost} onChange={e => setEditing({ ...editing, cost: e.target.value })} className={`h-14 text-lg ${NUM}`} /></label>
+                <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Cost (៛)</span><Input type="number" step="any" inputMode="numeric" value={editing.cost} onChange={e => setEditing({ ...editing, cost: e.target.value })} className={`h-14 text-lg ${NUM}`} /></label>
               </div>
               <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Note</span><Input value={editing.notes} onChange={e => setEditing({ ...editing, notes: e.target.value })} className="h-14 text-lg" /></label>
               {editError && <p role="alert" className="text-base font-medium text-rose-700">{editError}</p>}

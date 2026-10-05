@@ -116,6 +116,34 @@ export function farmRations(farm: string, batches: BatchItem[], stock: StockItem
     .sort((a, b) => a.batch.name.localeCompare(b.batch.name));
 }
 
+export interface FarmHeadCount {
+  /** Cattle the app has on the farm now (status Active). */
+  onFarm: number;
+  bulls: number;
+  cows: number;
+  /** Of those, how many are in a batch being fed (and so in the daily feed record). */
+  inFedBatches: number;
+}
+
+/**
+ * The app's head count for a farm, to compare with the farm's own count. A
+ * difference means the cattle list is out of date (a sale, death or move not
+ * entered) or some animals are in no batch being fed.
+ */
+export function farmHeadCount(farm: string, batches: BatchItem[], stock: StockItem[]): FarmHeadCount {
+  const here = stock.filter(c => c.location === farm && c.status.toLowerCase() === 'active');
+  const ids = new Set(here.map(c => c.id));
+  const fed = new Set(batches
+    .filter(b => b.status === 'Active' && b.farmLocation === farm && b.feedingProgram?.status === 'Active')
+    .flatMap(b => (b.cowIds || []).filter(id => ids.has(id))));
+  return {
+    onFarm: here.length,
+    bulls: here.filter(c => /^m/i.test(c.sex ?? '')).length,
+    cows: here.filter(c => /^f/i.test(c.sex ?? '')).length,
+    inFedBatches: fed.size,
+  };
+}
+
 /** Farms that have something to record: an active batch with feeding on. */
 export function farmsToRecord(batches: BatchItem[]): string[] {
   return [...new Set(batches
@@ -235,6 +263,8 @@ export interface DailyFeedReportRow {
   cost: number;
   /** Treatments logged that day for cattle on the farm. */
   treatments: number;
+  /** All cattle on the farm now, in or out of a fed batch. */
+  onFarm: number;
 }
 
 /**
@@ -260,6 +290,7 @@ export function dailyFeedReport(
     const head = rations.reduce((s, r) => s + r.head, 0);
     const bulls = rations.reduce((s, r) => s + r.bulls, 0);
     const cows = rations.reduce((s, r) => s + r.cows, 0);
+    const { onFarm } = farmHeadCount(farm, data.batches, data.stock);
     for (let day = to; day >= from; day = addDays(day, -1)) {
       const status = feedDayStatus(transactions, batchIds, day);
       const items = new Map<string, DailyFeedReportItem>();
@@ -285,6 +316,7 @@ export function dailyFeedReport(
         kg: list.reduce((s, i) => s + i.kg, 0),
         cost: list.reduce((s, i) => s + i.cost, 0),
         treatments,
+        onFarm,
       });
     }
   }

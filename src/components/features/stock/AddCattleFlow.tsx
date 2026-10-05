@@ -226,7 +226,7 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }:
                 <Input aria-label="Tag number" value={tag} onChange={e => { setTag(e.target.value); setError(''); }} autoFocus className="h-16 text-2xl font-semibold" />
               </Question>
               <Question label="Weight (kg)">
-                <Input aria-label="Weight in kg" type="number" inputMode="decimal" value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+                <Input aria-label="Weight in kg" type="number" step="any" inputMode="decimal" value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
               </Question>
             </>
           )}
@@ -271,7 +271,7 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }:
                 </div>
               </Question>
               <Question label={buyType === perKgType ? 'Price for each kg (៛)' : 'Price paid (៛)'}>
-                <Input aria-label="Price" type="number" inputMode="numeric" autoFocus value={price} onChange={e => { setPrice(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+                <Input aria-label="Price" type="number" step="any" inputMode="numeric" autoFocus value={price} onChange={e => { setPrice(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
                 <p className="mt-3 rounded-xl bg-slate-50 p-3 text-lg text-ink">
                   Total: <span className="font-semibold">{money(total)}</span>
                   {buyType === perKgType && kg > 0 && <span className="text-ink-muted"> ({kg} kg × {money(unit)})</span>}

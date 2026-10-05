@@ -133,7 +133,7 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
       </ul>
       {sample[role].cowId && (
         <Question label={`Weight of ${sample[role].cowId} (kg)`}>
-          <Input aria-label="Weight in kg" type="number" inputMode="decimal" value={sample[role].weight} onChange={e => { setSample({ ...sample, [role]: { ...sample[role], weight: e.target.value } }); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+          <Input aria-label="Weight in kg" type="number" step="any" inputMode="decimal" value={sample[role].weight} onChange={e => { setSample({ ...sample, [role]: { ...sample[role], weight: e.target.value } }); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
         </Question>
       )}
     </>
@@ -182,7 +182,7 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
                   <p className="text-xl font-semibold text-ink">{c.id}</p>
                   <p className="text-base text-ink-muted">{c.weight ? `Last ${c.weight} kg` : 'Not weighed'}</p>
                 </div>
-                <Input aria-label={`Weight of ${c.id} in kg`} type="number" inputMode="decimal" value={typed[c.id] ?? ''} onChange={e => { setTyped({ ...typed, [c.id]: e.target.value }); setError(''); }} placeholder="kg" className={`h-14 w-28 text-center text-xl font-semibold ${NUM}`} />
+                <Input aria-label={`Weight of ${c.id} in kg`} type="number" step="any" inputMode="decimal" value={typed[c.id] ?? ''} onChange={e => { setTyped({ ...typed, [c.id]: e.target.value }); setError(''); }} placeholder="kg" className={`h-14 w-28 text-center text-xl font-semibold ${NUM}`} />
               </li>
             ))}
             {shown.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">No animal with that tag.</li>}

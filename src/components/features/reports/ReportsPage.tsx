@@ -330,10 +330,10 @@ function Forecast({ batch, data, products }: { batch: BatchItem; data: ERPLivest
     <div className="space-y-4">
       <section className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-3">
         <label className="block"><span className="mb-1 block text-base font-medium text-ink">Sell on</span><Input type="date" value={sellBy} onChange={e => setSellBy(e.target.value)} className="h-12 text-lg" /></label>
-        <label className="block"><span className="mb-1 block text-base font-medium text-ink">Price for each kg (៛)</span><Input type="number" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)} className={`h-12 text-lg ${NUM}`} /></label>
+        <label className="block"><span className="mb-1 block text-base font-medium text-ink">Price for each kg (៛)</span><Input type="number" step="any" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)} className={`h-12 text-lg ${NUM}`} /></label>
         <label className="block">
           <span className="mb-1 block text-base font-medium text-ink">Daily gain (kg each)</span>
-          <Input type="number" inputMode="decimal" value={gain} onChange={e => setGain(e.target.value)} className={`h-12 text-lg ${NUM}`} />
+          <Input type="number" step="any" inputMode="decimal" value={gain} onChange={e => setGain(e.target.value)} className={`h-12 text-lg ${NUM}`} />
           <span className="mt-1 block text-sm text-ink-muted">{summary.perDay !== null ? `Measured so far: ${summary.perDay} kg` : 'Not measured yet. Weigh the group twice.'}</span>
         </label>
       </section>

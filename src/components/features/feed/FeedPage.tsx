@@ -153,7 +153,8 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
       { header: 'Farm', key: 'farm' },
       { header: 'Status', key: 'statusText' },
       { header: 'Recorded by', key: 'recordedBy' },
-      { header: 'Head now', key: 'head' },
+      { header: 'Head in fed batches now', key: 'head' },
+      { header: 'On the farm now', key: 'onFarm' },
       { header: 'Bulls', key: 'bulls' },
       { header: 'Cows', key: 'cows' },
       { header: 'Feed', key: 'feed' },
@@ -350,7 +351,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-xl font-semibold text-ink">{dayLabel(r.day)}{r.day === todayDay ? ' (today)' : ''}</p>
-                        <p className="text-base text-ink-muted">{r.farm} · {r.head} head now{r.bulls || r.cows ? ` (${r.bulls} bulls, ${r.cows} cows)` : ''}</p>
+                        <p className="text-base text-ink-muted">{r.farm} · {r.head} head in fed batches now{r.bulls || r.cows ? ` (${r.bulls} bulls, ${r.cows} cows)` : ''}{r.onFarm !== r.head ? ` · ${r.onFarm} on the farm` : ''}</p>
                       </div>
                       <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${STATUS_STYLE[r.status]}`}>{STATUS_TEXT[r.status]}</span>
                     </div>

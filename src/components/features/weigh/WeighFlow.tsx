@@ -164,7 +164,7 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
 
       {step === 'kg' && cow && (
         <Question label="Weight (kg)">
-          <Input aria-label="Weight in kg" type="number" inputMode="decimal" autoFocus value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
+          <Input aria-label="Weight in kg" type="number" step="any" inputMode="decimal" autoFocus value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
           <p className="mt-3 text-lg text-ink-muted">
             {cow.weight ? `Last weight: ${cow.weight} kg` : 'No earlier weight on record'}
             {change !== null && (

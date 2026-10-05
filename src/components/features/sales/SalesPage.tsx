@@ -250,9 +250,9 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
                 </div>
               </div>
               {editing.perKg && (
-                <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Weight (kg)</span><Input type="number" inputMode="decimal" value={editing.weight} onChange={e => { setEditing({ ...editing, weight: e.target.value }); setEditError(''); }} className={`h-14 text-lg ${NUM}`} /></label>
+                <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Weight (kg)</span><Input type="number" step="any" inputMode="decimal" value={editing.weight} onChange={e => { setEditing({ ...editing, weight: e.target.value }); setEditError(''); }} className={`h-14 text-lg ${NUM}`} /></label>
               )}
-              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{editing.perKg ? 'Price for each kg (៛)' : 'Price paid (៛)'}</span><Input type="number" inputMode="numeric" value={editing.price} onChange={e => { setEditing({ ...editing, price: e.target.value }); setEditError(''); }} className={`h-14 text-lg ${NUM}`} /></label>
+              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{editing.perKg ? 'Price for each kg (៛)' : 'Price paid (៛)'}</span><Input type="number" step="any" inputMode="numeric" value={editing.price} onChange={e => { setEditing({ ...editing, price: e.target.value }); setEditError(''); }} className={`h-14 text-lg ${NUM}`} /></label>
               <p className="rounded-xl bg-slate-50 p-3 text-lg text-ink">Total: <span className="font-semibold">{riel(editTotal > 0 ? editTotal : 0)}</span></p>
               <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Buyer</span><Input value={editing.buyer} onChange={e => setEditing({ ...editing, buyer: e.target.value })} className="h-14 text-lg" /></label>
               <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Date sold</span><Input type="date" value={editing.date} onChange={e => setEditing({ ...editing, date: e.target.value })} className="h-14 text-lg" /></label>

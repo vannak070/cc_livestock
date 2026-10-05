@@ -206,7 +206,7 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
         <>
           <Question label="Given by"><Input aria-label="Given by" value={by} onChange={e => { setBy(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
           <Question label="Date"><Input aria-label="Date" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" /></Question>
-          <Question label="Cost for each animal (៛, optional)"><Input aria-label="Cost for each animal" type="number" inputMode="numeric" value={cost} onChange={e => setCost(e.target.value)} className={`h-14 text-lg ${NUM}`} /></Question>
+          <Question label="Cost for each animal (៛, optional)"><Input aria-label="Cost for each animal" type="number" step="any" inputMode="numeric" value={cost} onChange={e => setCost(e.target.value)} className={`h-14 text-lg ${NUM}`} /></Question>
           <Question label="Note (optional)"><Input aria-label="Note" value={notes} onChange={e => setNotes(e.target.value)} className="h-14 text-lg" /></Question>
         </>
       )}

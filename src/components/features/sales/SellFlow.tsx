@@ -162,7 +162,7 @@ function SellBody({ onClose, cattle, preselectedCowId, onWeigh, onSell }: SellFl
           </Question>
           {perKg && (
             <Question label="Weight on the scale (kg)" hint={cow.weight ? `Last weight: ${cow.weight} kg` : undefined}>
-              <Input aria-label="Weight on the scale in kg" type="number" inputMode="decimal" value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+              <Input aria-label="Weight on the scale in kg" type="number" step="any" inputMode="decimal" value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
             </Question>
           )}
         </>
@@ -170,7 +170,7 @@ function SellBody({ onClose, cattle, preselectedCowId, onWeigh, onSell }: SellFl
 
       {step === 'price' && (
         <Question label={perKg ? 'Price for each kg (៛)' : 'Price the buyer pays (៛)'}>
-          <Input aria-label="Price" type="number" inputMode="numeric" autoFocus value={price} onChange={e => { setPrice(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+          <Input aria-label="Price" type="number" step="any" inputMode="numeric" autoFocus value={price} onChange={e => { setPrice(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
           <p className="mt-3 rounded-xl bg-slate-50 p-3 text-lg text-ink">
             Total: <span className="font-semibold">{money(total > 0 ? total : 0)}</span>
             {perKg && kg > 0 && unit > 0 && <span className="text-ink-muted"> ({kg} kg × {money(unit)})</span>}
