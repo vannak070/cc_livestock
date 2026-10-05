@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'livestock-backend-api',
+      name: 'cc-livestock-api',
       script: 'node_modules/.bin/tsx',
       args: 'src/server/index.ts',
       env: {
@@ -10,7 +10,7 @@ module.exports = {
       }
     },
     {
-      name: 'livestock-frontend-ui',
+      name: 'cc-livestock-web',
       script: 'node_modules/.bin/next',
       args: 'start -p 3000',
       env: {

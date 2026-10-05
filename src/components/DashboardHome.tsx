@@ -5,10 +5,11 @@ import { ERPLivestockData } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Activity, ShieldAlert, Calendar, DollarSign, Scale, Beef, TrendingUp, ArrowRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from 'recharts';
+import type { ActiveTabType } from './layout/SidebarLayout';
 
 interface DashboardHomeProps {
   data: ERPLivestockData;
-  onNavigateToTab: (tab: any) => void;
+  onNavigateToTab: (tab: ActiveTabType) => void;
 }
 
 export default function DashboardHome({ data, onNavigateToTab }: DashboardHomeProps) {
@@ -39,8 +40,8 @@ export default function DashboardHome({ data, onNavigateToTab }: DashboardHomePr
 
   // Total revenue from fattening sales
   const totalRevenue = data.salesTracking.reduce((sum, s) => sum + (s.totalPrice || 0), 0);
-  const totalExpenses = data.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const netProfit = totalRevenue - totalExpenses;
+  const totalAcquisitionCost = data.stock.reduce((sum, c) => sum + (c.totalPrice || 0), 0);
+  const netProfit = totalRevenue - totalAcquisitionCost;
 
   // Average weight gain across active cattle
   const recentWeights = data.weightTracking.slice(-30);
@@ -203,16 +204,16 @@ export default function DashboardHome({ data, onNavigateToTab }: DashboardHomePr
           <p className="text-[10px] opacity-60 mt-1">From {soldCows.length} fattened cattle sold</p>
         </div>
         <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm">
-          <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Total Expenses</p>
-          <p className="text-2xl font-black mt-1 text-rose-500">៛ {totalExpenses.toLocaleString()}</p>
-          <p className="text-[10px] text-slate-400 mt-1">Feed, medical, labor & operations</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Cattle Acquisition Cost</p>
+          <p className="text-2xl font-black mt-1 text-rose-500">៛ {totalAcquisitionCost.toLocaleString()}</p>
+          <p className="text-[10px] text-slate-400 mt-1">Purchase cost of all cattle</p>
         </div>
         <div className={`p-5 rounded-2xl shadow-sm border ${netProfit >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Net Profit / Loss</p>
           <p className={`text-2xl font-black mt-1 ${netProfit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
             {netProfit >= 0 ? '+' : ''}៛ {netProfit.toLocaleString()}
           </p>
-          <p className="text-[10px] text-slate-400 mt-1">Revenue minus total expenditure</p>
+          <p className="text-[10px] text-slate-400 mt-1">Sales revenue minus acquisition cost</p>
         </div>
       </div>
 
@@ -235,7 +236,7 @@ export default function DashboardHome({ data, onNavigateToTab }: DashboardHomePr
                 <Tooltip
                   contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '10px', fontSize: '11px' }}
                   itemStyle={{ color: '#059669', fontWeight: 'bold' }}
-                  formatter={(v: any) => [`${v}K ៛`, 'Revenue']}
+                  formatter={v => [`${v}K ៛`, 'Revenue']}
                 />
                 <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} name="Revenue (K ៛)" />
               </BarChart>
@@ -268,7 +269,7 @@ export default function DashboardHome({ data, onNavigateToTab }: DashboardHomePr
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-800">{c.id}</p>
-                    <p className="text-[10px] text-slate-400 font-semibold">{c.breed} • {c.sex} • {(c as any).currentWeight ?? '—'} kg</p>
+                    <p className="text-[10px] text-slate-400 font-semibold">{c.breed} • {c.sex} • {c.weight ?? '—'} kg</p>
                   </div>
                 </div>
                 <div className="text-right">

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Plus, Trash2, Tag, Check, AlertCircle } from 'lucide-react';
 import { updateSettingsAction } from '@/app/actions';
 import { MasterSetup } from '@/lib/types';
+import { getErrorMessage } from '@/lib/utils';
 
 interface FeedCategoryModalProps {
   isOpen: boolean;
@@ -74,8 +75,8 @@ export const FeedCategoryModal: React.FC<FeedCategoryModalProps> = ({
       } else {
         setErrorMsg(res.error || 'Failed to save categories.');
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error updating settings.');
+    } catch (err) {
+      setErrorMsg(getErrorMessage(err, 'Error updating settings.'));
     } finally {
       setIsSaving(false);
     }

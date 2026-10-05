@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Layers, CheckCircle2, UserPlus, Edit2 } from 'lucide-react';
 
-import { FarmItem } from '@/lib/types';
+import { FarmItem, UserRoleItem } from '@/lib/types';
 
 interface BatchModalProps {
   isOpen: boolean;
@@ -15,7 +15,7 @@ interface BatchModalProps {
   unassignedCows: StockItem[];
   batchTypes?: string[];
   initialBatch?: BatchItem | null;
-  currentUser?: any;
+  currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 

@@ -6,8 +6,7 @@ import {
   FeedProductItem, 
   FeedStockTransaction, 
   FeedBalanceItem, 
-  FarmItem 
-} from '@/lib/types';
+  FarmItem, UserRoleItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
@@ -40,13 +39,14 @@ import FarmFilterBar from './FarmFilterBar';
 import { TablePagination } from './common/TablePagination';
 import { exportToExcel } from '@/lib/excel-export';
 import { DateRangeFilterBar } from './common/DateRangeFilterBar';
+import { useOnChange } from '@/hooks/useOnChange';
 
 interface FeedInventoryTabProps {
   data: ERPLivestockData;
   onSaveProduct: (product: FeedProductItem) => Promise<void>;
   onDeleteProduct: (productId: string) => Promise<void>;
-  onAddTransaction: (tx: FeedStockTransaction, postToExpenses?: boolean) => Promise<void>;
-  currentUser?: any;
+  onAddTransaction: (tx: FeedStockTransaction) => Promise<void>;
+  currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 
@@ -82,11 +82,10 @@ export default function FeedInventoryTab({
   const [endDate, setEndDate] = useState('');
 
   // Reset page when filters change
-  React.useEffect(() => {
-    setBalancePage(1);
-    setProductPage(1);
-    setTxPage(1);
-  }, [searchQuery, categoryFilter, txTypeFilter, batchFilter, selectedFarm, balanceViewMode, balancePageSize, productPageSize, txPageSize, startDate, endDate]);
+  useOnChange(
+    JSON.stringify([searchQuery, categoryFilter, txTypeFilter, batchFilter, selectedFarm, balanceViewMode, balancePageSize, productPageSize, txPageSize, startDate, endDate]),
+    () => { setBalancePage(1); setProductPage(1); setTxPage(1); }
+  );
 
   // Modal States
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -318,10 +317,8 @@ export default function FeedInventoryTab({
     let matchesBatch = true;
     if (batchFilter) {
       const bq = batchFilter.toLowerCase().trim();
-      const tBatchId = (t as any).targetBatchId ? (t as any).targetBatchId.toLowerCase() : '';
-      const tBatchName = (t as any).targetBatchName ? (t as any).targetBatchName.toLowerCase() : '';
       const tNotes = t.notes ? t.notes.toLowerCase() : '';
-      matchesBatch = tBatchId.includes(bq) || tBatchName.includes(bq) || tNotes.includes(bq);
+      matchesBatch = tNotes.includes(bq);
     }
 
     let matchesDate = true;
@@ -657,7 +654,7 @@ export default function FeedInventoryTab({
               type="button"
               onClick={() => {
                 exportToExcel({
-                  filename: `LiveStock_Feed_Stock_Balances_${new Date().toISOString().split('T')[0]}.xlsx`,
+                  filename: `CC_Livestock_Feed_Stock_Balances_${new Date().toISOString().split('T')[0]}.xlsx`,
                   sheetName: 'Feed Stock Balances',
                   data: filteredBalances,
                   columns: [
@@ -768,7 +765,7 @@ export default function FeedInventoryTab({
                 ) : (
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-slate-400 font-bold">
-                      No feed stock balances found. Click "+ Add Product" or "Stock In" to populate feed inventory.
+                      No feed stock balances found. Click &quot;+ Add Product&quot; or &quot;Stock In&quot; to populate feed inventory.
                     </td>
                   </tr>
                 )}
@@ -798,7 +795,7 @@ export default function FeedInventoryTab({
               type="button"
               onClick={() => {
                 exportToExcel({
-                  filename: `LiveStock_Feed_Master_Catalog_${new Date().toISOString().split('T')[0]}.xlsx`,
+                  filename: `CC_Livestock_Feed_Master_Catalog_${new Date().toISOString().split('T')[0]}.xlsx`,
                   sheetName: 'Feed Master Catalog',
                   data: filteredProducts,
                   columns: [
@@ -887,7 +884,7 @@ export default function FeedInventoryTab({
                 ) : (
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-slate-400 font-bold">
-                      No products registered. Click "+ Add Product" to define feed master items.
+                      No products registered. Click &quot;+ Add Product&quot; to define feed master items.
                     </td>
                   </tr>
                 )}
@@ -925,7 +922,7 @@ export default function FeedInventoryTab({
                 type="button"
                 onClick={() => {
                   exportToExcel({
-                    filename: `LiveStock_Feed_Transactions_${new Date().toISOString().split('T')[0]}.xlsx`,
+                    filename: `CC_Livestock_Feed_Transactions_${new Date().toISOString().split('T')[0]}.xlsx`,
                     sheetName: 'Stock Movement Ledger',
                     data: filteredTransactions,
                     columns: [
@@ -991,7 +988,7 @@ export default function FeedInventoryTab({
                 ) : (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-slate-400 font-bold">
-                      No stock transactions logged yet. Use "Stock In" or "Stock Out" buttons to create entries.
+                      No stock transactions logged yet. Use &quot;Stock In&quot; or &quot;Stock Out&quot; buttons to create entries.
                     </td>
                   </tr>
                 )}

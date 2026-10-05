@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FeedProductItem, FeedStockTransaction, FeedTransactionType } from '@/lib/types';
+import { FeedProductItem, FeedStockTransaction, FeedTransactionType, UserRoleItem } from '@/lib/types';
 import { FarmItem } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -13,11 +13,11 @@ import { format2DecimalsWithCommas } from '@/lib/utils';
 interface FeedTransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (tx: FeedStockTransaction, postToExpenses?: boolean) => Promise<void>;
+  onSubmit: (tx: FeedStockTransaction) => Promise<void>;
   products: FeedProductItem[];
   farms: FarmItem[];
   defaultType?: FeedTransactionType;
-  currentUser?: any;
+  currentUser?: UserRoleItem;
 }
 
 export const FeedTransactionModal: React.FC<FeedTransactionModalProps> = ({
@@ -38,7 +38,6 @@ export const FeedTransactionModal: React.FC<FeedTransactionModalProps> = ({
   const [referenceNo, setReferenceNo] = useState('');
   const [notes, setNotes] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [postToExpenses, setPostToExpenses] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -53,7 +52,6 @@ export const FeedTransactionModal: React.FC<FeedTransactionModalProps> = ({
       setReferenceNo(`TX-${Date.now().toString().slice(-6)}`);
       setNotes('');
       setDate(new Date().toISOString().split('T')[0]);
-      setPostToExpenses(defaultType === 'STOCK_IN');
     }
   }, [isOpen, defaultType, products, currentUser, farms]);
 
@@ -88,7 +86,7 @@ export const FeedTransactionModal: React.FC<FeedTransactionModalProps> = ({
         notes: notes.trim()
       };
 
-      await onSubmit(tx, type === 'STOCK_IN' && postToExpenses);
+      await onSubmit(tx);
       onClose();
     } catch (error) {
       console.error('Failed to submit feed transaction:', error);
@@ -226,21 +224,6 @@ export const FeedTransactionModal: React.FC<FeedTransactionModalProps> = ({
               className="text-xs"
             />
           </div>
-
-          {type === 'STOCK_IN' && (
-            <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold text-emerald-900">Log Purchase Cost to Finance Ledger?</p>
-                <p className="text-[10px] text-emerald-700">Automatically creates an expense entry of ៛ {format2DecimalsWithCommas(totalCost)} under Feed Expenses.</p>
-              </div>
-              <input
-                type="checkbox"
-                checked={postToExpenses}
-                onChange={e => setPostToExpenses(e.target.checked)}
-                className="h-4 w-4 accent-emerald-600 cursor-pointer"
-              />
-            </div>
-          )}
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <Button

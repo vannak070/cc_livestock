@@ -63,7 +63,9 @@ export interface LivestockData {
 }
 
 // Convert Excel serial date to ISO string
-function parseExcelDate(val: any): string | null {
+type Cell = string | number | boolean | Date | null | undefined;
+
+function parseExcelDate(val: Cell): string | null {
   if (!val) return null;
   if (val instanceof Date) return val.toISOString();
   if (typeof val === 'number') {
@@ -84,7 +86,7 @@ export function parseExcelDatabase(filePath: string): LivestockData {
 
   // 1. Parse Stock
   const stockSheet = workbook.Sheets['Stock'];
-  const stockRows = xlsx.utils.sheet_to_json<any[]>(stockSheet, { header: 1 });
+  const stockRows = xlsx.utils.sheet_to_json<Cell[]>(stockSheet, { header: 1 });
   const stock: StockItem[] = [];
   let stockHeaderIdx = -1;
 
@@ -141,7 +143,7 @@ export function parseExcelDatabase(filePath: string): LivestockData {
 
   // 2. Parse Weight Tracking
   const weightSheet = workbook.Sheets['Weight Tracking'];
-  const weightRows = xlsx.utils.sheet_to_json<any[]>(weightSheet, { header: 1 });
+  const weightRows = xlsx.utils.sheet_to_json<Cell[]>(weightSheet, { header: 1 });
   const weightTracking: WeightRecord[] = [];
   let weightHeaderIdx = -1;
 
@@ -187,7 +189,7 @@ export function parseExcelDatabase(filePath: string): LivestockData {
 
   // 3. Parse Sales Tracking
   const salesSheet = workbook.Sheets['Sales Tracking'];
-  const salesRows = xlsx.utils.sheet_to_json<any[]>(salesSheet, { header: 1 });
+  const salesRows = xlsx.utils.sheet_to_json<Cell[]>(salesSheet, { header: 1 });
   const salesTracking: SalesRecord[] = [];
   let salesHeaderIdx = -1;
 
@@ -228,7 +230,7 @@ export function parseExcelDatabase(filePath: string): LivestockData {
 
   // 4. Parse Common (Breed, Health Status, Status, Buy Type, Sex)
   const commonSheet = workbook.Sheets['Common'];
-  const commonRows = xlsx.utils.sheet_to_json<any[]>(commonSheet, { header: 1 });
+  const commonRows = xlsx.utils.sheet_to_json<Cell[]>(commonSheet, { header: 1 });
   const common: CommonData = {
     breeds: [],
     healthStatuses: [],

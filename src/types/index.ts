@@ -1,7 +1,6 @@
 import { StockItem, WeightRecord, SalesRecord } from './stock.types';
 import { BatchItem } from './batch.types';
 import { HealthLogItem } from './health.types';
-import { ExpenseItem } from './finance.types';
 import { MasterSetup } from './settings.types';
 import { FeedProductItem, FeedStockTransaction } from './feed.types';
 import { ProposalPlanRecord } from './proposal.types';
@@ -9,7 +8,6 @@ import { ProposalPlanRecord } from './proposal.types';
 export * from './stock.types';
 export * from './batch.types';
 export * from './health.types';
-export * from './finance.types';
 export * from './settings.types';
 export * from './feed.types';
 export * from './proposal.types';
@@ -21,7 +19,6 @@ export interface ERPLivestockData {
   common: Record<string, unknown>; // original reference sheets
   batches: BatchItem[];
   healthLogs: HealthLogItem[];
-  expenses: ExpenseItem[];
   settings: MasterSetup;
   feedProducts?: FeedProductItem[];
   feedTransactions?: FeedStockTransaction[];

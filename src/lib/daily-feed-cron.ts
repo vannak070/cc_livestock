@@ -4,12 +4,27 @@
  * Calculates and automatically logs daily feed STOCK_OUT transactions based
  * on active Fattening Batches' Daily Feed Ration specifications set by farm owner.
  *
- * Runs automatically on daily schedule and during database synchronization.
+ * Run on a timer by the API server (src/server/index.ts) and on demand with
+ * `npm run feed:daily`. Idempotent: a unique index on the AUTO-RATION reference
+ * number guarantees one deduction per batch/day/ingredient.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import { ERPLivestockData, FeedStockTransaction, FeedProductItem } from './types';
-import { addFeedTransaction } from './db';
+import { feedRepository } from '../repositories/feed.repository';
+import { batchService } from '../services/batch.service';
+
+const MAX_CATCH_UP_DAYS = 60;
+
+/** Loads what the ration job needs and applies any missing daily deductions. Safe to call repeatedly and from several processes. */
+export async function runDailyFeedStockOuts(): Promise<number> {
+  const [batches, feedProducts, feedTransactions] = await Promise.all([
+    batchService.getAllBatches(),
+    feedRepository.getProducts(),
+    feedRepository.getTransactions()
+  ]);
+  return processDailyFeedStockOuts({ batches, feedProducts, feedTransactions } as ERPLivestockData);
+}
 
 export async function processDailyFeedStockOuts(data: ERPLivestockData): Promise<number> {
   const activeBatches = (data.batches || []).filter(b => b.status === 'Active');
@@ -35,7 +50,9 @@ export async function processDailyFeedStockOuts(data: ERPLivestockData): Promise
     if (headcount <= 0) continue;
 
     const farmLocation = batch.farmLocation || 'Farm';
-    const startDate = batch.startDate ? new Date(batch.startDate) : new Date(today.getTime() - 7 * 86400000);
+    const earliest = new Date(today.getTime() - MAX_CATCH_UP_DAYS * 86400000);
+    const requested = batch.startDate ? new Date(batch.startDate) : new Date(today.getTime() - 7 * 86400000);
+    const startDate = requested < earliest ? earliest : requested;
 
     // Generate daily stock out records from start date up to today (max 60 days catch-up)
     const curDate = new Date(startDate);
@@ -85,9 +102,9 @@ export async function processDailyFeedStockOuts(data: ERPLivestockData): Promise
           };
 
           try {
-            await addFeedTransaction(autoTx);
+            // false = another run already wrote this day's row (unique index).
+            if (await feedRepository.addTransactionIfNew(autoTx)) newTxCount++;
             existingRefNos.add(refNo);
-            newTxCount++;
           } catch (err) {
             console.error('[processDailyFeedStockOuts] Failed to record auto tx:', err);
           }

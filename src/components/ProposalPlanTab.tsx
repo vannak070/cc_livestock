@@ -503,7 +503,7 @@ export default function ProposalPlanTab({ initialPlan, onSavePlan }: ProposalPla
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveSubTab(tab.id as any)}
+              onClick={() => setActiveSubTab(tab.id as typeof activeSubTab)}
               className={`px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all duration-150 cursor-pointer flex items-center gap-2 ${
                 isActive
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
@@ -859,7 +859,7 @@ export default function ProposalPlanTab({ initialPlan, onSavePlan }: ProposalPla
                     <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#64748B' }} />
                     <YAxis tick={{ fontSize: 10, fill: '#64748B' }} tickFormatter={(v) => `៛${(v / 1000000).toFixed(0)}M`} />
                     <Tooltip
-                      formatter={(val: any) => [`៛ ${format2DecimalsWithCommas(Number(val) || 0)}`, '']}
+                      formatter={val => [`៛ ${format2DecimalsWithCommas(Number(val) || 0)}`, '']}
                       contentStyle={{ borderRadius: '12px', border: '1px solid #CBD5E1', fontSize: '11px' }}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px' }} />

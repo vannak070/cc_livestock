@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { ERPLivestockData, BatchItem, HealthLogItem, ExpenseItem, MasterSetup } from './types';
+import { ERPLivestockData, BatchItem, HealthLogItem, MasterSetup } from './types';
 import { StockItem, WeightRecord, SalesRecord } from './xlsx-parser';
 
 import { stockService } from '../services/stock.service';
@@ -8,13 +8,13 @@ import { weightService } from '../services/weight.service';
 import { salesService } from '../services/sales.service';
 import { batchService } from '../services/batch.service';
 import { healthService } from '../services/health.service';
-import { expenseService } from '../services/expense.service';
 import { settingsService } from '../services/settings.service';
 import { feedRepository } from '../repositories/feed.repository';
 import { proposalPlanRepository } from '../repositories/proposal-plan.repository';
 import { FeedProductItem, FeedStockTransaction, ProposalPlanParams, ProposalPlanRecord } from './types';
 
-import { processDailyFeedStockOuts } from './daily-feed-cron';
+import { Actor, AuthzError } from './authz';
+import type { FarmScope } from './farm-scope';
 
 const dbPath = path.join(process.cwd(), 'src/data/db.json');
 
@@ -36,7 +36,6 @@ function getJsonDbData(): ERPLivestockData {
 
   if (!parsed.batches) parsed.batches = [];
   if (!parsed.healthLogs) parsed.healthLogs = [];
-  if (!parsed.expenses) parsed.expenses = [];
   if (!parsed.settings) parsed.settings = {};
 
   // Dropdown option lists only — these are UI choices, not business records,
@@ -47,7 +46,6 @@ function getJsonDbData(): ERPLivestockData {
   parsed.settings.healthStatuses = parsed.settings.healthStatuses || parsed.common?.healthStatuses || ['Good', 'Fair', 'Poor', 'Dead'];
   parsed.settings.vaccineTypes = parsed.settings.vaccineTypes || ['Foot and Mouth', 'Brucellosis', 'Anthrax', 'Dewormer A', 'Vitamin Boost'];
   parsed.settings.feedTypes = parsed.settings.feedTypes || ['Silage', 'Concentrate Feed', 'Fresh Grass', 'Hay Mix'];
-  parsed.settings.expenseCategories = parsed.settings.expenseCategories || ['Bank interest', 'forage', 'Straw', 'Water-Fire', 'Asset', 'Salary', 'Other', 'Corn / grass', 'Vaccines and medicines'];
   parsed.settings.paymentMethods = parsed.settings.paymentMethods || ['ABA Pay', 'Cash', 'Bank Transfer'];
   parsed.settings.sexes = parsed.settings.sexes || ['Male', 'Female'];
   parsed.settings.diseaseTypes = parsed.settings.diseaseTypes || ['Foot and Mouth Disease (FMD)', 'Brucellosis', 'Anthrax', 'Pneumonia', 'Parasite Infection'];
@@ -74,6 +72,7 @@ async function requireDb<T>(operation: string, run: () => Promise<T>): Promise<T
   try {
     return await run();
   } catch (err) {
+    if (err instanceof AuthzError) throw err;
     const detail = err instanceof Error ? err.message : String(err);
     console.error(`[db] ${operation} failed — nothing was saved:`, detail);
     throw new Error(`Could not save to the database (${operation}). Nothing was written. Check that PostgreSQL is running and that DB_HOST/DB_PORT in .env point at it, then try again. Details: ${detail}`);
@@ -84,16 +83,20 @@ async function requireDb<T>(operation: string, run: () => Promise<T>): Promise<T
  * Aggregates all ERP domain data from PostgreSQL. Falls back to the
  * read-only db.json snapshot only when the database cannot be reached at
  * all, and says so loudly when it does.
+ *
+ * With a `scope`, the farm-specific collections (cattle, weights, sales,
+ * health logs, batches) are filtered inside PostgreSQL so other farms' rows are
+ * never loaded. The db.json fallback is not scoped here; callers still run
+ * scopeDataForActor over the result.
  */
-export async function getDbData(): Promise<ERPLivestockData> {
+export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
   try {
-    const [stock, weightTracking, salesTracking, batches, healthLogs, expenses, settings, feedProducts, feedTransactions, proposalPlan] = await Promise.all([
-      stockService.getAllStock(),
-      weightService.getAllWeightRecords(),
-      salesService.getAllSales(),
-      batchService.getAllBatches(),
-      healthService.getAllHealthLogs(),
-      expenseService.getAllExpenses(),
+    const [stock, weightTracking, salesTracking, batches, healthLogs, settings, feedProducts, feedTransactions, proposalPlan] = await Promise.all([
+      stockService.getAllStock(scope),
+      weightService.getAllWeightRecords(scope),
+      salesService.getAllSales(scope),
+      batchService.getAllBatches(scope),
+      healthService.getAllHealthLogs(scope),
       settingsService.getSettings(),
       feedRepository.getProducts().catch(() => []),
       feedRepository.getTransactions().catch(() => []),
@@ -119,15 +122,14 @@ export async function getDbData(): Promise<ERPLivestockData> {
       common,
       batches,
       healthLogs,
-      expenses,
       settings,
       feedProducts: feedProducts || [],
       feedTransactions: feedTransactions || [],
       proposalPlan: proposalPlan || undefined
     };
 
-    // Auto-calculate daily feed stock outs based on Daily Feed Ration
-    await processDailyFeedStockOuts(erpData).catch(e => console.warn('[Daily Feed Cron] Non-blocking error:', e));
+    // Reads must not write: the daily feed ration deduction runs on its own
+    // schedule (see src/lib/daily-feed-cron.ts, started by src/server/index.ts).
 
     return erpData;
   } catch (err) {
@@ -246,20 +248,8 @@ export async function deleteHealthLog(logId: string): Promise<void> {
   await requireDb('delete health log', () => healthService.deleteHealthLog(logId));
 }
 
-// ─── 6. Expenses ────────────────────────────────────────────────────────────
-export async function addExpense(expense: Omit<ExpenseItem, 'id'>): Promise<ExpenseItem> {
-  return requireDb('add expense', () => expenseService.addExpense(expense));
-}
-
-export async function updateExpense(id: string, updates: Partial<ExpenseItem>): Promise<ExpenseItem> {
-  return requireDb('update expense', () => expenseService.updateExpense(id, updates));
-}
-
-export async function deleteExpense(id: string): Promise<void> {
-  await requireDb('delete expense', () => expenseService.deleteExpense(id));
-}
 
 // ─── 7. Master Setup / Settings ─────────────────────────────────────────────
-export async function updateSettings(settings: MasterSetup): Promise<MasterSetup> {
-  return requireDb('save settings', () => settingsService.updateSettings(settings));
+export async function updateSettings(settings: MasterSetup, actor: Actor): Promise<MasterSetup> {
+  return requireDb('save settings', () => settingsService.updateSettings(settings, actor));
 }

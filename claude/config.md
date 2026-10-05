@@ -1,13 +1,13 @@
-# Cam Cow / LiveStock ERP — Agent Config
+# CC Livestock — Agent Config
 
 How an AI agent (or a human following the same rules) should work on this
 repo. This is the real project — if you're reading this from a copy at
 `StudioProjects/LiveStock`, that copy is stale/wrong; this repo
-(`HOVA_Project/LiveStock_Mgt`) is the source of truth.
+(`HOVA_Project/CC_Farm_Mgt`) is the source of truth.
 
 ## What this project is
 
-Two apps sharing one backend, for a cattle fattening operation ("Cam Cow"):
+Two apps sharing one backend, for a cattle fattening operation (CC Livestock):
 
 1. **Web app** (this repo's root) — Next.js 16 (App Router, Turbopack) +
    PostgreSQL. The full operational ERP: stock intake, batch/cohort

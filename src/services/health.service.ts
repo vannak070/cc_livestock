@@ -2,10 +2,11 @@ import { healthRepository } from '../repositories/health.repository';
 import { stockRepository } from '../repositories/stock.repository';
 import { withTransaction } from '../config/database';
 import { HealthLogItem } from '../lib/types';
+import type { FarmScope } from '../lib/farm-scope';
 
 export class HealthService {
-  async getAllHealthLogs(): Promise<HealthLogItem[]> {
-    return healthRepository.findAll();
+  async getAllHealthLogs(scope?: FarmScope): Promise<HealthLogItem[]> {
+    return healthRepository.findAll(scope);
   }
 
   async getHealthLogById(id: string): Promise<HealthLogItem | null> {

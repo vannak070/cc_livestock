@@ -1,9 +1,10 @@
 /**
  * RESTORE PROD DATA SNAPSHOT TO LOCAL DATABASE
- * Reads /tmp/clone_from_prod.json and updates local PostgreSQL (localhost:5433/livestock_db)
+ * Reads /tmp/clone_from_prod.json and replaces the data in local PostgreSQL (localhost:5433/cc_livestock)
  */
 import fs from 'fs';
 import { pool, connectWithRetry } from '../../config/database';
+import { runMigrations } from '../migrate';
 
 async function restoreLocal() {
   console.log('=== 🔄 Restoring Production Data Snapshot into Local Database ===');
@@ -16,48 +17,11 @@ async function restoreLocal() {
   const data = JSON.parse(fs.readFileSync('/tmp/clone_from_prod.json', 'utf8'));
 
   await connectWithRetry(5, 1000);
+  await runMigrations(); // the schema comes from the migrations, never from ad-hoc DDL here
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
-
-    // Ensure feed_products table exists locally if missing
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS feed_products (
-        id                 VARCHAR(50) PRIMARY KEY,
-        name               VARCHAR(100) NOT NULL,
-        category           VARCHAR(50),
-        unit               VARCHAR(20) DEFAULT 'bag',
-        weight_per_unit    NUMERIC(10, 2) DEFAULT 30,
-        unit_cost          NUMERIC(12, 2) DEFAULT 0,
-        cost_per_bag       NUMERIC(12, 2) DEFAULT 0,
-        cost_per_kg        NUMERIC(12, 2) DEFAULT 0,
-        min_threshold_bags NUMERIC(10, 2) DEFAULT 50,
-        min_threshold_kg   NUMERIC(10, 2) DEFAULT 1500,
-        description        TEXT,
-        supplier           VARCHAR(100),
-        status             VARCHAR(20) DEFAULT 'Active',
-        created_at         TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at         TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS feed_transactions (
-        id              VARCHAR(50) PRIMARY KEY,
-        product_id      VARCHAR(50) REFERENCES feed_products(id) ON DELETE CASCADE,
-        type            VARCHAR(20) NOT NULL,
-        quantity_bags   NUMERIC(10, 2) DEFAULT 0,
-        quantity_kg     NUMERIC(10, 2) DEFAULT 0,
-        unit_cost       NUMERIC(12, 2) DEFAULT 0,
-        total_cost      NUMERIC(12, 2) DEFAULT 0,
-        date            TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        reference_no    VARCHAR(50),
-        notes           TEXT,
-        created_by      VARCHAR(50),
-        created_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
 
     // Clean local tables
     await client.query('DELETE FROM batch_cows');
@@ -69,105 +33,59 @@ async function restoreLocal() {
     await client.query('DELETE FROM batches');
     await client.query('DELETE FROM stock');
     await client.query('DELETE FROM feed_products');
+    await client.query('DELETE FROM users'); // local accounts are replaced by production's, passwords included
 
-    // 1. Stock
-    for (const s of (data.stock || [])) {
-      await client.query(
-        `INSERT INTO stock (id,no,breed,sex,age,weight,owner_name,location,phone,buy_type,unit_price,total_price,health_status,status,purchase_date,remark,purchase_type,payment_method,image_url,created_at,updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) ON CONFLICT (id) DO NOTHING`,
-        [s.id,s.no,s.breed,s.sex,s.age,s.weight,s.owner_name,s.location,s.phone,s.buy_type,s.unit_price,s.total_price,s.health_status,s.status,s.purchase_date,s.remark,s.purchase_type,s.payment_method,s.image_url,s.created_at,s.updated_at]
-      );
-    }
+    // Copy every column that exists in BOTH the production snapshot and the
+    // local table. Production's schema drifts ahead of (and sometimes behind)
+    // local ones, so hard-coded column lists silently drop data or fail.
+    const localColumns = async (table: string): Promise<string[]> =>
+      (await client.query(
+        `SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=$1`,
+        [table]
+      )).rows.map(r => r.column_name as string);
 
-    // 2. Weight Tracking
-    for (const w of (data.weight_tracking || [])) {
-      await client.query(
-        `INSERT INTO weight_tracking (cow_id,breed,age,old_weight,current_weight,gain_loss,health_status,status,tracking_date)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-        [w.cow_id,w.breed,w.age,w.old_weight,w.current_weight,w.gain_loss,w.health_status,w.status,w.tracking_date]
-      );
-    }
+    const copyTable = async (table: string, rows: Record<string, unknown>[], opts: { requireId?: boolean; upsertKey?: string } = {}) => {
+      const cols = await localColumns(table);
+      let copied = 0;
+      for (const row of rows || []) {
+        if (opts.requireId && !row.id) continue;
+        const keys = Object.keys(row).filter(k => cols.includes(k));
+        const values = keys.map(k => {
+          const v = row[k];
+          return v !== null && typeof v === 'object' ? JSON.stringify(v) : v;
+        });
+        const conflict = opts.upsertKey
+          ? `ON CONFLICT (${opts.upsertKey}) DO UPDATE SET ${keys.filter(k => k !== opts.upsertKey).map(k => `${k}=EXCLUDED.${k}`).join(', ')}`
+          : 'ON CONFLICT DO NOTHING';
+        await client.query(
+          `INSERT INTO ${table} (${keys.join(',')}) VALUES (${keys.map((_, i) => `$${i + 1}`).join(',')}) ${conflict}`,
+          values
+        );
+        copied++;
+      }
+      console.log(`  ${table}: ${copied} rows`);
+    };
 
-    // 3. Batches
-    for (const b of (data.batches || [])) {
-      await client.query(
-        `INSERT INTO batches (id,name,type,start_date,status,notes,farm_location,feeding_program,created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (id) DO NOTHING`,
-        [b.id,b.name,b.type,b.start_date,b.status,b.notes,b.farm_location,b.feeding_program ? JSON.stringify(b.feeding_program) : null,b.created_at]
-      );
-    }
+    // Parents before children (foreign keys).
+    await copyTable('stock', data.stock);
+    await copyTable('weight_tracking', data.weight_tracking);
+    await copyTable('batches', data.batches);
+    await copyTable('batch_cows', data.batch_cows);
+    await copyTable('sales_tracking', data.sales_tracking);
+    await copyTable('expenses', data.expenses, { requireId: true });
+    await copyTable('health_logs', data.health_logs, { requireId: true });
+    await copyTable('feed_products', data.feed_products);
+    await copyTable('feed_transactions', data.feed_transactions);
+    await copyTable('users', data.users);
+    await copyTable('master_settings', data.master_settings, { upsertKey: 'key' });
 
-    // 4. Batch Cows
-    for (const bc of (data.batch_cows || [])) {
-      await client.query(
-        `INSERT INTO batch_cows (batch_id,cow_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
-        [bc.batch_id, bc.cow_id]
-      );
-    }
-
-    // 5. Sales Tracking
-    for (const s of (data.sales_tracking || [])) {
-      await client.query(
-        `INSERT INTO sales_tracking (cow_id,breed,age,weight,unit_price,total_price,status,sales_date,sale_type,buyer)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-        [s.cow_id,s.breed,s.age,s.weight,s.unit_price,s.total_price,s.status,s.sales_date,s.sale_type,s.buyer]
-      );
-    }
-
-    // 6. Expenses
-    for (const e of (data.expenses || [])) {
-      if (!e.id) continue;
-      await client.query(
-        `INSERT INTO expenses (id,category,amount,date,description,farm_location,created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING`,
-        [e.id,e.category,e.amount,e.date,e.description,e.farm_location,e.created_at]
-      );
-    }
-
-    // 7. Health Logs
-    for (const h of (data.health_logs || [])) {
-      if (!h.id) continue;
-      await client.query(
-        `INSERT INTO health_logs (id,cow_id,type,name,date,administered_by,cost,notes,created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (id) DO NOTHING`,
-        [h.id,h.cow_id,h.type,h.name,h.date,h.administered_by,h.cost,h.notes,h.created_at]
-      );
-    }
-
-    // 8. Feed Products
-    for (const p of (data.feed_products || [])) {
-      await client.query(
-        `INSERT INTO feed_products (id, name, category, unit, weight_per_unit, unit_cost, min_threshold_bags, min_threshold_kg, description, supplier, status, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT (id) DO NOTHING`,
-        [p.id, p.name, p.category || 'Concentrate', p.unit || 'bag', p.weight_per_unit || 30, p.unit_cost || 0, p.min_threshold_bags || 50, p.min_threshold_kg || 1500, p.description || null, p.supplier || null, p.status || 'Active', p.created_at || new Date()]
-      );
-    }
-
-    // 9. Feed Transactions
-    for (const ft of (data.feed_transactions || [])) {
-      await client.query(
-        `INSERT INTO feed_transactions (id, product_id, type, quantity_bags, quantity_kg, unit_cost, total_cost, date, reference_no, notes, created_by, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT (id) DO NOTHING`,
-        [ft.id, ft.product_id, ft.type, ft.quantity_bags || 0, ft.quantity_kg || 0, ft.unit_cost || 0, ft.total_cost || 0, ft.date || new Date(), ft.reference_no || null, ft.notes || null, ft.created_by || null, ft.created_at || new Date()]
-      );
-    }
-
-    // 10. Users
-    for (const u of (data.users || [])) {
-      await client.query(
-        `INSERT INTO users (id,name,email,role,status,password,farm_location,permissions,created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-         ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, email=EXCLUDED.email, role=EXCLUDED.role, status=EXCLUDED.status, farm_location=EXCLUDED.farm_location, permissions=EXCLUDED.permissions`,
-        [u.id,u.name,u.email,u.role,u.status,u.password,u.farm_location,u.permissions ? JSON.stringify(u.permissions) : '[]',u.created_at]
-      );
-    }
-
-    // 11. Master Settings
-    for (const ms of (data.master_settings || [])) {
-      await client.query(
-        `INSERT INTO master_settings (key, data) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET data=EXCLUDED.data`,
-        [ms.key, typeof ms.data === 'string' ? ms.data : JSON.stringify(ms.data)]
-      );
+    // Rows were inserted with explicit ids, so push any serial sequences past them.
+    const seqs = await client.query(`
+      SELECT c.table_name, c.column_name, pg_get_serial_sequence(quote_ident(c.table_name), c.column_name) AS seq
+      FROM information_schema.columns c
+      WHERE c.table_schema='public' AND c.column_default LIKE 'nextval%'`);
+    for (const { table_name, column_name, seq } of seqs.rows) {
+      if (seq) await client.query(`SELECT setval($1, COALESCE((SELECT MAX(${column_name}) FROM ${table_name}), 0) + 1, false)`, [seq]);
     }
 
     await client.query('COMMIT');

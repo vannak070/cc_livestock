@@ -6,12 +6,12 @@ export const en = {
     batchManagement: 'Batch Management',
     feedStock: 'Cattle Feed Stock',
     healthVaccines: 'Medical & Vaccines',
-    financeLedger: 'Feed Costs & Revenue',
+    financeLedger: 'Sales & Revenue',
     analytics: 'Growth & Profit Analytics',
     proposalPlan: 'Fattening Proposal Tool',
     farmsBranches: 'Farms & Stall Branches',
     masterSettings: 'ERP Master Setup',
-    systemTitle: 'LiveStock Fattening ERP',
+    systemTitle: 'CC Livestock',
     systemSubtitle: 'Fattening Livestock Management System',
     role: 'Role',
     logout: 'Sign Out',
@@ -132,15 +132,12 @@ export const en = {
 
   // Financial Ledger & Revenue
   finance: {
-    title: 'Feed Costs, Expenses & Revenue',
-    subtitle: 'Financial ledger for tracking cattle sales revenue, feed expenses, and farm operational costs.',
+    title: 'Sales & Revenue',
+    subtitle: 'Financial ledger for tracking cattle sales revenue against the cost of acquiring the cattle.',
     recordSale: 'Record Cattle Sale',
-    addExpense: 'Add Expense Entry',
     totalSalesRevenue: 'Total Sales Revenue',
-    totalExpenses: 'Total Operating Expenses',
     netProfit: 'Net Farm Profit',
     salesLedger: 'Sales Revenue Ledger',
-    expenseLedger: 'Operating Expenses Ledger',
     category: 'Category',
     amount: 'Amount (KHR)',
     unitPrice: 'Unit Price (KHR/kg)',
@@ -150,11 +147,6 @@ export const en = {
     salesDate: 'Sale Date',
     weightBasis: 'Weight Basis',
     lumpsumBasis: 'Lumpsum Basis',
-    feedExpense: 'Feed Expense',
-    vetExpense: 'Medical & Vaccine',
-    utilityExpense: 'Utilities & Power',
-    laborExpense: 'Labor & Salary',
-    otherExpense: 'Other Expenses'
   },
 
   // Growth & Profit Analytics
@@ -169,7 +161,7 @@ export const en = {
     herdDistribution: 'Breed Distribution',
     healthStatusRatio: 'Health Status Breakdown',
     weightGainTrend: 'Herd Weight Progress Trend',
-    revenueVsExpense: 'Monthly Revenue vs Expenses',
+    revenueVsExpense: 'Monthly Sales Revenue',
     adgLeaderboard: 'ADG Performance Leaders'
   },
 

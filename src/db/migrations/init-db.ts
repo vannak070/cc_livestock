@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { parseExcelDatabase } from '../../lib/xlsx-parser';
 import { pool, connectWithRetry } from '../../config/database';
+import { resetDatabase } from '../migrate';
 import { getDbData } from '../../lib/db';
 import { generateTempPassword } from '../../lib/generate-temp-password';
 import { hashPassword, isBcryptHash } from '../../lib/password';
@@ -49,13 +50,9 @@ async function initDatabase() {
 
   // Ensure DB connection and run DDL Schema
   await connectWithRetry(5, 1000);
-  const schemaPath = path.join(__dirname, '../schema.sql');
-  if (fs.existsSync(schemaPath)) {
-    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-    console.log('[Init DB] Executing DDL Schema in schema.sql...');
-    await pool.query(schemaSql);
-    console.log('[Init DB] DDL Schema applied successfully.');
-  }
+  console.log('[Init DB] Dropping all tables and re-applying migrations (local development only)...');
+  await resetDatabase();
+  console.log('[Init DB] Schema ready.');
 
   // Load JSON database data
   const data = await getDbData();

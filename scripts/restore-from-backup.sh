@@ -48,7 +48,7 @@ const fs = require("fs");
 require("/root/LiveStock/node_modules/dotenv").config({ path: "/root/LiveStock/.env" });
 const { Pool } = require("/root/LiveStock/node_modules/pg");
 if (!process.env.DB_PASSWORD) { process.stderr.write("ERROR: DB_PASSWORD not found in /root/LiveStock/.env on the server.\n"); process.exit(1); }
-const pool = new Pool({ host:"localhost", port:5432, user:"postgres", password:process.env.DB_PASSWORD, database:"livestock_db" });
+const pool = new Pool({ host:"localhost", port:5432, user:"postgres", password:process.env.DB_PASSWORD, database:(process.env.DB_NAME||"cc_livestock") });
 const data = JSON.parse(fs.readFileSync("/tmp/restore_backup.json", "utf8"));
 
 async function restore() {

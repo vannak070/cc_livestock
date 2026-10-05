@@ -1,6 +1,7 @@
 import { query } from '../config/database';
 import { StockItem } from '../lib/xlsx-parser';
-import { PoolClient } from 'pg';
+import { PoolClient, QueryResultRow } from 'pg';
+import { FarmScope, farmMatchSql } from '../lib/farm-scope';
 
 export class StockRepository {
   private async executeQuery(sql: string, params?: unknown[], client?: PoolClient) {
@@ -10,7 +11,7 @@ export class StockRepository {
     return query(sql, params);
   }
 
-  private mapRowToStock(row: Record<string, any>): StockItem {
+  private mapRowToStock(row: QueryResultRow): StockItem {
     return {
       id: String(row.id),
       no: String(row.no),
@@ -34,8 +35,10 @@ export class StockRepository {
     };
   }
 
-  async findAll(): Promise<StockItem[]> {
-    const res = await query('SELECT * FROM stock ORDER BY created_at ASC');
+  /** With a scope, only that farm's cattle; without one, everything. */
+  async findAll(scope?: FarmScope): Promise<StockItem[]> {
+    const match = scope && farmMatchSql('location', scope.farmLocation, 1);
+    const res = await query(`SELECT * FROM stock ${match ? `WHERE ${match.sql}` : ''} ORDER BY created_at ASC`, match?.params);
     return res.rows.map(row => this.mapRowToStock(row));
   }
 

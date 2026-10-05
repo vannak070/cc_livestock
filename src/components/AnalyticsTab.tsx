@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { ERPLivestockData, FarmItem } from '@/lib/types';
+import { ERPLivestockData, FarmItem, UserRoleItem, BatchItem } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Users, DollarSign, Activity, Scale, ShoppingBag, PieChart as PieChartIcon, Heart, ShieldAlert, Award } from 'lucide-react';
@@ -10,7 +10,7 @@ import FarmFilterBar from './FarmFilterBar';
 
 interface AnalyticsTabProps {
   data: ERPLivestockData;
-  currentUser?: any;
+  currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 
@@ -42,8 +42,7 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
       batches: data.batches.filter(b => b.farmLocation === selectedFarm || b.cowIds.some(id => scopedIds.includes(id))),
       weightTracking: data.weightTracking.filter(w => scopedIds.includes(w.cowId)),
       healthLogs: data.healthLogs.filter(h => scopedIds.includes(h.cowId)),
-      salesTracking: data.salesTracking.filter(s => scopedIds.includes(s.cowId)),
-      expenses: data.expenses.filter(e => e.farmLocation === selectedFarm)
+      salesTracking: data.salesTracking.filter(s => scopedIds.includes(s.cowId))
     };
   }, [data, selectedFarm]);
 
@@ -108,12 +107,13 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
   // Predictive Calculations Memo
   const predictionData = useMemo(() => {
     let cohortCows = activeCows;
-    let selectedBatch: any = null;
+    let selectedBatch: BatchItem | undefined;
 
     if (predictionBatchId !== 'all') {
-      selectedBatch = data.batches.find(b => b.id === predictionBatchId);
-      if (selectedBatch) {
-        cohortCows = activeCows.filter(c => selectedBatch.cowIds?.includes(c.id));
+      const found = data.batches.find(b => b.id === predictionBatchId);
+      selectedBatch = found;
+      if (found) {
+        cohortCows = activeCows.filter(c => found.cowIds?.includes(c.id));
       }
     }
 
@@ -152,7 +152,7 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
     // Daily Feed Ration Cost per Head (៛ / head / day)
     let dailyFeedCostPerHead = 14000;
     if (selectedBatch && selectedBatch.feedingProgram?.ingredients) {
-      dailyFeedCostPerHead = selectedBatch.feedingProgram.ingredients.reduce((sum: number, ing: any) => {
+      dailyFeedCostPerHead = selectedBatch.feedingProgram.ingredients.reduce((sum, ing) => {
         return sum + ((ing.portionPerHead || 0) * (ing.unitCost || 0));
       }, 0);
     }
@@ -240,8 +240,8 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
     const totalActiveHead = activeCows.length;
     const totalAssetValuation = activeCows.reduce((sum, c) => sum + (c.totalPrice || (c.weight * c.unitPrice) || 0), 0);
     const totalSalesRevenue = farmScopedData.salesTracking.reduce((sum, s) => sum + (s.totalPrice || 0), 0);
-    const totalOperatingExpenses = farmScopedData.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    const netProfit = totalSalesRevenue - totalOperatingExpenses;
+    const totalAcquisitionCost = farmScopedData.stock.reduce((sum, c) => sum + (c.totalPrice || 0), 0);
+    const netProfit = totalSalesRevenue - totalAcquisitionCost;
 
     const deadCount = farmScopedData.stock.filter(c => c.healthStatus.toLowerCase() === 'dead' || c.status.toLowerCase() === 'dead').length;
     const mortalityRate = farmScopedData.stock.length > 0 ? ((deadCount / farmScopedData.stock.length) * 100).toFixed(1) : '0';
@@ -250,12 +250,12 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
       totalActiveHead,
       totalAssetValuation,
       totalSalesRevenue,
-      totalOperatingExpenses,
+      totalAcquisitionCost,
       netProfit,
       deadCount,
       mortalityRate
     };
-  }, [activeCows, farmScopedData.stock, farmScopedData.salesTracking, farmScopedData.expenses]);
+  }, [activeCows, farmScopedData.stock, farmScopedData.salesTracking]);
 
   // Breed Weight & Valuation Performance
   const breedPerformance = useMemo(() => {
@@ -387,17 +387,11 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
 
   // Monthly Financial P&L
   const financialMonthly = useMemo(() => {
-    const monthlyMap: Record<string, { revenue: number; expenses: number }> = {};
-
-    data.expenses.forEach(exp => {
-      const month = exp.date ? exp.date.substring(0, 7) : new Date().toISOString().substring(0, 7);
-      if (!monthlyMap[month]) monthlyMap[month] = { revenue: 0, expenses: 0 };
-      monthlyMap[month].expenses += exp.amount;
-    });
+    const monthlyMap: Record<string, { revenue: number }> = {};
 
     data.salesTracking.forEach(sale => {
       const month = sale.salesDate ? sale.salesDate.substring(0, 7) : new Date().toISOString().substring(0, 7);
-      if (!monthlyMap[month]) monthlyMap[month] = { revenue: 0, expenses: 0 };
+      if (!monthlyMap[month]) monthlyMap[month] = { revenue: 0 };
       monthlyMap[month].revenue += sale.totalPrice;
     });
 
@@ -410,24 +404,10 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
         return {
           monthStr: month,
           name,
-          'Total Revenue (៛)': values.revenue,
-          'Total Expenses (៛)': values.expenses,
-          'Net Profit (៛)': values.revenue - values.expenses
+          'Total Revenue (៛)': values.revenue
         };
       });
-  }, [data.expenses, data.salesTracking]);
-
-  // Operating Expense Breakdown
-  const expenseBreakdown = useMemo(() => {
-    const map: Record<string, number> = {};
-    farmScopedData.expenses.forEach(exp => {
-      map[exp.category] = (map[exp.category] || 0) + exp.amount;
-    });
-    return Object.entries(map).map(([category, amount]) => ({
-      name: category,
-      value: amount
-    }));
-  }, [farmScopedData.expenses]);
+  }, [data.salesTracking]);
 
   return (
     <div className="space-y-6 text-left">
@@ -565,9 +545,9 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
             <CardHeader>
               <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-emerald-600" />
-                Monthly Revenue vs Operating Expenses P&L
+                Monthly Sales Revenue
               </CardTitle>
-              <CardDescription className="text-xs text-slate-400">Track gross sales revenue against feed, medicine, and farm expenses month over month</CardDescription>
+              <CardDescription className="text-xs text-slate-400">Track gross sales revenue month over month</CardDescription>
             </CardHeader>
             <CardContent className="h-[340px]">
               {financialMonthly.length > 0 ? (
@@ -578,10 +558,6 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                         <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
                         <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                       </linearGradient>
-                      <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
-                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} />
@@ -589,11 +565,10 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                     <Tooltip
                       contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px' }}
                       itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
-                      formatter={(val: any) => val ? `៛ ${Number(val).toLocaleString()}` : '៛ 0'}
+                      formatter={val => val ? `៛ ${Number(val).toLocaleString()}` : '៛ 0'}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
                     <Area type="monotone" dataKey="Total Revenue (៛)" stroke="#10B981" fillOpacity={1} fill="url(#colorRev)" />
-                    <Area type="monotone" dataKey="Total Expenses (៛)" stroke="#EF4444" fillOpacity={1} fill="url(#colorExp)" />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
@@ -667,7 +642,7 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                             <Tooltip
                               contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px' }}
                               itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                              formatter={(value: any, name: any, props: any) => [`${value} cows (${props.payload.percentage}%)`, name]}
+                              formatter={(value, name, props) => [`${value} cows (${props.payload.percentage}%)`, name]}
                             />
                           </PieChart>
                         </ResponsiveContainer>
@@ -833,88 +808,12 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
         const totalSalesCount = salesList.length;
         const totalSalesWeight = salesList.reduce((acc, s) => acc + (s.weight || 0), 0);
         const avgSaleWeight = totalSalesCount > 0 ? (totalSalesWeight / totalSalesCount).toFixed(1) : '0';
-        const totalExpenseSum = expenseBreakdown.reduce((sum, eb) => sum + eb.value, 0);
 
         return (
           <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Operating Expense Breakdown Pie Chart */}
-              <div className="lg:col-span-1">
-                <Card className="bg-white border border-slate-100 shadow-xs h-full flex flex-col justify-between">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
-                        <PieChartIcon className="h-4 w-4 text-emerald-600" />
-                        Operational Cost Allocation
-                      </CardTitle>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-                        {expenseBreakdown.length} Categories
-                      </span>
-                    </div>
-                    <CardDescription className="text-xs text-slate-400">Expense amounts grouped by category</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1 flex flex-col justify-between pt-0 space-y-4">
-                    {/* Donut Chart Container */}
-                    <div className="h-[210px] w-full relative flex items-center justify-center pt-2">
-                      {expenseBreakdown.length > 0 ? (
-                        <>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie
-                                data={expenseBreakdown}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={65}
-                                outerRadius={85}
-                                paddingAngle={4}
-                                dataKey="value"
-                              >
-                                {expenseBreakdown.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip
-                                contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                                formatter={(val: any) => val ? `៛ ${Number(val).toLocaleString()}` : '៛ 0'}
-                              />
-                            </PieChart>
-                          </ResponsiveContainer>
-                          {/* Center Donut Metric */}
-                          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Expense</span>
-                            <span className="text-xs font-black text-slate-800 font-mono mt-0.5">
-                              ៛ {totalExpenseSum.toLocaleString()}
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-slate-400 text-xs">No cost records logged.</div>
-                      )}
-                    </div>
-
-                    {/* Scrollable Legend List */}
-                    <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1 border-t border-slate-100 pt-3">
-                      {expenseBreakdown.map((eb, idx) => {
-                        const pct = totalExpenseSum > 0 ? ((eb.value / totalExpenseSum) * 100).toFixed(1) : '0';
-                        return (
-                          <div key={idx} className="flex items-center justify-between text-xs font-semibold p-2 rounded-xl bg-slate-50/70 border border-slate-100 hover:bg-slate-100/80 transition-colors">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                              <span className="font-bold text-slate-700 truncate">{eb.name}</span>
-                              <span className="text-[10px] font-extrabold text-slate-400 bg-white px-1.5 py-0.5 rounded-md border border-slate-200 shrink-0">{pct}%</span>
-                            </div>
-                            <span className="font-mono font-extrabold text-slate-800 shrink-0 ml-2">៛ {eb.value.toLocaleString()}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
               {/* Historical Cattle Sales Ledger */}
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-3">
                 <Card className="bg-white border border-slate-100 shadow-xs h-full flex flex-col justify-between">
                   <CardHeader className="border-b border-slate-100 pb-4">
                     <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1175,8 +1074,8 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                   <YAxis yAxisId="right" orientation="right" stroke="#3B82F6" fontSize={11} tickLine={false} tickFormatter={val => `${(val / 1000).toFixed(1)}t`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#0F172A', color: '#FFF', borderRadius: '12px', border: 'none' }}
-                    formatter={(value: any, name: any) => [
-                      typeof value === 'number' ? (name.includes('៛') ? `៛ ${value.toLocaleString()}` : `${value.toLocaleString()} kg`) : value,
+                    formatter={(value, name) => [
+                      typeof value === 'number' ? (String(name).includes('៛') ? `៛ ${value.toLocaleString()}` : `${value.toLocaleString()} kg`) : value,
                       name
                     ]}
                   />

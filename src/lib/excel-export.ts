@@ -1,13 +1,16 @@
 import * as xlsx from 'xlsx';
 
-export interface ExcelExportColumn<T = any> {
+export interface ExcelExportColumn<T = unknown> {
   header: string;
   key: keyof T | string;
+  // The cell value is whatever `key` points at (date string, number, array, ...), so
+  // each column's formatter decides how to read it. Deliberately untyped here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   formatter?: (val: any, row: T) => string | number;
   width?: number;
 }
 
-export interface ExportToExcelOptions<T = any> {
+export interface ExportToExcelOptions<T = unknown> {
   filename: string;
   sheetName?: string;
   data: T[];
@@ -17,7 +20,7 @@ export interface ExportToExcelOptions<T = any> {
 /**
  * Export data array to a downloadable .xlsx Excel spreadsheet file
  */
-export function exportToExcel<T = any>({
+export function exportToExcel<T = unknown>({
   filename,
   sheetName = 'Sheet1',
   data,
@@ -30,15 +33,15 @@ export function exportToExcel<T = any>({
 
   // Map raw data array to formatted sheet rows
   const formattedRows = data.map(row => {
-    const formattedObj: Record<string, any> = {};
+    const formattedObj: Record<string, unknown> = {};
     columns.forEach(col => {
-      let rawVal: any;
+      let rawVal: unknown;
       if (typeof col.key === 'string' && col.key.includes('.')) {
         // Support nested keys like 'cow.id'
         const parts = col.key.split('.');
-        rawVal = parts.reduce((acc: any, part) => (acc ? acc[part] : undefined), row);
+        rawVal = parts.reduce<unknown>((acc, part) => (acc ? (acc as Record<string, unknown>)[part] : undefined), row);
       } else {
-        rawVal = (row as any)[col.key];
+        rawVal = (row as Record<string | number | symbol, unknown>)[col.key];
       }
 
       if (col.formatter) {
@@ -57,7 +60,8 @@ export function exportToExcel<T = any>({
   const colWidths = columns.map(col => {
     let maxLen = col.header.toString().length;
     formattedRows.forEach(r => {
-      const valStr = r[col.header] !== undefined && r[col.header] !== null ? r[col.header].toString() : '';
+      const cell = r[col.header];
+      const valStr = cell !== undefined && cell !== null ? String(cell) : '';
       if (valStr.length > maxLen) {
         maxLen = valStr.length;
       }

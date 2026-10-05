@@ -159,10 +159,10 @@ export default function SidebarLayout({
       <div className="flex items-center justify-between h-[72px] px-5 border-b border-white/5 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 flex items-center justify-center flex-shrink-0">
-            <img src="/logo.png" alt="LiveStock Fattening ERP Logo" className="h-full w-full object-contain filter drop-shadow-md" />
+            <img src="/logo.png" alt="CC Livestock Logo" className="h-full w-full object-contain filter drop-shadow-md" />
           </div>
           <div>
-            <p className="text-white font-black text-sm tracking-wide leading-none">LiveStock Fattening</p>
+            <p className="text-white font-black text-sm tracking-wide leading-none">CC Livestock</p>
             <p className="text-emerald-500 text-[9px] font-bold tracking-[0.12em] uppercase mt-0.5">Cattle ERP</p>
           </div>
         </div>
@@ -231,8 +231,7 @@ export default function SidebarLayout({
         )}
 
         {/* Financials */}
-        {(hasPermission(currentUser, 'sales_view') ||
-          hasPermission(currentUser, 'expenses_view')) && (
+        {hasPermission(currentUser, 'sales_view') && (
           <NavSection label="Financials">
             <NavItem
               icon={<DollarSign className="h-4 w-4" />}

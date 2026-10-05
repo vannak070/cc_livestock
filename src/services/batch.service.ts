@@ -4,6 +4,7 @@ import { weightService } from './weight.service';
 import { healthService } from './health.service';
 import { withTransaction } from '../config/database';
 import { BatchItem, HealthLogItem } from '../lib/types';
+import type { FarmScope } from '../lib/farm-scope';
 
 // Standard fattening cycle used to derive Selling Target Date from Start
 // Date when a caller doesn't supply one — mirrors BatchModal.tsx's
@@ -19,8 +20,8 @@ function addDaysToDateStr(dateStr: string, days: number): string {
 }
 
 export class BatchService {
-  async getAllBatches(): Promise<BatchItem[]> {
-    return batchRepository.findAll();
+  async getAllBatches(scope?: FarmScope): Promise<BatchItem[]> {
+    return batchRepository.findAll(scope);
   }
 
   async getBatchById(id: string): Promise<BatchItem | null> {

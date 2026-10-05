@@ -41,13 +41,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-backups/*.json
+# Database backups and dumps hold real farm data; never commit them.
+/backups/
 
 # Stray nested project folder (has its own separate .git) — never track this.
 /kaksedthan/
 
 # Design mockup export (large embedded-asset HTML, not part of the app)
-/design/Cam Cow Reports.html
 
 # local dev server logs (scripts/dev-all.sh)
 .dev-logs/

@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
+import type { AuthedRequest } from '../middleware/auth.middleware';
+import { scopeFor } from '../lib/farm-scope';
 import { batchService } from '../services/batch.service';
 
 export class BatchController {
   async getAll(req: Request, res: Response): Promise<void> {
-    const batches = await batchService.getAllBatches();
+    const batches = await batchService.getAllBatches(scopeFor((req as AuthedRequest).actor ?? {}));
     res.status(200).json({
       success: true,
       message: 'Batches retrieved successfully',

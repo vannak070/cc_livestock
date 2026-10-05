@@ -17,9 +17,9 @@ async function addUserFarmLocation() {
 
     await client.query('COMMIT');
     console.log('[PostgreSQL Migration] Successfully added farm_location column to users table.');
-  } catch (error: any) {
+  } catch (error) {
     await client.query('ROLLBACK');
-    console.error('[Migration Error] Failed to add farm_location column:', error.message);
+    console.error('[Migration Error] Failed to add farm_location column:', error instanceof Error ? error.message : error);
     throw error;
   } finally {
     client.release();

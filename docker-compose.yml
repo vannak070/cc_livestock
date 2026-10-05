@@ -24,16 +24,18 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres123}
-      POSTGRES_DB: ${DB_NAME:-livestock_db}
+      POSTGRES_DB: ${DB_NAME:-cc_livestock}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./src/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      # Fresh volumes get the same numbered migrations the app uses; the
+      # schema_migrations ledger is filled in by the first `npm run safe-migrate`.
+      - ./src/db/migrations/sql:/docker-entrypoint-initdb.d:ro
     networks:
       - livestock_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-livestock_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-cc_livestock}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -59,7 +61,7 @@ services:
       DB_PORT: 5432
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres123}
-      DB_NAME: ${DB_NAME:-livestock_db}
+      DB_NAME: ${DB_NAME:-cc_livestock}
       DB_SSL: "false"
       DB_POOL_MIN: 2
       DB_POOL_MAX: 20

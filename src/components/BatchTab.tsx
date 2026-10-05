@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ERPLivestockData, BatchItem, HealthLogItem, FarmItem } from '@/lib/types';
+import { ERPLivestockData, BatchItem, HealthLogItem, FarmItem, UserRoleItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -10,7 +10,7 @@ import { Users, UserMinus, UserPlus, Calendar, Info, Layers, Trash2, ShieldAlert
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { ConfirmModal } from './ui/confirm-modal';
 import { BatchModal } from './features/batch/BatchModal';
-import { hasPermission, format2Decimals, format2DecimalsWithCommas } from '@/lib/utils';
+import { hasPermission, format2Decimals, format2DecimalsWithCommas, getErrorMessage } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
 import FarmFilterBar from './FarmFilterBar';
 import { TablePagination } from './common/TablePagination';
@@ -26,7 +26,7 @@ interface BatchTabProps {
   onRecordBatchWeights?: (records: { cowId: string; currentWeight: number; healthStatus: string; trackingDate?: string }[]) => Promise<void>;
   onRecordBatchHealthLog?: (batchId: string, log: Omit<HealthLogItem, 'id' | 'cowId'>) => Promise<void>;
   onDeleteBatch?: (batchId: string) => Promise<void>;
-  currentUser?: any;
+  currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 
@@ -165,7 +165,7 @@ export default function BatchTab({
 
   // Quick-start launcher form state
   const [launchName, setLaunchName] = useState('Fattening Program ' + new Date().getFullYear());
-  const [launchBatchId, setLaunchBatchId] = useState(`FAT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`);
+  const [launchBatchId, setLaunchBatchId] = useState(() => `FAT-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`);
   const [launchFarm, setLaunchFarm] = useState(currentUser?.farmLocation || '');
   const [launchStartDate, setLaunchStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [launchError, setLaunchError] = useState('');
@@ -245,11 +245,9 @@ export default function BatchTab({
     .filter(b => b.status === 'Active')
     .flatMap(b => b.cowIds);
 
-  const activeCows = React.useMemo(() => {
-    return effectiveFarm
-      ? data.stock.filter(c => c.status.toLowerCase() === 'active' && c.location === effectiveFarm)
-      : data.stock.filter(c => c.status.toLowerCase() === 'active');
-  }, [data.stock, effectiveFarm]);
+  const activeCows = effectiveFarm
+    ? data.stock.filter(c => c.status.toLowerCase() === 'active' && c.location === effectiveFarm)
+    : data.stock.filter(c => c.status.toLowerCase() === 'active');
 
   const unassignedCows = activeCows.filter(c => !allAssignedCowIds.includes(c.id));
 
@@ -311,11 +309,11 @@ export default function BatchTab({
         type: 'success',
         confirmText: 'Okay'
       });
-    } catch (err: any) {
+    } catch (err) {
       setConfirmModal({
         isOpen: true,
         title: 'Error Starting Program',
-        description: err.message || 'Failed to start default fattening herd.',
+        description: getErrorMessage(err, 'Failed to start default fattening herd.'),
         type: 'danger',
         confirmText: 'Dismiss'
       });
@@ -351,11 +349,11 @@ export default function BatchTab({
       }
       setEditingBatch(null);
       setIsCreateBatchModalOpen(false);
-    } catch (err: any) {
+    } catch (err) {
       setConfirmModal({
         isOpen: true,
         title: 'Batch Action Error',
-        description: err.message || 'Failed to save batch.',
+        description: getErrorMessage(err, 'Failed to save batch.'),
         type: 'danger',
         confirmText: 'Dismiss'
       });
@@ -412,8 +410,8 @@ export default function BatchTab({
           setLaunchCowIds([]);
         }
       });
-    } catch (err: any) {
-      setLaunchError(err.message || 'Failed to start fattening program. Please try again.');
+    } catch (err) {
+      setLaunchError(getErrorMessage(err, 'Failed to start fattening program. Please try again.'));
     } finally {
       setIsInitializingHerd(false);
     }
@@ -439,8 +437,8 @@ export default function BatchTab({
             type: 'success',
             confirmText: 'Okay'
           });
-        } catch (err: any) {
-          alert(err.message || 'Failed to delete batch.');
+        } catch (err) {
+          alert(getErrorMessage(err, 'Failed to delete batch.'));
         }
       }
     });
@@ -459,11 +457,11 @@ export default function BatchTab({
         type: 'success',
         confirmText: 'Okay'
       });
-    } catch (err: any) {
+    } catch (err) {
       setConfirmModal({
         isOpen: true,
         title: 'Allocation Error',
-        description: err.message || 'Failed to allocate cows.',
+        description: getErrorMessage(err, 'Failed to allocate cows.'),
         type: 'danger',
         confirmText: 'Dismiss'
       });
@@ -482,8 +480,8 @@ export default function BatchTab({
       onConfirm: async () => {
         try {
           await onRemoveCow(defaultBatch.id, cowId);
-        } catch (err: any) {
-          alert(err.message || 'Failed to remove cow.');
+        } catch (err) {
+          alert(getErrorMessage(err, 'Failed to remove cow.'));
         }
       }
     });
@@ -576,11 +574,11 @@ export default function BatchTab({
         type: 'success',
         confirmText: 'Okay'
       });
-    } catch (err: any) {
+    } catch (err) {
       setConfirmModal({
         isOpen: true,
         title: 'Error Saving Ration',
-        description: err.message || 'Failed to update feeding program.',
+        description: getErrorMessage(err, 'Failed to update feeding program.'),
         type: 'danger',
         confirmText: 'Dismiss'
       });
@@ -979,7 +977,7 @@ export default function BatchTab({
                     type="button"
                     onClick={() => {
                       exportToExcel({
-                        filename: `LiveStock_Batch_${(defaultBatch?.name || 'Fattening').replace(/\s+/g, '_')}_Members_${new Date().toISOString().split('T')[0]}.xlsx`,
+                        filename: `CC_Livestock_Batch_${(defaultBatch?.name || 'Fattening').replace(/\s+/g, '_')}_Members_${new Date().toISOString().split('T')[0]}.xlsx`,
                         sheetName: 'Fattening Herd Members',
                         data: fatteningCowsInHerd,
                         columns: [
@@ -1550,7 +1548,7 @@ export default function BatchTab({
                         type="button"
                         onClick={() => {
                           exportToExcel({
-                            filename: `LiveStock_ADG_Growth_Report_${(defaultBatch?.name || 'Fattening').replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`,
+                            filename: `CC_Livestock_ADG_Growth_Report_${(defaultBatch?.name || 'Fattening').replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`,
                             sheetName: 'ADG Growth Performance',
                             data: reportData,
                             columns: [
@@ -1746,11 +1744,11 @@ export default function BatchTab({
                       confirmText: 'View Report',
                       onConfirm: () => setSubView('report')
                     });
-                  } catch (err: any) {
+                  } catch (err) {
                     setConfirmModal({
                       isOpen: true,
                       title: 'Error Logging Weights',
-                      description: err.message || 'Unknown error occurred while saving weights.',
+                      description: getErrorMessage(err, 'Unknown error occurred while saving weights.'),
                       type: 'danger',
                       confirmText: 'Dismiss'
                     });

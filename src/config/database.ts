@@ -15,7 +15,7 @@ if (!process.env.DB_PASSWORD && process.env.NODE_ENV === 'production') {
   throw new Error('[Database] DB_PASSWORD environment variable is required when NODE_ENV=production.');
 }
 const password = process.env.DB_PASSWORD || 'postgres123';
-const database = process.env.DB_NAME || 'livestock_db';
+const database = process.env.DB_NAME || 'cc_livestock';
 const ssl = process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false;
 
 const max = parseInt(process.env.DB_POOL_MAX || '20', 10);

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Building2, ChevronDown, X, Check, Search } from 'lucide-react';
-import { FarmItem } from '@/lib/types';
+import { FarmItem, UserRoleItem } from '@/lib/types';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface FarmFilterBarProps {
@@ -12,7 +12,7 @@ interface FarmFilterBarProps {
   countByFarm?: Record<string, number>;
   totalCount?: number;
   label?: string;
-  currentUser?: any;
+  currentUser?: UserRoleItem;
 }
 
 export default function FarmFilterBar({
@@ -153,7 +153,7 @@ export default function FarmFilterBar({
 
               {/* Individual farm options */}
               {filteredFarms.length === 0 ? (
-                <p className="text-center text-xs text-slate-400 py-4">No farms match "{search}"</p>
+                <p className="text-center text-xs text-slate-400 py-4">No farms match &quot;{search}&quot;</p>
               ) : (
                 filteredFarms.map((farm, idx) => {
                   const isActive = selectedFarm === farm.name;

@@ -1,16 +1,17 @@
 import { query } from '../config/database';
 import { WeightRecord } from '../lib/xlsx-parser';
-import { PoolClient } from 'pg';
+import { PoolClient, QueryResultRow } from 'pg';
+import { FarmScope, farmMatchSql } from '../lib/farm-scope';
 
 export class WeightRepository {
-  private async executeQuery(sql: string, params?: any[], client?: PoolClient) {
+  private async executeQuery(sql: string, params?: unknown[], client?: PoolClient) {
     if (client) {
       return client.query(sql, params);
     }
     return query(sql, params);
   }
 
-  private mapRowToWeightRecord(row: any): WeightRecord {
+  private mapRowToWeightRecord(row: QueryResultRow): WeightRecord {
     return {
       cowId: row.cow_id,
       breed: row.breed || '',
@@ -24,8 +25,13 @@ export class WeightRepository {
     };
   }
 
-  async findAll(): Promise<WeightRecord[]> {
-    const res = await query('SELECT * FROM weight_tracking ORDER BY tracking_date ASC, id ASC');
+  /** With a scope, only rows for that farm's cattle; without one, everything. */
+  async findAll(scope?: FarmScope): Promise<WeightRecord[]> {
+    const match = scope && farmMatchSql('s.location', scope.farmLocation, 1);
+    const res = await query(
+      `SELECT t.* FROM weight_tracking t ${match ? `WHERE t.cow_id IN (SELECT s.id FROM stock s WHERE ${match.sql})` : ''} ORDER BY t.tracking_date ASC, t.id ASC`,
+      match?.params
+    );
     return res.rows.map(row => this.mapRowToWeightRecord(row));
   }
 

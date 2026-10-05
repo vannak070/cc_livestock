@@ -7,22 +7,7 @@ import { ProposalPlanParams, ProposalPlanRecord } from '../types/proposal.types'
 const SINGLETON_ID = 'current';
 
 export class ProposalPlanRepository {
-  private schemaEnsured = false;
-
-  private async ensureSchema(): Promise<void> {
-    if (this.schemaEnsured) return;
-    this.schemaEnsured = true;
-    await query(`
-      CREATE TABLE IF NOT EXISTS proposal_plan (
-        id VARCHAR(20) PRIMARY KEY,
-        params JSONB NOT NULL,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-  }
-
   async get(): Promise<ProposalPlanRecord | null> {
-    await this.ensureSchema();
     const res = await query('SELECT params, updated_at FROM proposal_plan WHERE id = $1', [SINGLETON_ID]);
     if (res.rows.length === 0) return null;
     return {
@@ -32,7 +17,6 @@ export class ProposalPlanRepository {
   }
 
   async save(params: ProposalPlanParams): Promise<ProposalPlanRecord> {
-    await this.ensureSchema();
     const res = await query(
       `INSERT INTO proposal_plan (id, params, updated_at)
        VALUES ($1, $2, CURRENT_TIMESTAMP)

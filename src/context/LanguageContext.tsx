@@ -34,17 +34,17 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const t = (path: string, fallback?: string): string => {
     const keys = path.split('.');
-    let current: any = dictionaries[language] || dictionaries.en;
+    let current: unknown = dictionaries[language] || dictionaries.en;
     
     for (const key of keys) {
       if (current && typeof current === 'object' && key in current) {
-        current = current[key];
+        current = (current as Record<string, unknown>)[key];
       } else {
         // Fallback to English if key missing in Khmer
-        let enCurrent: any = dictionaries.en;
+        let enCurrent: unknown = dictionaries.en;
         for (const enKey of keys) {
           if (enCurrent && typeof enCurrent === 'object' && enKey in enCurrent) {
-            enCurrent = enCurrent[enKey];
+            enCurrent = (enCurrent as Record<string, unknown>)[enKey];
           } else {
             return fallback || path;
           }

@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
+import type { AuthedRequest } from '../middleware/auth.middleware';
+import { scopeFor } from '../lib/farm-scope';
 import { salesService } from '../services/sales.service';
 
 export class SalesController {
   async getAll(req: Request, res: Response): Promise<void> {
-    const sales = await salesService.getAllSales();
+    const sales = await salesService.getAllSales(scopeFor((req as AuthedRequest).actor ?? {}));
     res.status(200).json({
       success: true,
       message: 'Sales records retrieved successfully',

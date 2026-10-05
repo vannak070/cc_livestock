@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { StockItem } from '@/lib/xlsx-parser';
-import { MasterSetup, BatchItem } from '@/lib/types';
-import { useForm } from 'react-hook-form';
+import { MasterSetup, BatchItem, UserRoleItem } from '@/lib/types';
+import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from './ui/button';
@@ -27,6 +27,7 @@ import {
   Clock,
   Search
 } from 'lucide-react';
+import { getErrorMessage } from '@/lib/utils';
 
 // Zod validation schemas
 const newCowSchema = z.object({
@@ -84,7 +85,7 @@ interface QuickEntryModalProps {
   activeBatches?: BatchItem[];
   defaultTab?: 'add' | 'weight' | 'sale';
   preselectedCowId?: string | null;
-  currentUser?: any;
+  currentUser?: UserRoleItem;
   onAddCow: (data: z.infer<typeof newCowSchema>) => Promise<void>;
   onAddWeight: (cowId: string, weight: number, healthStatus: string, date: string) => Promise<void>;
   onRecordSale: (cowId: string, unitPrice: number, saleType: 'Weight' | 'Lumpsum', date: string, buyer?: string) => Promise<void>;
@@ -203,19 +204,19 @@ export default function QuickEntryModal({
 
   // Form hooks
   const { register: regAdd, handleSubmit: handleAddSubmit, setValue: setAddValue, watch: watchAdd, trigger: triggerAdd, setError: setErrorAdd, formState: { errors: errorsAdd }, reset: resetAdd } = useForm<z.infer<typeof newCowSchema>>({
-    resolver: zodResolver(newCowSchema) as any,
+    resolver: zodResolver(newCowSchema) as unknown as Resolver<z.infer<typeof newCowSchema>>,
     defaultValues: {
       id: 'CC-',
       breed: common.breeds[0] || 'គោទន្លេ',
       sex: 'F',
       age: 'N/A',
-      weight: '' as any,
+      weight: '' as unknown as number,
       ownerName: '',
       location: currentUser?.farmLocation || '',
       phone: 'N/A',
       buyType: 'Lumsum',
-      unitPrice: '' as any,
-      totalPrice: '' as any,
+      unitPrice: '' as unknown as number,
+      totalPrice: '' as unknown as number,
       healthStatus: 'Good',
       purchaseDate: new Date().toISOString().split('T')[0],
       remark: '',
@@ -245,7 +246,7 @@ export default function QuickEntryModal({
   React.useEffect(() => {
     const rawPrice = unitPriceVal as unknown as string | number;
     if (rawPrice === '' || rawPrice === undefined || rawPrice === null) {
-      setAddValue('totalPrice', '' as any);
+      setAddValue('totalPrice', '' as unknown as number);
       return;
     }
     const wt = Number(weightVal) || 0;
@@ -319,7 +320,7 @@ export default function QuickEntryModal({
   };
 
   const { register: regW, handleSubmit: handleWSubmit, setValue: setWValue, formState: { errors: errorsW }, reset: resetW } = useForm<z.infer<typeof weightSchema>>({
-    resolver: zodResolver(weightSchema) as any,
+    resolver: zodResolver(weightSchema) as unknown as Resolver<z.infer<typeof weightSchema>>,
     defaultValues: {
       cowId: preselectedCowId || '',
       weight: 250,
@@ -418,11 +419,11 @@ export default function QuickEntryModal({
           onClose();
         }
       });
-    } catch (err: any) {
+    } catch (err) {
       setConfirmModal({
         isOpen: true,
         title: 'Sale Registration Failed',
-        description: err.message || 'Unknown error occurred while recording sale transaction.',
+        description: getErrorMessage(err, 'Unknown error occurred while recording sale transaction.'),
         type: 'danger',
         confirmText: 'Dismiss'
       });

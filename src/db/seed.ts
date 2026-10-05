@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { pool, connectWithRetry } from '../config/database';
+import { resetDatabase } from './migrate';
 import { getDbData } from '../lib/db';
 import { generateTempPassword } from '../lib/generate-temp-password';
 import { hashPassword, isBcryptHash } from '../lib/password';
@@ -11,17 +12,13 @@ async function seedDatabase() {
   // Ensure DB connection is established
   await connectWithRetry(5, 1000);
 
-  // Read schema.sql
-  const schemaPath = path.join(__dirname, 'schema.sql');
-  const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-
-  console.log('[Seed] Executing DDL Schema in schema.sql...');
-  await pool.query(schemaSql);
-  console.log('[Seed] Database DDL schema applied successfully.');
+  console.log('[Seed] Dropping all tables and re-applying migrations (local development only)...');
+  await resetDatabase();
+  console.log('[Seed] Database schema ready.');
 
   // Load JSON database data
   const data = await getDbData();
-  console.log(`[Seed] Loaded db.json - Stock: ${data.stock.length}, Weight: ${data.weightTracking.length}, Sales: ${data.salesTracking.length}, Batches: ${data.batches.length}, Health Logs: ${data.healthLogs.length}, Expenses: ${data.expenses.length}`);
+  console.log(`[Seed] Loaded db.json - Stock: ${data.stock.length}, Weight: ${data.weightTracking.length}, Sales: ${data.salesTracking.length}, Batches: ${data.batches.length}, Health Logs: ${data.healthLogs.length}`);
 
   const client = await pool.connect();
 
@@ -185,28 +182,11 @@ async function seedDatabase() {
       }
     }
 
-    // 8. Expenses
-    console.log('[Seed] Populating expenses table...');
-    for (const e of data.expenses) {
-      await client.query(
-        `INSERT INTO expenses (id, category, amount, date, description)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (id) DO NOTHING`,
-        [
-          e.id,
-          e.category,
-          e.amount || 0,
-          e.date ? new Date(e.date) : new Date(),
-          e.description || ''
-        ]
-      );
-    }
-
     await client.query('COMMIT');
     console.log('=== PostgreSQL Database Seeding Completed Successfully! ===');
-  } catch (error: any) {
+  } catch (error) {
     await client.query('ROLLBACK');
-    console.error('[Seed Error] Database seeding failed:', error.message);
+    console.error('[Seed Error] Database seeding failed:', error instanceof Error ? error.message : error);
     throw error;
   } finally {
     client.release();

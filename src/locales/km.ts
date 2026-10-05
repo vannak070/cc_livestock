@@ -8,7 +8,7 @@ export const km: TranslationKeys = {
     batchManagement: 'គ្រប់គ្រងក្រុមគោ និង ចំណី',
     feedStock: 'ស្តុកចំណីគោ',
     healthVaccines: 'ព្យាបាល និង វ៉ាក់សាំង',
-    financeLedger: 'ចំណាយចំណី និង ចំណូល',
+    financeLedger: 'ការលក់ និង ចំណូល',
     analytics: 'របាយការណ៍ និង វិភាគ',
     proposalPlan: 'ឧបករណ៍ផែនការអាជីវកម្មបំប៉ន',
     farmsBranches: 'កសិដ្ឋាន និង ក្រោលគោ',
@@ -134,15 +134,12 @@ export const km: TranslationKeys = {
 
   // Financial Ledger & Revenue
   finance: {
-    title: 'សៀវភៅចំណូលចំណាយ និង ការលក់',
-    subtitle: 'តាមដានចំណូលពីការលក់គោ ចំណាយចំណីអាហារ និងប្រតិបត្តិការកសិដ្ឋាន។',
+    title: 'ការលក់ និង ចំណូល',
+    subtitle: 'តាមដានចំណូលពីការលក់គោ ធៀបនឹងតម្លៃទិញគោ។',
     recordSale: 'កត់ត្រាការលក់គោ',
-    addExpense: 'បន្ថែមចំណាយ',
     totalSalesRevenue: 'ចំណូលសរុបពីការលក់',
-    totalExpenses: 'ចំណាយប្រតិបត្តិការសរុប',
     netProfit: 'ប្រាក់ចំណេញសុទ្ធ',
     salesLedger: 'សៀវភៅចំណូលលក់',
-    expenseLedger: 'សៀវភៅចំណាយ',
     category: 'ប្រភេទចំណាយ',
     amount: 'ទឹកប្រាក់ (៛)',
     unitPrice: 'តម្លៃក្នុងមួយគីឡូ (៛)',
@@ -151,12 +148,7 @@ export const km: TranslationKeys = {
     saleType: 'រូបភាពលក់',
     salesDate: 'កាលបរិច្ឆេទលក់',
     weightBasis: 'លក់គិតតាមគីឡូ',
-    lumpsumBasis: 'លក់ផ្តាច់ក្បាល',
-    feedExpense: 'ចំណាយចំណីអាហារ',
-    vetExpense: 'ចំណាយថ្នាំនិងវ៉ាក់សាំង',
-    utilityExpense: 'ចំណាយទឹកភ្លើង',
-    laborExpense: 'ចំណាយប្រាក់ខែបុគ្គលិក',
-    otherExpense: 'ចំណាយផ្សេងៗ'
+    lumpsumBasis: 'លក់ផ្តាច់ក្បាល'
   },
 
   // Growth & Profit Analytics

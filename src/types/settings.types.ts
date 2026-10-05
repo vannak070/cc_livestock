@@ -17,9 +17,6 @@ export type PermissionKey =
   | 'sales_view'
   | 'sales_record'
   | 'sales_delete'
-  | 'expenses_view'
-  | 'expenses_record'
-  | 'expenses_delete'
   | 'analytics_view'
   | 'settings_manage'
   | 'farms_manage'
@@ -88,15 +85,6 @@ export const PERMISSION_MODULES: PermissionCategory[] = [
     ]
   },
   {
-    id: 'expenses',
-    label: '💸 Operational Expenditures',
-    items: [
-      { key: 'expenses_view', label: 'View Expense Ledger', description: 'Access detailed cost allocation ledger.' },
-      { key: 'expenses_record', label: 'Log Operations Cost', description: 'Log feed, clinical, and utility expenditures.' },
-      { key: 'expenses_delete', label: 'Delete Expense Log', description: 'Void or delete logged transactions.' }
-    ]
-  },
-  {
     id: 'analytics',
     label: '📈 Business Intelligence Reports',
     items: [
@@ -134,7 +122,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
   // role intended for PIN sign-in on the mobile app, so it deliberately
   // holds no create/edit/delete permission at all — a shorter credential
   // must not unlock a wider set of actions.
-  'Management': ['dashboard_view', 'stock_view', 'batch_view', 'weight_view', 'health_view', 'sales_view', 'expenses_view', 'analytics_view', 'feed_view']
+  'Management': ['dashboard_view', 'stock_view', 'batch_view', 'weight_view', 'health_view', 'sales_view', 'analytics_view', 'feed_view']
 };
 
 export interface CustomRoleDefinition {
@@ -186,7 +174,6 @@ export interface MasterSetup {
   healthStatuses: string[];
   vaccineTypes: string[];
   feedTypes: string[];
-  expenseCategories: string[];
   paymentMethods: string[];
   sexes: string[];
   diseaseTypes: string[];

@@ -1,16 +1,17 @@
 import { query } from '../config/database';
 import { SalesRecord } from '../lib/xlsx-parser';
-import { PoolClient } from 'pg';
+import { PoolClient, QueryResultRow } from 'pg';
+import { FarmScope, farmMatchSql } from '../lib/farm-scope';
 
 export class SalesRepository {
-  private async executeQuery(sql: string, params?: any[], client?: PoolClient) {
+  private async executeQuery(sql: string, params?: unknown[], client?: PoolClient) {
     if (client) {
       return client.query(sql, params);
     }
     return query(sql, params);
   }
 
-  private mapRowToSalesRecord(row: any): SalesRecord {
+  private mapRowToSalesRecord(row: QueryResultRow): SalesRecord {
     return {
       cowId: row.cow_id,
       breed: row.breed || '',
@@ -25,8 +26,13 @@ export class SalesRepository {
     };
   }
 
-  async findAll(): Promise<SalesRecord[]> {
-    const res = await query('SELECT * FROM sales_tracking ORDER BY sales_date DESC');
+  /** With a scope, only rows for that farm's cattle; without one, everything. */
+  async findAll(scope?: FarmScope): Promise<SalesRecord[]> {
+    const match = scope && farmMatchSql('s.location', scope.farmLocation, 1);
+    const res = await query(
+      `SELECT t.* FROM sales_tracking t ${match ? `WHERE t.cow_id IN (SELECT s.id FROM stock s WHERE ${match.sql})` : ''} ORDER BY t.sales_date DESC`,
+      match?.params
+    );
     return res.rows.map(row => this.mapRowToSalesRecord(row));
   }
 

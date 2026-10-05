@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
+import type { AuthedRequest } from '../middleware/auth.middleware';
+import { scopeFor } from '../lib/farm-scope';
 import { healthService } from '../services/health.service';
 
 export class HealthController {
   async getAll(req: Request, res: Response): Promise<void> {
-    const logs = await healthService.getAllHealthLogs();
+    const logs = await healthService.getAllHealthLogs(scopeFor((req as AuthedRequest).actor ?? {}));
     res.status(200).json({
       success: true,
       message: 'Health logs retrieved successfully',

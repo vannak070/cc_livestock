@@ -5,10 +5,10 @@
 # ⚠️  DATABASE PROTECTION RULES (READ BEFORE CHANGING THIS FILE):
 #     1. NEVER run `npm run restore-db` (init-db.ts) on production.
 #        init-db.ts drops ALL tables and seeds local test data.
-#     2. NEVER run schema.sql directly on production.
-#        schema.sql starts with DROP TABLE IF EXISTS ... CASCADE.
-#     3. ONLY `npm run safe-migrate` is allowed — it uses
-#        CREATE TABLE IF NOT EXISTS and ADD COLUMN IF NOT EXISTS only.
+#     2. NEVER run `npm run seed` on production (it also drops all tables).
+#     3. ONLY `npm run safe-migrate` is allowed — it applies the numbered,
+#        idempotent files in src/db/migrations/sql/ once each and records them
+#        in the schema_migrations table (it never drops or seeds anything).
 #
 # WHAT THIS SCRIPT DOES (in order):
 #   1. Auto-backup  — creates a timestamped JSON backup before ANY changes
@@ -48,7 +48,7 @@ const fs = require("fs");
 require("/root/LiveStock/node_modules/dotenv").config({ path: "/root/LiveStock/.env" });
 const { Pool } = require("/root/LiveStock/node_modules/pg");
 if (!process.env.DB_PASSWORD) { console.error("   ⚠️  DB_PASSWORD not found in /root/LiveStock/.env — skipping backup."); process.exit(0); }
-const pool = new Pool({ host:"localhost", port:5432, user:"postgres", password:process.env.DB_PASSWORD, database:"livestock_db" });
+const pool = new Pool({ host:"localhost", port:5432, user:"postgres", password:process.env.DB_PASSWORD, database:(process.env.DB_NAME||"cc_livestock") });
 const BACKUP_FILE = process.env.BACKUP_FILE;
 async function dump() {
   const c = await pool.connect();

@@ -1,39 +1,33 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ERPLivestockData, ExpenseItem, FarmItem } from '@/lib/types';
+import { ERPLivestockData, FarmItem, UserRoleItem } from '@/lib/types';
 import { SalesRecord } from '@/lib/xlsx-parser';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
-import { DollarSign, FileText, ArrowUpRight, ArrowDownRight, ClipboardList, TrendingUp, ShoppingBag, Edit3, Trash2, Download } from 'lucide-react';
+import { DollarSign, FileText, ArrowUpRight, ShoppingBag, Edit3, Trash2, Download } from 'lucide-react';
 import { ConfirmModal } from './ui/confirm-modal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { hasPermission, format2Decimals, format2DecimalsWithCommas } from '@/lib/utils';
+import { hasPermission, format2Decimals, format2DecimalsWithCommas, getErrorMessage } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
 import FarmFilterBar from './FarmFilterBar';
 import { TablePagination } from './common/TablePagination';
 import { exportToExcel } from '@/lib/excel-export';
 import { DateRangeFilterBar } from './common/DateRangeFilterBar';
+import { useOnChange } from '@/hooks/useOnChange';
 
 interface FinanceTabProps {
   data: ERPLivestockData;
-  onAddExpense: (expense: Omit<ExpenseItem, 'id'>) => Promise<void>;
-  onUpdateExpense?: (id: string, updates: Partial<ExpenseItem>) => Promise<void>;
-  onDeleteExpense?: (id: string) => Promise<void>;
   onDeleteSalesRecord?: (cowId: string) => Promise<void>;
   onUpdateSalesRecord?: (cowId: string, updates: Partial<SalesRecord>) => Promise<void>;
   onRecordSaleClick?: () => void;
-  currentUser?: any;
+  currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 
 export default function FinanceTab({ 
   data, 
-  onAddExpense, 
-  onUpdateExpense, 
-  onDeleteExpense,
   onDeleteSalesRecord,
   onUpdateSalesRecord,
   onRecordSaleClick,
@@ -57,9 +51,6 @@ export default function FinanceTab({
     type: 'warning'
   });
 
-  const [isLogging, setIsLogging] = useState(false);
-  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
-  const [ledgerView, setLedgerView] = useState<'expenses' | 'revenue'>('expenses');
   
   const [editingSalesRecord, setEditingSalesRecord] = useState<{
     cowId: string;
@@ -70,64 +61,15 @@ export default function FinanceTab({
     unitPrice: number;
   } | null>(null);
 
-  // Form states for Expense
-  const [category, setCategory] = useState('Feed');
-  const [amount, setAmount] = useState(150000); // default riel amount
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [description, setDescription] = useState('');
-  const [expensePage, setExpensePage] = useState(1);
-  const [expensePageSize, setExpensePageSize] = useState(10);
-
   const [salesPage, setSalesPage] = useState(1);
   const [salesPageSize, setSalesPageSize] = useState(10);
 
   // Date & Category & Amount Range Filter States
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [minAmount, setMinAmount] = useState<string>('');
-  const [maxAmount, setMaxAmount] = useState<string>('');
-
-  // Extract unique categories from expense items
-  const expenseCategories = React.useMemo(() => {
-    const cats = data.expenses.map(e => e.category).filter(Boolean);
-    return Array.from(new Set(cats));
-  }, [data.expenses]);
 
   // Reset page when farm or filters change
-  React.useEffect(() => {
-    setExpensePage(1);
-    setSalesPage(1);
-  }, [selectedFarm, startDate, endDate, selectedCategory, minAmount, maxAmount, expensePageSize, salesPageSize]);
-
-  // Farm & Date & Category & Amount Range filtered data for display
-  const farmFilteredExpenses = React.useMemo(() => {
-    let list = data.expenses;
-    if (selectedFarm) {
-      list = list.filter(e => e.farmLocation === selectedFarm);
-    }
-    if (selectedCategory && selectedCategory !== 'all') {
-      list = list.filter(e => e.category === selectedCategory);
-    }
-    if (minAmount) {
-      const min = parseFloat(minAmount);
-      if (!isNaN(min)) list = list.filter(e => (e.amount || 0) >= min);
-    }
-    if (maxAmount) {
-      const max = parseFloat(maxAmount);
-      if (!isNaN(max)) list = list.filter(e => (e.amount || 0) <= max);
-    }
-    if (startDate || endDate) {
-      list = list.filter(e => {
-        if (!e.date) return true;
-        const d = e.date.split('T')[0];
-        if (startDate && d < startDate) return false;
-        if (endDate && d > endDate) return false;
-        return true;
-      });
-    }
-    return list;
-  }, [data.expenses, selectedFarm, startDate, endDate, selectedCategory, minAmount, maxAmount]);
+  useOnChange(JSON.stringify([selectedFarm, startDate, endDate, salesPageSize]), () => setSalesPage(1));
 
   const farmFilteredSales = React.useMemo(() => {
     let list = data.salesTracking;
@@ -153,58 +95,19 @@ export default function FinanceTab({
   }, [data.stock, selectedFarm]);
 
   const countByFarm = React.useMemo(() => {
+    const locById = new Map(data.stock.map(c => [c.id, c.location]));
     const map: Record<string, number> = {};
-    data.expenses.forEach(e => {
-      if (e.farmLocation) map[e.farmLocation] = (map[e.farmLocation] || 0) + 1;
+    data.salesTracking.forEach(sale => {
+      const loc = locById.get(sale.cowId);
+      if (loc) map[loc] = (map[loc] || 0) + 1;
     });
     return map;
-  }, [data.expenses]);
+  }, [data.salesTracking, data.stock]);
 
   // Financial aggregates (farm-scoped when filter active)
   const totalSales = farmFilteredSales.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
   const totalPurchases = farmFilteredStock.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-  const totalExpenses = farmFilteredExpenses.reduce((sum, item) => sum + (item.amount || 0), 0);
-  const netEarnings = totalSales - totalPurchases - totalExpenses;
-
-  const handleSub = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!amount || !description) return;
-
-    if (editingExpenseId && onUpdateExpense) {
-      await onUpdateExpense(editingExpenseId, {
-        category,
-        amount: Number(amount),
-        date,
-        description
-      });
-      setConfirmModal({
-        isOpen: true,
-        title: 'Expense Updated',
-        description: 'The expense transaction has been successfully updated.',
-        type: 'success',
-        confirmText: 'OK'
-      });
-    } else {
-      await onAddExpense({
-        category,
-        amount: Number(amount),
-        date,
-        description
-      });
-      setConfirmModal({
-        isOpen: true,
-        title: 'Expense Recorded',
-        description: 'New operational expense transaction has been successfully saved.',
-        type: 'success',
-        confirmText: 'OK'
-      });
-    }
-
-    setIsLogging(false);
-    setEditingExpenseId(null);
-    setDescription('');
-    setAmount(150000);
-  };
+  const netEarnings = totalSales - totalPurchases;
 
   return (
     <div className="space-y-6">
@@ -214,28 +117,12 @@ export default function FinanceTab({
           <h3 className="text-xl font-bold text-slate-900 tracking-tight">{t('finance.title')}</h3>
           <p className="text-xs text-slate-400 font-medium">{t('finance.subtitle')}</p>
         </div>
-        {ledgerView === 'expenses' && hasPermission(currentUser, 'expenses_record') && (
-          <Button
-            onClick={() => {
-              if (isLogging) {
-                setIsLogging(false);
-                setEditingExpenseId(null);
-                setDescription('');
-              } else {
-                setIsLogging(true);
-              }
-            }}
-            className="bg-emerald-600 hover:bg-emerald-500 rounded-xl font-bold text-xs py-2 shadow flex items-center gap-1.5"
-          >
-            {isLogging ? t('common.close') : `+ ${t('finance.addExpense')}`}
-          </Button>
-        )}
-        {ledgerView === 'revenue' && onRecordSaleClick && hasPermission(currentUser, 'sales_record') && (
+        {onRecordSaleClick && hasPermission(currentUser, 'sales_record') && (
           <Button
             onClick={onRecordSaleClick}
             className="bg-emerald-600 hover:bg-emerald-500 rounded-xl font-bold text-xs py-2 shadow flex items-center gap-1.5 cursor-pointer"
           >
-            ➕ {t('sales.recordSale')}
+            ➕ {t('finance.recordSale')}
           </Button>
         )}
       </div>
@@ -246,14 +133,14 @@ export default function FinanceTab({
         selectedFarm={selectedFarm}
         onFarmChange={setSelectedFarm}
         countByFarm={countByFarm}
-        totalCount={data.expenses.length}
-        label="transactions"
+        totalCount={data.salesTracking.length}
+        label="sales"
         currentUser={currentUser}
       />
 
       {/* Mini Stats Card Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-100 p-4 rounded-xl flex items-center justify-between shadow-sm cursor-pointer hover:border-emerald-200 transition-colors" onClick={() => { setLedgerView('revenue'); setIsLogging(false); }}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white border border-slate-100 p-4 rounded-xl flex items-center justify-between shadow-sm ">
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gross Sales Revenue</p>
             <h4 className="text-lg font-black text-emerald-600 mt-1">៛ {format2DecimalsWithCommas(totalSales)}</h4>
@@ -270,16 +157,6 @@ export default function FinanceTab({
           </div>
           <div className="h-9 w-9 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center">
             <FileText className="h-4.5 w-4.5" />
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-100 p-4 rounded-xl flex items-center justify-between shadow-sm cursor-pointer hover:border-rose-250 transition-colors" onClick={() => { setLedgerView('expenses'); }}>
-          <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Operation Expense</p>
-            <h4 className="text-lg font-black text-rose-500 mt-1">៛ {format2DecimalsWithCommas(totalExpenses)}</h4>
-          </div>
-          <div className="h-9 w-9 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center">
-            <ArrowDownRight className="h-4.5 w-4.5" />
           </div>
         </div>
 
@@ -300,285 +177,7 @@ export default function FinanceTab({
         </div>
       </div>
 
-      {/* Ledger Navigation Tabs */}
-      {!isLogging && (
-        <div className="flex border-b border-slate-100">
-          <button
-            type="button"
-            onClick={() => setLedgerView('expenses')}
-            className={`pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-colors ${
-              ledgerView === 'expenses'
-                ? 'border-emerald-600 text-emerald-600'
-                : 'border-transparent text-slate-400 hover:text-slate-650'
-            }`}
-          >
-            Operation Ledger
-          </button>
-          <button
-            type="button"
-            onClick={() => setLedgerView('revenue')}
-            className={`pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 px-4 transition-colors flex items-center gap-1.5 ${
-              ledgerView === 'revenue'
-                ? 'border-emerald-600 text-emerald-600'
-                : 'border-transparent text-slate-400 hover:text-slate-650'
-            }`}
-          >
-            <TrendingUp className="h-3.5 w-3.5" />
-            Revenue of Sales
-          </button>
-        </div>
-      )}
-
-      {isLogging ? (
-        /* Record Expense Form Panel */
-        <Card className="max-w-md bg-white border border-slate-100 p-6 rounded-2xl shadow-sm">
-          <CardHeader className="p-0 pb-4">
-            <CardTitle className="text-base font-bold text-slate-800">
-              {editingExpenseId ? 'Edit Operational Expense' : 'Record Operational Expense'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <form onSubmit={handleSub} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="e_cat" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Expense Category</Label>
-                <select
-                  id="e_cat"
-                  value={category}
-                  onChange={e => setCategory(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-800 focus:outline-none cursor-pointer font-medium"
-                >
-                  {data.settings.expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="e_amount" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Amount (៛)</Label>
-                  <Input id="e_amount" type="number" value={amount} onChange={e => setAmount(Number(e.target.value))} required />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="e_date" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Transaction Date</Label>
-                  <Input id="e_date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="e_desc" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Description Detail</Label>
-                <textarea
-                  id="e_desc"
-                  rows={3}
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  className="flex w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
-                  placeholder="e.g. Bought 5 bags of silage feed, 50kg each"
-                  required
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsLogging(false);
-                    setEditingExpenseId(null);
-                    setDescription('');
-                    setAmount(150000);
-                  }}
-                  className="w-1/3 text-slate-500 rounded-xl font-bold py-2.5"
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" className="w-2/3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-bold py-2.5 shadow">
-                  {editingExpenseId ? 'Save Changes' : 'Save Expense Record'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : ledgerView === 'expenses' ? (
-        /* Expenses Table Ledger */
-        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-            <h4 className="text-sm font-extrabold uppercase tracking-wider text-slate-800 font-mono">Expense Transactions</h4>
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Category Filter Dropdown */}
-              <select
-                value={selectedCategory}
-                onChange={e => setSelectedCategory(e.target.value)}
-                className="h-8 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
-              >
-                <option value="all">Filter: All Categories ({data.expenses.length})</option>
-                {expenseCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-
-              {/* Amount Range Filter Inputs */}
-              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2 py-0.5">
-                <span className="text-[10px] font-extrabold uppercase text-slate-400">Min ៛</span>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={minAmount}
-                  onChange={e => setMinAmount(e.target.value)}
-                  className="w-20 h-7 bg-white border border-slate-200 rounded-lg px-2 text-xs font-mono font-bold text-slate-800 focus:outline-none"
-                />
-                <span className="text-[10px] font-extrabold uppercase text-slate-400">Max ៛</span>
-                <input
-                  type="number"
-                  placeholder="Max"
-                  value={maxAmount}
-                  onChange={e => setMaxAmount(e.target.value)}
-                  className="w-24 h-7 bg-white border border-slate-200 rounded-lg px-2 text-xs font-mono font-bold text-slate-800 focus:outline-none"
-                />
-                {(minAmount || maxAmount || selectedCategory !== 'all') && (
-                  <button
-                    type="button"
-                    onClick={() => { setMinAmount(''); setMaxAmount(''); setSelectedCategory('all'); }}
-                    className="text-[10px] font-extrabold text-slate-400 hover:text-rose-600 px-1 cursor-pointer"
-                    title="Clear Category & Amount Range Filters"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-
-              <DateRangeFilterBar
-                startDate={startDate}
-                endDate={endDate}
-                onStartDateChange={setStartDate}
-                onEndDateChange={setEndDate}
-                onResetDates={() => { setStartDate(''); setEndDate(''); }}
-              />
-              <Button
-                type="button"
-                onClick={() => {
-                  exportToExcel({
-                    filename: `LiveStock_Expense_Ledger_${new Date().toISOString().split('T')[0]}.xlsx`,
-                    sheetName: 'Expenses Ledger',
-                    data: farmFilteredExpenses,
-                    columns: [
-                      { header: 'Expense ID', key: 'id' },
-                      { header: 'Category', key: 'category' },
-                      { header: 'Transaction Date', key: 'date', formatter: (val) => val ? new Date(val).toLocaleDateString() : 'N/A' },
-                      { header: 'Description Detail', key: 'description' },
-                      { header: 'Farm Location', key: 'farmLocation', formatter: (val) => val || 'Global' },
-                      { header: 'Amount (៛)', key: 'amount', formatter: (val) => `៛ ${format2DecimalsWithCommas(val)}` }
-                    ]
-                  });
-                }}
-                className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-2xs cursor-pointer"
-              >
-                <Download className="h-3.5 w-3.5" /> Export Excel
-              </Button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/20 text-[#003B33] font-bold uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Category</th>
-                  <th className="py-3.5 px-4">Transaction Date</th>
-                  <th className="py-3.5 px-4">Description Detail</th>
-                  <th className="py-3.5 px-4 text-right">Expense Cost (៛)</th>
-                  <th className="py-3.5 px-4 text-right pr-6">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 text-slate-700 font-medium">
-                {farmFilteredExpenses.slice((expensePage - 1) * expensePageSize, expensePage * expensePageSize).length > 0 ? (
-                  farmFilteredExpenses.slice((expensePage - 1) * expensePageSize, expensePage * expensePageSize).map((expense) => (
-                    <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3.5 px-4">
-                        <span className="px-2 py-0.5 rounded-lg font-bold border border-slate-200 text-slate-650 bg-slate-50 text-[10px] uppercase">
-                          {expense.category}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 font-mono text-slate-500">{new Date(expense.date).toLocaleDateString()}</td>
-                      <td className="py-3.5 px-4 text-slate-800">{expense.description}</td>
-                      <td className="py-3.5 px-4 font-mono text-slate-900 font-extrabold text-right">៛ {expense.amount.toLocaleString()}</td>
-                      <td className="py-3.5 px-4 text-right pr-6">
-                        <div className="flex items-center justify-end gap-2.5">
-                          {hasPermission(currentUser, 'expenses_record') && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCategory(expense.category);
-                                setAmount(expense.amount);
-                                setDate(expense.date);
-                                setDescription(expense.description);
-                                setEditingExpenseId(expense.id);
-                                setIsLogging(true);
-                              }}
-                              className="text-slate-400 hover:text-emerald-600 transition-colors p-1 cursor-pointer"
-                              title="Edit Expense Record"
-                            >
-                              <Edit3 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          {onDeleteExpense && hasPermission(currentUser, 'expenses_delete') && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setConfirmModal({
-                                  isOpen: true,
-                                  title: 'Delete Expense Record',
-                                  description: 'Are you sure you want to permanently delete this operational expense record?',
-                                  type: 'danger',
-                                  confirmText: 'Delete',
-                                  onConfirm: async () => {
-                                    try {
-                                      await onDeleteExpense(expense.id);
-                                      setConfirmModal({
-                                        isOpen: true,
-                                        title: 'Record Deleted',
-                                        description: 'Expense record has been successfully removed from ledger.',
-                                        type: 'success',
-                                        confirmText: 'OK'
-                                      });
-                                    } catch (err: any) {
-                                      setConfirmModal({
-                                        isOpen: true,
-                                        title: 'Deletion Failed',
-                                        description: err.message || 'Unknown error occurred while deleting expense.',
-                                        type: 'danger',
-                                        confirmText: 'Dismiss'
-                                      });
-                                    }
-                                  }
-                                });
-                              }}
-                              className="text-slate-400 hover:text-rose-600 transition-colors p-1 cursor-pointer"
-                              title="Delete Expense Record"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400 font-semibold">
-                      No expense transactions logged. Record one using the button above.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <TablePagination
-            currentPage={expensePage}
-            totalItems={farmFilteredExpenses.length}
-            pageSize={expensePageSize}
-            onPageChange={setExpensePage}
-            onPageSizeChange={setExpensePageSize}
-            itemLabel="records"
-          />
-        </div>
-      ) : (
-        /* Revenue of Sales Ledger */
+        {/* Revenue of Sales Ledger */}
         <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden flex flex-col justify-between">
           <div>
             <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
@@ -595,7 +194,7 @@ export default function FinanceTab({
                   type="button"
                   onClick={() => {
                     exportToExcel({
-                      filename: `LiveStock_Sales_Revenue_Ledger_${new Date().toISOString().split('T')[0]}.xlsx`,
+                      filename: `CC_Livestock_Sales_Revenue_Ledger_${new Date().toISOString().split('T')[0]}.xlsx`,
                       sheetName: 'Sales Revenue Ledger',
                       data: farmFilteredSales,
                       columns: [
@@ -723,11 +322,11 @@ export default function FinanceTab({
                                               type: 'success',
                                               confirmText: 'OK'
                                             });
-                                          } catch (err: any) {
+                                          } catch (err) {
                                             setConfirmModal({
                                               isOpen: true,
                                               title: 'Deletion Failed',
-                                              description: err.message || 'Unknown error occurred while deleting sales record.',
+                                              description: getErrorMessage(err, 'Unknown error occurred while deleting sales record.'),
                                               type: 'danger',
                                               confirmText: 'Dismiss'
                                             });
@@ -766,7 +365,6 @@ export default function FinanceTab({
             />
           </div>
         </div>
-      )}
       {editingSalesRecord && (
         <Dialog open={!!editingSalesRecord} onOpenChange={(open) => !open && setEditingSalesRecord(null)}>
           <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-white border border-slate-100 text-slate-800 rounded-2xl shadow-xl p-6">
@@ -794,11 +392,11 @@ export default function FinanceTab({
                     type: 'success',
                     confirmText: 'OK'
                   });
-                } catch (err: any) {
+                } catch (err) {
                   setConfirmModal({
                     isOpen: true,
                     title: 'Update Failed',
-                    description: err.message || 'Unknown error occurred while updating sales record.',
+                    description: getErrorMessage(err, 'Unknown error occurred while updating sales record.'),
                     type: 'danger',
                     confirmText: 'Dismiss'
                   });

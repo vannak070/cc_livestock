@@ -2,7 +2,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # clone-prod-to-local.sh
 # Clones ALL production data from http://104.248.149.103 into your local
-# PostgreSQL (localhost:5433/livestock_db).  Useful for local development
+# PostgreSQL (localhost:5433/cc_livestock).  Useful for local development
 # and testing with real data.
 #
 # Usage: bash scripts/clone-prod-to-local.sh
@@ -14,7 +14,7 @@ LOCAL_HOST="localhost"
 LOCAL_PORT="5433"
 LOCAL_USER="postgres"
 LOCAL_PASS="postgres123"
-LOCAL_DB="livestock_db"
+LOCAL_DB="cc_livestock"
 
 echo "=== 📦 Clone Production → Local Development Environment ==="
 echo "  Source : $PROD_HOST (production)"
@@ -27,7 +27,7 @@ ssh -o StrictHostKeyChecking=no "$PROD_HOST" 'node << '"'"'EOF'"'"'
 require("/root/LiveStock/node_modules/dotenv").config({ path: "/root/LiveStock/.env" });
 const { Pool } = require("/root/LiveStock/node_modules/pg");
 if (!process.env.DB_PASSWORD) { process.stderr.write("ERROR: DB_PASSWORD not found in /root/LiveStock/.env on the server.\n"); process.exit(1); }
-const pool = new Pool({ host:"localhost", port:5432, user:"postgres", password:process.env.DB_PASSWORD, database:"livestock_db" });
+const pool = new Pool({ host:"localhost", port:5432, user:"postgres", password:process.env.DB_PASSWORD, database:(process.env.DB_NAME||"cc_livestock") });
 async function dump() {
   const c = await pool.connect();
   try {

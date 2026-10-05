@@ -3,10 +3,11 @@ import { stockRepository } from '../repositories/stock.repository';
 import { batchRepository } from '../repositories/batch.repository';
 import { withTransaction } from '../config/database';
 import { SalesRecord } from '../lib/xlsx-parser';
+import type { FarmScope } from '../lib/farm-scope';
 
 export class SalesService {
-  async getAllSales(): Promise<SalesRecord[]> {
-    return salesRepository.findAll();
+  async getAllSales(scope?: FarmScope): Promise<SalesRecord[]> {
+    return salesRepository.findAll(scope);
   }
 
   async getSaleByCowId(cowId: string): Promise<SalesRecord | null> {

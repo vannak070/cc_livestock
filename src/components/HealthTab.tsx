@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ERPLivestockData, HealthLogItem, FarmItem } from '@/lib/types';
+import { ERPLivestockData, HealthLogItem, FarmItem, UserRoleItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -14,13 +14,14 @@ import FarmFilterBar from './FarmFilterBar';
 import { TablePagination } from './common/TablePagination';
 import { exportToExcel } from '@/lib/excel-export';
 import { DateRangeFilterBar } from './common/DateRangeFilterBar';
+import { useOnChange } from '@/hooks/useOnChange';
 
 interface HealthTabProps {
   data: ERPLivestockData;
   onAddHealthLog: (log: Omit<HealthLogItem, 'id'>) => Promise<void>;
   onDeleteHealthLog?: (logId: string) => Promise<void>;
   onUpdateHealthLog?: (logId: string, updates: Partial<HealthLogItem>) => Promise<void>;
-  currentUser?: any;
+  currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 
@@ -38,9 +39,7 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedCohortId, selectedFarm, startDate, endDate, pageSize]);
+  useOnChange(JSON.stringify([selectedCohortId, selectedFarm, startDate, endDate, pageSize]), () => setCurrentPage(1));
 
   const userFarmLocation = currentUser?.farmLocation;
   const activeFarm = selectedFarm || userFarmLocation;
@@ -166,8 +165,8 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
       if (costAmount > 0) {
         setConfirmModal({
           isOpen: true,
-          title: '✅ បានកត់ត្រា និងបូកបញ្ចូលចំណាយ (Recorded & Expense Logged)',
-          description: `បានកត់ត្រាសុខភាព "${name}" សម្រាប់គោ ${cowId} ដោយជោគជ័យ។ ថវិកាចំណាយ ៛ ${costAmount.toLocaleString()} ត្រូវបានបញ្ជូនទៅក្នុងបញ្ជីចំណាយ Financial Expenses (Medicine Category) ដោយស្វ័យប្រវត្តិ។`,
+          title: '✅ បានកត់ត្រា (Recorded)',
+          description: `បានកត់ត្រាសុខភាព "${name}" សម្រាប់គោ ${cowId} ដោយជោគជ័យ។ ថវិកាព្យាបាល ៛ ${costAmount.toLocaleString()} ត្រូវបានកត់ទុកក្នុងកំណត់ត្រាសុខភាព។`,
           type: 'success',
           confirmText: 'យល់ព្រម (OK)'
         });
@@ -294,7 +293,7 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
                   <select
                     id="h_type"
                     value={type}
-                    onChange={e => setType(e.target.value as any)}
+                    onChange={e => setType(e.target.value as HealthLogItem['type'])}
                     className="flex h-9 w-full rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-800 focus:outline-none"
                   >
                     <option value="Vaccination">Vaccination</option>
@@ -402,7 +401,7 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
                 type="button"
                 onClick={() => {
                   exportToExcel({
-                    filename: `LiveStock_Health_Medical_Logs_${new Date().toISOString().split('T')[0]}.xlsx`,
+                    filename: `CC_Livestock_Health_Medical_Logs_${new Date().toISOString().split('T')[0]}.xlsx`,
                     sheetName: 'Health Medical Logs',
                     data: filteredHealthLogs,
                     columns: [

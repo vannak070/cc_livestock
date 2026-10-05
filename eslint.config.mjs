@@ -13,6 +13,16 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // 13 existing components copy props/localStorage/defaults into state inside
+      // an effect (edit modals, language preference, a few tab defaults). Fixing
+      // them means re-keying components or deriving state, which changes UI
+      // behaviour, so they are tracked as warnings until each is reworked and
+      // verified in the browser. New code should not add to the list.
+      "react-hooks/set-state-in-effect": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

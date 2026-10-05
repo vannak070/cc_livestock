@@ -1,5 +1,5 @@
 import { query } from '../config/database';
-import { FeedProductItem, FeedStockTransaction, FeedBalanceItem } from '../types/feed.types';
+import { FeedProductItem, FeedStockTransaction, FeedTransactionType } from '../types/feed.types';
 import { PoolClient } from 'pg';
 
 const DEFAULT_FEED_PRODUCTS: FeedProductItem[] = [
@@ -28,49 +28,10 @@ export class FeedRepository {
     return query(sql, params);
   }
 
+  /** Tables come from src/db/migrations/sql; this only seeds the default catalogue into an empty one. */
   async ensureSchema(): Promise<void> {
     if (this.schemaEnsured) return;
     this.schemaEnsured = true;
-    await query(`
-      CREATE TABLE IF NOT EXISTS feed_products (
-        id VARCHAR(100) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        category VARCHAR(100) NOT NULL,
-        unit VARCHAR(50) DEFAULT 'bag',
-        weight_per_unit NUMERIC(10, 2) DEFAULT 30,
-        unit_cost NUMERIC(15, 4) DEFAULT 0,
-        cost_type VARCHAR(20) DEFAULT 'per_bag',
-        cost_per_bag NUMERIC(15, 2) DEFAULT 0,
-        min_threshold_bags NUMERIC(10, 2) DEFAULT 50,
-        min_threshold_kg NUMERIC(10, 2) DEFAULT 1500,
-        description TEXT,
-        supplier VARCHAR(255),
-        status VARCHAR(50) DEFAULT 'Active',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-
-      ALTER TABLE feed_products ADD COLUMN IF NOT EXISTS cost_type VARCHAR(20) DEFAULT 'per_bag';
-      ALTER TABLE feed_products ADD COLUMN IF NOT EXISTS cost_per_bag NUMERIC(15, 2) DEFAULT 0;
-
-      CREATE TABLE IF NOT EXISTS feed_transactions (
-        id VARCHAR(100) PRIMARY KEY,
-        date TIMESTAMP WITH TIME ZONE NOT NULL,
-        product_id VARCHAR(100) NOT NULL,
-        product_name VARCHAR(255) NOT NULL,
-        type VARCHAR(50) NOT NULL, -- STOCK_IN | STOCK_OUT | TRANSFER
-        quantity_bags NUMERIC(12, 2) DEFAULT 0,
-        quantity_kg NUMERIC(12, 2) DEFAULT 0,
-        unit_cost NUMERIC(15, 4) DEFAULT 0,
-        total_cost NUMERIC(15, 2) DEFAULT 0,
-        source_farm VARCHAR(255),
-        target_farm VARCHAR(255),
-        reference_no VARCHAR(100),
-        recorded_by VARCHAR(255),
-        notes TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
     // Check if products table is empty and seed defaults if so
     const checkRes = await query(`SELECT COUNT(*) FROM feed_products`);
     if (parseInt(checkRes.rows[0].count, 10) === 0) {
@@ -160,7 +121,7 @@ export class FeedRepository {
       date: row.date ? new Date(row.date).toISOString() : new Date().toISOString(),
       productId: String(row.product_id),
       productName: String(row.product_name),
-      type: String(row.type) as any,
+      type: String(row.type) as FeedTransactionType,
       quantityBags: parseFloat(String(row.quantity_bags || 0)),
       quantityKg: parseFloat(String(row.quantity_kg || 0)),
       unitCost: parseFloat(String(row.unit_cost || 0)),
@@ -175,13 +136,23 @@ export class FeedRepository {
   }
 
   async addTransaction(tx: FeedStockTransaction, client?: PoolClient): Promise<FeedStockTransaction> {
+    await this.insertTransaction(tx, false, client);
+    return tx;
+  }
+
+  /** Inserts unless a transaction with the same unique reference already exists. Returns whether a row was written. */
+  async addTransactionIfNew(tx: FeedStockTransaction, client?: PoolClient): Promise<boolean> {
+    return this.insertTransaction(tx, true, client);
+  }
+
+  private async insertTransaction(tx: FeedStockTransaction, skipIfExists: boolean, client?: PoolClient): Promise<boolean> {
     await this.ensureSchema();
     const sql = `
       INSERT INTO feed_transactions (
         id, date, product_id, product_name, type, quantity_bags, 
         quantity_kg, unit_cost, total_cost, source_farm, target_farm, 
         reference_no, recorded_by, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14);
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)${skipIfExists ? ' ON CONFLICT DO NOTHING' : ''};
     `;
     const params = [
       tx.id,
@@ -199,8 +170,8 @@ export class FeedRepository {
       tx.recordedBy || null,
       tx.notes || null
     ];
-    await this.executeQuery(sql, params, client);
-    return tx;
+    const res = await this.executeQuery(sql, params, client);
+    return (res.rowCount ?? 0) > 0;
   }
 }
 

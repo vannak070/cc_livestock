@@ -15,7 +15,7 @@ import { MIN_PIN_LENGTH } from '@/lib/pin';
 
 interface SettingsTabProps {
   settings: MasterSetup;
-  currentUser?: any;
+  currentUser?: UserRoleItem;
 }
 
 const DEFAULT_SYSTEM_ROLES: CustomRoleDefinition[] = [
@@ -380,7 +380,6 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
     healthStatuses: { label: 'Health Status Types', description: 'Allowable medical diagnostic classifications.' },
     vaccineTypes: { label: 'Vaccines & Dewormers', description: 'Authorized vaccines and deworming treatments.' },
     feedTypes: { label: 'Feed & Nutrition Types', description: 'Feeding program ingredient batches.' },
-    expenseCategories: { label: 'Expense Categories', description: 'Financial ledger cost allocation labels.' },
     paymentMethods: { label: 'Payment Methods', description: 'Corporate checkout and payout channels.' },
     sexes: { label: 'Sex Options', description: 'Biological classifications of cattle.' },
     diseaseTypes: { label: 'Common Diseases / Symptoms', description: 'Known illnesses logged during checks.' },
@@ -404,7 +403,6 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
   ];
 
   const financialKeys: (keyof Omit<MasterSetup, 'users' | 'roles' | 'farms'>)[] = [
-    'expenseCategories',
     'revenueTypes',
     'purchaseTypes',
     'paymentMethods'
@@ -427,7 +425,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
             {t('settings.systemParams')}
           </button>
           <button
-            onClick={() => { setSubTab('financial'); setActiveCategory('expenseCategories'); }}
+            onClick={() => { setSubTab('financial'); setActiveCategory('revenueTypes'); }}
             className={`flex items-center gap-2 px-6 py-3.5 border-b-2 font-bold text-xs uppercase tracking-wider transition-all duration-150 cursor-pointer ${
               subTab === 'financial'
                 ? 'border-emerald-600 text-emerald-600'
@@ -960,7 +958,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                   className="w-full bg-white border border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:border-emerald-600"
                 />
                 <p className="text-[10px] text-slate-400">
-                  Lets this person sign in on the Cam Cow mobile app with just a PIN instead of email and password. Leave blank to {editingUserId ? 'keep the current PIN unchanged.' : 'skip PIN sign-in.'}
+                  Lets this person sign in on the CC Livestock mobile app with just a PIN instead of email and password. Leave blank to {editingUserId ? 'keep the current PIN unchanged.' : 'skip PIN sign-in.'}
                 </p>
                 {editingUserId && settings.users.find(u => u.id === editingUserId)?.hasPin && (
                   <label className="flex items-center gap-1.5 text-[10px] font-bold text-red-600 pt-0.5 cursor-pointer">

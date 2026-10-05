@@ -33,7 +33,7 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    service: 'livestock-backend-api'
+    service: 'cc-livestock-api'
   });
 });
 

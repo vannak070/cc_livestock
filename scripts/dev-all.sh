@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Runs all three pieces of the LiveStock Fattening ERP / "Cam Cow" project
+# Runs all three pieces of the CC Livestock / CC Livestock project
 # together for local development:
 #   1. Backend API        (Express, src/server/index.ts)   -> port 3002
 #   2. Web frontend        (Next.js dev server)              -> port 3000

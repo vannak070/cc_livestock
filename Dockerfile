@@ -4,8 +4,8 @@
 # Runs BOTH production processes in one container via pm2-runtime and the
 # same ecosystem.config.js used by the non-Docker (PM2-on-VPS) deploy path
 # in scripts/deploy-production.sh, so the two deploy paths can't drift:
-#   - livestock-backend-api : tsx src/server/index.ts on port 3002
-#   - livestock-frontend-ui : next start            on port 3000
+#   - cc-livestock-api : tsx src/server/index.ts on port 3002
+#   - cc-livestock-web : next start            on port 3000
 # =======================================================
 
 # Stage 1: Base & Dependencies

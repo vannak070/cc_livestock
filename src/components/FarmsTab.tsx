@@ -19,7 +19,7 @@ import {
   Lock
 } from 'lucide-react';
 import { updateSettingsAction, updateStockLocationAction } from '@/app/actions';
-import { MasterSetup, FarmItem, UserRoleItem, DEFAULT_ROLE_PERMISSIONS } from '@/lib/types';
+import { MasterSetup, FarmItem, UserRoleItem, DEFAULT_ROLE_PERMISSIONS, StockItem, BatchItem } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { ConfirmModal } from './ui/confirm-modal';
 import { useLanguage } from '@/context/LanguageContext';
@@ -27,8 +27,8 @@ import { useLanguage } from '@/context/LanguageContext';
 interface FarmsTabProps {
   settings: MasterSetup;
   currentUser: UserRoleItem | null;
-  stock: any[];
-  batches: any[];
+  stock: StockItem[];
+  batches: BatchItem[];
 }
 
 export default function FarmsTab({ settings, currentUser, stock, batches }: FarmsTabProps) {
@@ -287,7 +287,7 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
           const staffCount = settings.users.filter(u => u.farmLocation === farm.name && u.role !== 'Farm Owner').length;
           
           // Calculate active feeding batches
-          const activeBatches = batches.filter(b => b.status === 'Active' && farmCows.some(c => c.id === b.id || c.batchId === b.id)).length;
+          const activeBatches = batches.filter(b => b.status === 'Active' && farmCows.some(c => b.cowIds.includes(c.id))).length;
 
           return (
             <div 

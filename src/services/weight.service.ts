@@ -2,10 +2,11 @@ import { weightRepository } from '../repositories/weight.repository';
 import { stockRepository } from '../repositories/stock.repository';
 import { withTransaction } from '../config/database';
 import { WeightRecord } from '../lib/xlsx-parser';
+import type { FarmScope } from '../lib/farm-scope';
 
 export class WeightService {
-  async getAllWeightRecords(): Promise<WeightRecord[]> {
-    return weightRepository.findAll();
+  async getAllWeightRecords(scope?: FarmScope): Promise<WeightRecord[]> {
+    return weightRepository.findAll(scope);
   }
 
   async getWeightRecordsByCowId(cowId: string): Promise<WeightRecord[]> {

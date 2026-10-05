@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
+import type { AuthedRequest } from '../middleware/auth.middleware';
+import { scopeFor } from '../lib/farm-scope';
 import { stockService } from '../services/stock.service';
 
 export class StockController {
   async getAll(req: Request, res: Response): Promise<void> {
-    const stock = await stockService.getAllStock();
+    const stock = await stockService.getAllStock(scopeFor((req as AuthedRequest).actor ?? {}));
     res.status(200).json({
       success: true,
       message: 'Stock items retrieved successfully',

@@ -1,16 +1,17 @@
 import { query } from '../config/database';
 import { HealthLogItem } from '../lib/types';
-import { PoolClient } from 'pg';
+import { PoolClient, QueryResultRow } from 'pg';
+import { FarmScope, farmMatchSql } from '../lib/farm-scope';
 
 export class HealthRepository {
-  private async executeQuery(sql: string, params?: any[], client?: PoolClient) {
+  private async executeQuery(sql: string, params?: unknown[], client?: PoolClient) {
     if (client) {
       return client.query(sql, params);
     }
     return query(sql, params);
   }
 
-  private mapRowToHealthLog(row: any): HealthLogItem {
+  private mapRowToHealthLog(row: QueryResultRow): HealthLogItem {
     return {
       id: row.id,
       cowId: row.cow_id,
@@ -23,8 +24,13 @@ export class HealthRepository {
     };
   }
 
-  async findAll(): Promise<HealthLogItem[]> {
-    const res = await query('SELECT * FROM health_logs ORDER BY date DESC');
+  /** With a scope, only rows for that farm's cattle; without one, everything. */
+  async findAll(scope?: FarmScope): Promise<HealthLogItem[]> {
+    const match = scope && farmMatchSql('s.location', scope.farmLocation, 1);
+    const res = await query(
+      `SELECT t.* FROM health_logs t ${match ? `WHERE t.cow_id IN (SELECT s.id FROM stock s WHERE ${match.sql})` : ''} ORDER BY t.date DESC`,
+      match?.params
+    );
     return res.rows.map(row => this.mapRowToHealthLog(row));
   }
 
@@ -59,7 +65,7 @@ export class HealthRepository {
 
   async update(id: string, updates: Partial<HealthLogItem>, client?: PoolClient): Promise<HealthLogItem> {
     const fields: string[] = [];
-    const params: any[] = [];
+    const params: unknown[] = [];
     let idx = 1;
 
     if (updates.type !== undefined) { fields.push(`type = $${idx++}`); params.push(updates.type); }

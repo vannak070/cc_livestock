@@ -25,7 +25,7 @@ async function run() {
 
   const host = process.env.DB_HOST || 'localhost';
   const port = process.env.DB_PORT || '5432';
-  const dbName = process.env.DB_NAME || 'livestock_db';
+  const dbName = process.env.DB_NAME || 'cc_livestock';
   const apiPort = process.env.PORT || '3001';
 
   line();

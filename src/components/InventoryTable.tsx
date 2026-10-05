@@ -3,15 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Eye, Edit3, DollarSign, RefreshCcw, ChevronLeft, ChevronRight, Activity, Trash2, Download } from 'lucide-react';
 import { StockItem, WeightRecord } from '@/lib/xlsx-parser';
-import { FarmItem } from '@/lib/types';
+import { FarmItem, UserRoleItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { ConfirmModal } from './ui/confirm-modal';
-import { hasPermission, format2Decimals, format2DecimalsWithCommas } from '@/lib/utils';
+import { hasPermission, format2Decimals, format2DecimalsWithCommas, getErrorMessage } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
 import FarmFilterBar from './FarmFilterBar';
 import { TablePagination } from './common/TablePagination';
 import { exportToExcel } from '@/lib/excel-export';
 import { DateRangeFilterBar } from './common/DateRangeFilterBar';
+import { useOnChange } from '@/hooks/useOnChange';
 
 interface InventoryTableProps {
   stock: StockItem[];
@@ -21,7 +22,7 @@ interface InventoryTableProps {
   onRecordSale: (cowId: string) => void;
   onDeleteCow?: (cowId: string) => Promise<void>;
   onAddCowClick?: () => void;
-  currentUser?: any;
+  currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 
@@ -119,7 +120,7 @@ export default function InventoryTable({
 
       // Date Range Filter Check
       let matchesDate = true;
-      const itemDateStr = item.purchaseDate || (item as any).createdAt;
+      const itemDateStr = item.purchaseDate;
       if (itemDateStr) {
         const itemDate = itemDateStr.split('T')[0];
         if (startDate && itemDate < startDate) matchesDate = false;
@@ -131,9 +132,7 @@ export default function InventoryTable({
   }, [sortedStock, search, selectedBreed, selectedSex, startDate, endDate]);
 
   // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, selectedBreed, selectedSex, selectedStatus, selectedFarm, startDate, endDate, pageSize]);
+  useOnChange(JSON.stringify([search, selectedBreed, selectedSex, selectedStatus, selectedFarm, startDate, endDate, pageSize]), () => setCurrentPage(1));
 
   // Compute pagination bounds
   const indexOfLastRow = currentPage * pageSize;
@@ -327,7 +326,7 @@ export default function InventoryTable({
             type="button"
             onClick={() => {
               exportToExcel({
-                filename: `LiveStock_Cattle_Herd_${new Date().toISOString().split('T')[0]}.xlsx`,
+                filename: `CC_Livestock_Cattle_Herd_${new Date().toISOString().split('T')[0]}.xlsx`,
                 sheetName: 'Cattle Herd Inventory',
                 data: filteredStock,
                 columns: [
@@ -427,7 +426,7 @@ export default function InventoryTable({
                       {cow.totalPrice > 0 ? `៛ ${format2DecimalsWithCommas(cow.totalPrice)}` : 'N/A'}
                     </td>
                     <td className="py-3.5 px-5 font-mono text-xs text-slate-500">
-                      {cow.purchaseDate ? cow.purchaseDate.split('T')[0] : (cow as any).createdAt ? (cow as any).createdAt.split('T')[0] : 'N/A'}
+                      {cow.purchaseDate ? cow.purchaseDate.split('T')[0] : 'N/A'}
                     </td>
                   <td className="py-3.5 px-5">
                     <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide border flex items-center gap-1.5 w-max ${
@@ -507,11 +506,11 @@ export default function InventoryTable({
                                       type: 'success',
                                       confirmText: 'OK'
                                     });
-                                  } catch (err: any) {
+                                  } catch (err) {
                                     setConfirmModal({
                                       isOpen: true,
                                       title: 'Deletion Failed',
-                                      description: err.message || 'Error occurred while deleting cow.',
+                                      description: getErrorMessage(err, 'Error occurred while deleting cow.'),
                                       type: 'danger',
                                       confirmText: 'Dismiss'
                                     });

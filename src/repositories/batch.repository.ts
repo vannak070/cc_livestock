@@ -1,33 +1,18 @@
 import { query } from '../config/database';
 import { BatchItem } from '../lib/types';
-import { PoolClient } from 'pg';
+import { PoolClient, QueryResultRow } from 'pg';
+import { FarmScope, farmMatchSql } from '../lib/farm-scope';
 
 export class BatchRepository {
-  private isTableInitialized = false;
 
-  private async executeQuery(sql: string, params?: any[], client?: PoolClient) {
+  private async executeQuery(sql: string, params?: unknown[], client?: PoolClient) {
     if (client) {
       return client.query(sql, params);
     }
     return query(sql, params);
   }
 
-  private async ensureColumns(client?: PoolClient) {
-    if (this.isTableInitialized) return;
-    try {
-      await this.executeQuery(`
-        ALTER TABLE batches ADD COLUMN IF NOT EXISTS feeding_program JSONB;
-        ALTER TABLE batches ADD COLUMN IF NOT EXISTS farm_location VARCHAR(100);
-        ALTER TABLE batches ADD COLUMN IF NOT EXISTS expected_selling_price NUMERIC;
-        ALTER TABLE batches ADD COLUMN IF NOT EXISTS selling_target_date DATE;
-      `, [], client);
-      this.isTableInitialized = true;
-    } catch (e) {
-      console.warn('Failed to ensure columns on batches table:', e);
-    }
-  }
-
-  private mapRowToBatch(row: any, cowIds: string[] = []): BatchItem {
+  private mapRowToBatch(row: QueryResultRow, cowIds: string[] = []): BatchItem {
     return {
       id: row.id,
       name: row.name,
@@ -43,10 +28,32 @@ export class BatchRepository {
     };
   }
 
-  async findAll(): Promise<BatchItem[]> {
-    await this.ensureColumns();
-    const batchRes = await query('SELECT * FROM batches ORDER BY created_at DESC');
-    const cowRes = await query('SELECT batch_id, cow_id FROM batch_cows');
+  /**
+   * With a scope, cattle lists are cut down to that farm's cattle, and a batch
+   * is kept if it belongs to the farm, belongs to no farm, or still holds at
+   * least one of the farm's cattle (same rule as scopeDataForActor).
+   */
+  async findAll(scope?: FarmScope): Promise<BatchItem[]> {
+    let batchRes, cowRes;
+    if (scope) {
+      const own = farmMatchSql('b.farm_location', scope.farmLocation, 1);
+      const cow = farmMatchSql('s.location', scope.farmLocation, 1);
+      batchRes = await query(
+        `SELECT b.* FROM batches b
+         WHERE ${own.sql}
+            OR COALESCE(b.farm_location, '') = ''
+            OR EXISTS (SELECT 1 FROM batch_cows bc JOIN stock s ON s.id = bc.cow_id WHERE bc.batch_id = b.id AND ${cow.sql})
+         ORDER BY b.created_at DESC`,
+        own.params
+      );
+      cowRes = await query(
+        `SELECT bc.batch_id, bc.cow_id FROM batch_cows bc JOIN stock s ON s.id = bc.cow_id WHERE ${cow.sql}`,
+        cow.params
+      );
+    } else {
+      batchRes = await query('SELECT * FROM batches ORDER BY created_at DESC');
+      cowRes = await query('SELECT batch_id, cow_id FROM batch_cows');
+    }
 
     const cowMap: Record<string, string[]> = {};
     for (const r of cowRes.rows) {
@@ -58,7 +65,6 @@ export class BatchRepository {
   }
 
   async findById(id: string, client?: PoolClient): Promise<BatchItem | null> {
-    await this.ensureColumns(client);
     const batchRes = await this.executeQuery('SELECT * FROM batches WHERE id = $1', [id], client);
     if (batchRes.rows.length === 0) return null;
 
@@ -69,7 +75,6 @@ export class BatchRepository {
   }
 
   async create(batch: Omit<BatchItem, 'cowIds'>, client?: PoolClient): Promise<BatchItem> {
-    await this.ensureColumns(client);
     const sql = `
       INSERT INTO batches (id, name, type, start_date, status, notes, feeding_program, farm_location, expected_selling_price, selling_target_date)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -107,7 +112,7 @@ export class BatchRepository {
     if (!existing) throw new Error(`Batch ${id} not found`);
 
     const fields: string[] = [];
-    const params: any[] = [];
+    const params: unknown[] = [];
     let idx = 1;
 
     if (updates.name !== undefined) { fields.push(`name = $${idx++}`); params.push(updates.name); }

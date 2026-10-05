@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ERPLivestockData, FarmItem } from '@/lib/types';
+import { ERPLivestockData, FarmItem, UserRoleItem } from '@/lib/types';
 import { Button } from './ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Scale, TrendingUp, ClipboardList, Calendar, AlertTriangle, CheckCircle, Clock, Edit2, Trash2, Download } from 'lucide-react';
@@ -13,13 +13,14 @@ import { hasPermission } from '@/lib/utils';
 import FarmFilterBar from './FarmFilterBar';
 import { exportToExcel } from '@/lib/excel-export';
 import { DateRangeFilterBar } from './common/DateRangeFilterBar';
+import type { WeightRecord } from '@/lib/xlsx-parser';
 
 interface WeightTabProps {
   data: ERPLivestockData;
   onOpenLogWeight: (cowId?: string) => void;
   onDeleteWeightRecord?: (cowId: string, trackingDate: string) => Promise<void>;
   onUpdateWeightRecord?: (cowId: string, trackingDate: string, currentWeight: number, healthStatus: string) => Promise<void>;
-  currentUser?: any;
+  currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 
@@ -107,7 +108,7 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
     })
     .sort((a, b) => b.gainLoss - a.gainLoss)
     // unique by cowId
-    .reduce((acc: any[], curr) => {
+    .reduce<WeightRecord[]>((acc, curr) => {
       if (!acc.find(item => item.cowId === curr.cowId)) {
         acc.push(curr);
       }
@@ -327,7 +328,7 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
               type="button"
               onClick={() => {
                 exportToExcel({
-                  filename: `LiveStock_Weight_Tracking_History_${new Date().toISOString().split('T')[0]}.xlsx`,
+                  filename: `CC_Livestock_Weight_Tracking_History_${new Date().toISOString().split('T')[0]}.xlsx`,
                   sheetName: 'Weight Tracking History',
                   data: filteredRecentLogs,
                   columns: [

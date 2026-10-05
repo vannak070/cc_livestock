@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
+import type { AuthedRequest } from '../middleware/auth.middleware';
+import { scopeFor } from '../lib/farm-scope';
 import { weightService } from '../services/weight.service';
 
 export class WeightController {
   async getAll(req: Request, res: Response): Promise<void> {
-    const records = await weightService.getAllWeightRecords();
+    const records = await weightService.getAllWeightRecords(scopeFor((req as AuthedRequest).actor ?? {}));
     res.status(200).json({
       success: true,
       message: 'Weight tracking records retrieved successfully',
