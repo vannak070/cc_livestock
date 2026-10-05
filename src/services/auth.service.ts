@@ -2,7 +2,6 @@ import { settingsRepository } from '../repositories/settings.repository';
 import { verifyPassword } from '../lib/password';
 import { signAuthToken } from '../lib/jwt';
 import { UserRoleItem } from '../lib/types';
-import { newPasswordProblem } from '../lib/user-admin';
 
 export interface AppError extends Error {
   statusCode?: number;
@@ -116,16 +115,6 @@ export class AuthService {
       farmLocation: matched.farmLocation
     });
     return { token, user: matched };
-  }
-
-  /** A signed-in person changes their own password; they must know the current one. */
-  async changeOwnPassword(actor: UserRoleItem, current: string, next: string): Promise<void> {
-    const problem = newPasswordProblem(current ?? '', next ?? '');
-    if (problem) throw makeError(problem, 400);
-    const user = await settingsRepository.getUserWithPasswordHashByEmail(actor.email);
-    if (!user || user.id !== actor.id) throw makeError('Your account could not be found.', 404);
-    if (!(await verifyPassword(current, user.password))) throw makeError('Your current password is not right.', 400);
-    await settingsRepository.setUserPassword(actor.id, next);
   }
 
   async getCurrentUser(userId: string): Promise<UserRoleItem | null> {

@@ -145,15 +145,6 @@ export function validatePerson(settings: Pick<MasterSetup, 'users' | 'roles' | '
   return errors;
 }
 
-/** Problem with a new password someone picks for themselves, or null when it is fine. */
-export function newPasswordProblem(current: string, next: string): string | null {
-  if (!current) return 'Type your current password.';
-  if (next.length < MIN_PASSWORD_LENGTH) return `A password needs at least ${MIN_PASSWORD_LENGTH} characters.`;
-  if (next !== next.trim()) return 'A password cannot start or end with a space.';
-  if (next === current) return 'Choose a password that is different from the current one.';
-  return null;
-}
-
 /**
  * Whether a person uses their role's usual access rather than access made just
  * for them. When the role changes, these people get the new access; people

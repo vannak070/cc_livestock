@@ -224,7 +224,7 @@ export default function PeoplePanel({ settings, actor, onChanged, farm, extraAct
               <DialogDescription className="text-base text-ink-muted">For {shown.name} ({shown.email}). It is shown only now.</DialogDescription>
             </DialogHeader>
             <p className="select-all break-all rounded-xl bg-amber-50 p-4 text-center font-mono text-3xl font-semibold text-ink">{shown.password}</p>
-            <p className="text-base text-ink-muted">Give it to them and ask them to change it after they sign in.</p>
+            <p className="text-base text-ink-muted">Give it to them. If they forget it, make a new one here.</p>
             <div className="flex gap-3">
               <Button type="button" variant="outline" size="lg" onClick={copy}><Copy /> {copied ? 'Copied' : 'Copy'}</Button>
               <Button type="button" size="lg" className="flex-1" onClick={() => setShown(null)}>Done</Button>

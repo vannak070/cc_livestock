@@ -211,7 +211,7 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
               <div className="space-y-3 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-left">
                 <p className="text-base text-ink">Temporary password for <span className="font-medium">{email.trim()}</span>:</p>
                 <p className="select-all break-all text-center font-mono text-3xl font-semibold text-ink">{tempPassword}</p>
-                <p className="text-base text-ink-muted">This is shown only now. Write it down or copy it, and ask them to change it after they sign in.</p>
+                <p className="text-base text-ink-muted">This is shown only now. Write it down or copy it and give it to them.</p>
                 <Button type="button" variant="outline" onClick={copy}><Copy /> {copied ? 'Copied' : 'Copy password'}</Button>
               </div>
             )}

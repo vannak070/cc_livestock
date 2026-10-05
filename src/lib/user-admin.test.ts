@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assignableRoles, canChangeUser, canOpenPeople, followsRole, isOfficePerson, newPasswordProblem, officeRoleNames, deleteRole, grantable, roleDeleteBlock, rolesOf, saveRole, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
+import { assignableRoles, canChangeUser, canOpenPeople, followsRole, isOfficePerson, officeRoleNames, deleteRole, grantable, roleDeleteBlock, rolesOf, saveRole, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
 import { ALL_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS, type MasterSetup, type UserRoleItem } from '@/types/settings.types';
 
 const user = (id: string, role: string, farmLocation?: string, email = `${id}@x.com`): UserRoleItem => ({ id, name: id, email, role, status: 'Active', farmLocation });
@@ -125,16 +125,6 @@ describe('canOpenPeople', () => {
     expect(canOpenPeople({ ...owner, farmLocation: undefined })).toBe(false);
     expect(canOpenPeople({ ...user('st', 'Farm Staff', 'Farm A'), permissions: DEFAULT_ROLE_PERMISSIONS['Farm Staff'] })).toBe(false);
     expect(canOpenPeople(null)).toBe(false);
-  });
-});
-
-describe('newPasswordProblem', () => {
-  it('needs the current password, 8+ characters, no edge spaces and a change', () => {
-    expect(newPasswordProblem('', 'abcdefgh')).toMatch(/current/);
-    expect(newPasswordProblem('old', 'short')).toMatch(/at least 8/);
-    expect(newPasswordProblem('old', ' abcdefgh')).toMatch(/space/);
-    expect(newPasswordProblem('abcdefgh', 'abcdefgh')).toMatch(/different/);
-    expect(newPasswordProblem('old', 'abcdefgh')).toBeNull();
   });
 });
 

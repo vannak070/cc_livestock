@@ -20,8 +20,7 @@ import {
   DollarSign,
   PlusCircle,
   MoreHorizontal,
-  Users,
-  KeyRound
+  Users
 } from 'lucide-react';
 import { UserRoleItem } from '@/lib/types';
 import { hasPermission } from '@/lib/utils';
@@ -30,7 +29,6 @@ import { useLanguage } from '@/context/LanguageContext';
 import LanguageSwitcher from '../LanguageSwitcher';
 import InstallAppButton from '../InstallAppButton';
 import ShareAppButton from '../ShareAppButton';
-import ChangePasswordDialog from '../features/account/ChangePasswordDialog';
 
 export type ActiveTabType =
   | 'today'
@@ -134,7 +132,6 @@ export default function SidebarLayout({
   const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [recordSheetOpen, setRecordSheetOpen] = useState(false);
-  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const totalAlerts = healthAlertsCount + vaccineAlertsCount;
   const can = (key: Parameters<typeof hasPermission>[1]) => hasPermission(currentUser, key);
@@ -288,14 +285,6 @@ export default function SidebarLayout({
               </button>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => { setMobileMenuOpen(false); setPasswordOpen(true); }}
-            className="mt-1 w-full flex items-center gap-3 min-h-12 px-3 py-2.5 rounded-xl text-ink hover:bg-slate-100 font-medium transition-colors duration-150 cursor-pointer"
-          >
-            <KeyRound className="h-5 w-5 text-ink-muted" aria-hidden="true" />
-            <span className="text-base leading-tight text-left">{t('nav.changePassword', 'Change my password')}</span>
-          </button>
         </div>
       )}
     </div>
@@ -392,7 +381,6 @@ export default function SidebarLayout({
         {bottomTab(t('nav.more', 'More'), <MoreHorizontal className="h-6 w-6" />, () => { setRecordSheetOpen(false); setMobileMenuOpen(true); }, mobileMenuOpen)}
       </nav>
 
-      <ChangePasswordDialog isOpen={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </div>
   );
 }
