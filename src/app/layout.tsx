@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Kantumruy_Pro, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ReactQueryProvider from "@/components/providers/ReactQueryProvider";
+import ServiceWorkerRegister from "@/components/providers/ServiceWorkerRegister";
 
 // One family for English and Khmer, so both scripts look consistent.
 const kantumruy = Kantumruy_Pro({
@@ -48,6 +49,7 @@ export default function RootLayout({
         <ReactQueryProvider>
           {children}
         </ReactQueryProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

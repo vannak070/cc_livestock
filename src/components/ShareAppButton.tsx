@@ -21,7 +21,10 @@ export default function ShareAppButton() {
   const copyRef = useRef<HTMLButtonElement>(null);
 
   const openDialog = () => {
-    setAppUrl(`${window.location.origin}/`);
+    // NEXT_PUBLIC_APP_URL pins the shared address to the production site, so a
+    // QR made on localhost or a staging host still points at the real app.
+    const base = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '') || window.location.origin;
+    setAppUrl(`${base}/`);
     setCanShare(typeof navigator.share === 'function');
     setCopied(false);
   };

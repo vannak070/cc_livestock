@@ -46,6 +46,8 @@ import SettingsTab from './SettingsTab';
 import FarmsTab from './FarmsTab';
 import CowDetails from './CowDetails';
 import QuickEntryModal from './QuickEntryModal';
+import WeighFlow from './features/weigh/WeighFlow';
+import AddCattleFlow from './features/stock/AddCattleFlow';
 import { ERPLivestockData, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import { ProposalPlanParams } from '@/types';
 import { SalesRecord } from '@/lib/xlsx-parser';
@@ -589,8 +591,29 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       />
 
       {/* Quick Entry / Action Modal */}
+      <WeighFlow
+        isOpen={isQuickEntryOpen && quickEntryTab === 'weight'}
+        onClose={() => setIsQuickEntryOpen(false)}
+        cattle={activeCows}
+        weightTracking={dbData.weightTracking}
+        healthStatuses={dbData.settings.healthStatuses}
+        preselectedCowId={preselectedCowId}
+        onSave={async (cowId, weight, healthStatus, date) => {
+          await addWeightMutation.mutateAsync({ cowId, weight, healthStatus, date });
+        }}
+      />
+      <AddCattleFlow
+        isOpen={isQuickEntryOpen && quickEntryTab === 'add'}
+        onClose={() => setIsQuickEntryOpen(false)}
+        common={dbData.settings}
+        existingCattle={activeCows}
+        currentUser={currentUser}
+        onSave={async cow => {
+          await addCowMutation.mutateAsync(cow);
+        }}
+      />
       <QuickEntryModal
-        isOpen={isQuickEntryOpen}
+        isOpen={isQuickEntryOpen && quickEntryTab === 'sale'}
         onClose={() => setIsQuickEntryOpen(false)}
         common={dbData.settings} // Feed the settings master data instead of old hardcoded sheet
         activeCows={activeCows}

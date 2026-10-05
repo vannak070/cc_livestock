@@ -9,6 +9,18 @@ const nextConfig: NextConfig = {
     // home folder.
     root: path.resolve(__dirname),
   },
+  async headers() {
+    // Browsers must always re-check the service worker for updates.
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
