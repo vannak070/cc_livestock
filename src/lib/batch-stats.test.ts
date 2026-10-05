@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { batchCattle, unassignedCattle, estimateFromSamples, matchFeedProduct, feedLines, batchSummary } from './batch-stats';
+import { batchCattle, unassignedCattle, estimateFromSamples, matchFeedProduct, feedLines, batchSummary, batchWeighIns } from './batch-stats';
 import type { BatchItem, FeedProductItem } from './types';
 import type { StockItem, WeightRecord } from './xlsx-parser';
 
@@ -77,5 +77,28 @@ describe('batchSummary', () => {
     expect(paused.feedCostPerDay).toBe(0);
     expect(paused.daysToTarget).toBeNull();
     expect(paused.daysIn).toBeNull();
+  });
+});
+
+describe('batch weigh-ins', () => {
+  const b = batch({ cowIds: ['A', 'B', 'S'] });
+  const records = [
+    rec('A', '2026-09-01', 200), rec('B', '2026-09-01', 220),
+    rec('A', '2026-09-15', 214), rec('B', '2026-09-15', 234), rec('S', '2026-09-15', 250),
+    rec('X', '2026-09-15', 999), // not in the batch
+  ];
+  it('lists each weigh-in day, newest first, with the average and change', () => {
+    const rows = batchWeighIns(b, records);
+    expect(rows.map(r => r.date)).toEqual(['2026-09-15', '2026-09-01']);
+    expect(rows[1]).toEqual({ date: '2026-09-01', head: 2, avg: 210, change: null, perDay: null });
+    expect(rows[0]).toMatchObject({ head: 3, avg: 232.7, change: 22.7 });
+    expect(rows[0].perDay).toBeCloseTo(1.62, 2);
+  });
+  it('counts an animal weighed twice on one day once, and ignores empty weights', () => {
+    const rows = batchWeighIns(b, [rec('A', '2026-09-01', 100), rec('A', '2026-09-01', 200), rec('B', '2026-09-01', 0)]);
+    expect(rows).toEqual([{ date: '2026-09-01', head: 1, avg: 200, change: null, perDay: null }]);
+  });
+  it('is empty when nothing was weighed', () => {
+    expect(batchWeighIns(b, [])).toEqual([]);
   });
 });

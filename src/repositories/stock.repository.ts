@@ -48,6 +48,15 @@ export class StockRepository {
     return this.mapRowToStock(res.rows[0]);
   }
 
+  /** Several animals in one query; ones that do not exist are simply missing from the result. */
+  async findByIds(ids: string[], client?: PoolClient): Promise<StockItem[]> {
+    if (ids.length === 0) return [];
+    const res = client
+      ? await client.query('SELECT * FROM stock WHERE id = ANY($1)', [ids])
+      : await query('SELECT * FROM stock WHERE id = ANY($1)', [ids]);
+    return res.rows.map(row => this.mapRowToStock(row));
+  }
+
   async getMaxNo(): Promise<number> {
     const res = await query(`
       SELECT MAX(CAST(no AS INTEGER)) as max_no 

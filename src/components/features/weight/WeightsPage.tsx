@@ -11,6 +11,7 @@ import type { WeightRecord } from '@/lib/xlsx-parser';
 import { getErrorMessage, hasPermission } from '@/lib/utils';
 import { weighSchedules } from '@/lib/attention';
 import { growth, weighPoints } from '@/lib/cattle-stats';
+import { batchWeighIns } from '@/lib/batch-stats';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { Choice, NUM } from '../flow/FlowShell';
@@ -18,13 +19,15 @@ import { Choice, NUM } from '../flow/FlowShell';
 interface WeightsPageProps {
   data: ERPLivestockData;
   onOpenLogWeight: (cowId?: string) => void;
+  /** Opens the group weigh-in for a batch. */
+  onWeighBatch?: (batchId: string) => void;
   onDeleteWeightRecord?: (cowId: string, trackingDate: string) => Promise<void>;
   onUpdateWeightRecord?: (cowId: string, trackingDate: string, currentWeight: number, healthStatus: string) => Promise<void>;
   currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 
-type Tab = 'due' | 'growth' | 'history';
+type Tab = 'due' | 'batches' | 'growth' | 'history';
 
 const PAGE = 15;
 const SELECT = 'h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-3 text-lg text-ink focus:border-emerald-600 focus:outline-none';
@@ -43,9 +46,10 @@ function Tile({ label, value, sub, tone }: { label: string; value: string; sub?:
   );
 }
 
-export default function WeightsPage({ data, onOpenLogWeight, onDeleteWeightRecord, onUpdateWeightRecord, currentUser, farms = [] }: WeightsPageProps) {
+export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDeleteWeightRecord, onUpdateWeightRecord, currentUser, farms = [] }: WeightsPageProps) {
   const [tab, setTab] = useState<Tab>('due');
   const [showAllDue, setShowAllDue] = useState(false);
+  const [openBatches, setOpenBatches] = useState<Record<string, boolean>>({});
   const [showFilters, setShowFilters] = useState(false);
   const [batchId, setBatchId] = useState('');
   const [farm, setFarm] = useState('');
@@ -125,6 +129,16 @@ export default function WeightsPage({ data, onOpenLogWeight, onDeleteWeightRecor
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.weightTracking, query, startDate, endDate, farm, batchId, batchOf, cowById]);
 
+  // Each active batch (narrowed by the farm and batch filters) with its weigh-ins over time.
+  const batchRows = useMemo(
+    () => batches
+      .filter(b => b.status === 'Active' && (!batchId || b.id === batchId))
+      .filter(b => !farm || b.farmLocation === farm)
+      .map(batch => ({ batch, head: batch.cowIds.filter(id => norm(cowById.get(id)?.status) === 'active').length, weighIns: batchWeighIns(batch, data.weightTracking) }))
+      .sort((a, b) => a.batch.name.localeCompare(b.batch.name)),
+    [batches, batchId, farm, cowById, data.weightTracking]
+  );
+
   const activeFilters = [batchId, farm, startDate, endDate].filter(Boolean).length;
 
   const exportHistory = () => exportToExcel({
@@ -170,6 +184,7 @@ export default function WeightsPage({ data, onOpenLogWeight, onDeleteWeightRecor
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'due', label: `To weigh (${due.length})` },
+    { key: 'batches', label: 'Batches' },
     { key: 'growth', label: 'Growth' },
     { key: 'history', label: 'History' },
   ];
@@ -297,6 +312,60 @@ export default function WeightsPage({ data, onOpenLogWeight, onDeleteWeightRecor
               )}
             </>
           )}
+        </div>
+      )}
+
+      {tab === 'batches' && (
+        <div className="space-y-3">
+          {batchRows.length === 0 ? (
+            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No batch to show. Add cattle to a batch on the Batches page first.</p>
+          ) : batchRows.map(({ batch, head, weighIns }) => {
+            const latest = weighIns[0];
+            const first = weighIns[weighIns.length - 1];
+            const open = openBatches[batch.id] ?? false;
+            const shown = open ? weighIns : weighIns.slice(0, 3);
+            return (
+              <section key={batch.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xl font-semibold text-ink">{batch.name}</p>
+                    <p className="text-base text-ink-muted">{head} {head === 1 ? 'animal' : 'animals'}{batch.farmLocation ? ` · ${batch.farmLocation}` : ''}</p>
+                  </div>
+                  {canWeigh && onWeighBatch && head > 0 && <Button onClick={() => onWeighBatch(batch.id)} className="shrink-0"><Scale /> Weigh batch</Button>}
+                </div>
+                {latest ? (
+                  <>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <Tile label="Average now" value={`${r1(latest.avg)} kg`} sub={`${latest.head} weighed ${latest.date}`} />
+                      <Tile label="Last change" value={latest.change === null ? '—' : `${signed(latest.change)} kg`} sub={latest.perDay === null ? 'needs 2 weigh-ins' : `${signed(latest.perDay)} kg a day`} />
+                      <Tile label="Since first" value={weighIns.length > 1 ? `${signed(latest.avg - first.avg)} kg` : '—'} sub={weighIns.length > 1 ? `from ${r1(first.avg)} kg` : 'needs 2 weigh-ins'} />
+                    </div>
+                    <ul className="mt-3 overflow-hidden rounded-xl border border-slate-100">
+                      {shown.map(w => (
+                        <li key={w.date} className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 last:border-0">
+                          <span>
+                            <span className="block text-lg font-medium text-ink">{w.date}</span>
+                            <span className="block text-base text-ink-muted">{w.head} weighed</span>
+                          </span>
+                          <span className="text-right">
+                            <span className="block text-lg font-semibold text-ink">{r1(w.avg)} kg</span>
+                            <span className={`block text-base ${w.change !== null && w.change < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{w.change === null ? 'first' : `${signed(w.change)} kg`}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    {weighIns.length > 3 && (
+                      <Button variant="ghost" className="mt-1" onClick={() => setOpenBatches(o => ({ ...o, [batch.id]: !open }))}>
+                        {open ? 'Show fewer' : `Show all ${weighIns.length} weigh-ins`}
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  <p className="mt-3 rounded-xl bg-slate-50 p-3 text-base text-ink-muted">Not weighed yet.</p>
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
 

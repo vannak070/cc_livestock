@@ -48,9 +48,7 @@ export class BatchService {
   }
 
   async recordBatchWeights(records: { cowId: string; currentWeight: number; healthStatus: string; trackingDate?: string }[]): Promise<void> {
-    for (const rec of records) {
-      await weightService.addWeightRecord(rec.cowId, rec.currentWeight, rec.healthStatus, rec.trackingDate);
-    }
+    await weightService.addWeightRecords(records);
   }
 
   async recordBatchHealthLog(batchId: string, log: Omit<HealthLogItem, 'id' | 'cowId'>): Promise<HealthLogItem[]> {

@@ -621,6 +621,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         <WeightsPage
           data={dbData}
           onOpenLogWeight={(cowId) => handleOpenQuickEntry('weight', cowId || null)}
+          onWeighBatch={setWeighBatchId}
           onDeleteWeightRecord={async (cowId, trackingDate) => {
             await deleteWeightRecordMutation.mutateAsync({ cowId, trackingDate });
           }}

@@ -43,6 +43,40 @@ export class WeightService {
   }
 
   /**
+   * Weigh several animals in one transaction: either every weight is saved or
+   * none is. All animals are checked before anything is written.
+   */
+  async addWeightRecords(records: { cowId: string; currentWeight: number; healthStatus: string; trackingDate?: string }[]): Promise<WeightRecord[]> {
+    if (records.length === 0) return [];
+    return withTransaction(async (client) => {
+      const cows = new Map((await stockRepository.findByIds([...new Set(records.map(r => r.cowId))], client)).map(c => [c.id, c]));
+      const missing = [...new Set(records.map(r => r.cowId))].filter(id => !cows.has(id));
+      if (missing.length) throw new Error(`Cow with ID ${missing.join(', ')} not found`);
+
+      const saved: WeightRecord[] = [];
+      const latest = new Map<string, number>(); // an animal listed twice: the second record follows the first
+      for (const rec of records) {
+        const cow = cows.get(rec.cowId)!;
+        const oldWeight = latest.get(rec.cowId) ?? cow.weight;
+        await stockRepository.update(rec.cowId, { weight: rec.currentWeight, healthStatus: rec.healthStatus }, client);
+        latest.set(rec.cowId, rec.currentWeight);
+        saved.push(await weightRepository.create({
+          cowId: rec.cowId,
+          breed: cow.breed,
+          age: cow.age,
+          oldWeight,
+          currentWeight: rec.currentWeight,
+          gainLoss: oldWeight > 0 ? (rec.currentWeight - oldWeight) / oldWeight : 0,
+          healthStatus: rec.healthStatus,
+          status: cow.status,
+          trackingDate: rec.trackingDate || new Date().toISOString()
+        }, client));
+      }
+      return saved;
+    });
+  }
+
+  /**
    * Update weight record and update cow stock if it's the latest tracking entry
    */
   async updateWeightRecord(cowId: string, trackingDate: string, currentWeight: number, healthStatus: string): Promise<WeightRecord | null> {

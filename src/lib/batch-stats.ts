@@ -113,3 +113,51 @@ export function batchSummary(batch: BatchItem, stock: StockItem[], weightTrackin
     feedKgPerDay: lines.reduce((s, l) => s + l.kgPerHead, 0) * cattle.length,
   };
 }
+
+export interface BatchWeighIn {
+  /** YYYY-MM-DD */
+  date: string;
+  /** Animals of the batch weighed that day. */
+  head: number;
+  /** Average weight of those animals, kg. */
+  avg: number;
+  /** Average now minus the average of the weigh-in before it; null for the first. */
+  change: number | null;
+  /** That change spread over the days between the two weigh-ins; null for the first. */
+  perDay: number | null;
+}
+
+/**
+ * The batch's weigh-ins, newest first: every day on which any of its animals
+ * (including ones since sold, so history stays) was weighed, with the average
+ * and how it moved since the weigh-in before.
+ */
+export function batchWeighIns(batch: Pick<BatchItem, 'cowIds'>, weightTracking: WeightRecord[]): BatchWeighIn[] {
+  const ids = new Set(batch.cowIds || []);
+  const byDay = new Map<string, Map<string, number>>();
+  for (const r of weightTracking) {
+    const date = (r.trackingDate ?? '').slice(0, 10);
+    if (!ids.has(r.cowId) || !date || !(r.currentWeight > 0)) continue;
+    const cows = byDay.get(date) ?? new Map<string, number>();
+    cows.set(r.cowId, r.currentWeight); // an animal weighed twice that day counts once
+    byDay.set(date, cows);
+  }
+  const days = [...byDay.keys()].sort();
+  const rows = days.map((date, i) => {
+    const weights = [...byDay.get(date)!.values()];
+    const avg = weights.reduce((s, w) => s + w, 0) / weights.length;
+    return { date, head: weights.length, avg: Math.round(avg * 10) / 10, i };
+  });
+  return rows.map((r, i) => {
+    const prev = i > 0 ? rows[i - 1] : null;
+    const gap = prev ? (dayNumber(r.date)! - dayNumber(prev.date)!) : 0;
+    return {
+      date: r.date,
+      head: r.head,
+      avg: r.avg,
+      change: prev ? Math.round((r.avg - prev.avg) * 10) / 10 : null,
+      perDay: prev && gap > 0 ? Math.round(((r.avg - prev.avg) / gap) * 100) / 100 : null,
+    };
+  }).reverse();
+}
+
