@@ -5,7 +5,6 @@ import type { MasterSetup, UserRoleItem } from './types';
 const user = (id: string, role: string, farmLocation?: string, name = id): UserRoleItem => ({ id, name, email: `${id}@x.com`, role, status: 'Active', farmLocation });
 const base = (): MasterSetup => ({
   farms: [{ id: 'F1', name: 'Farm A', capacity: 100, ownerName: 'Old copy', ownerEmail: 'old@x.com' }, { id: 'F2', name: 'Farm B', capacity: 50 }],
-  locations: ['Farm A', 'Farm B'],
   users: [user('own-a', 'Farm Owner', 'Farm A'), user('staff-a', 'Farm Staff', 'Farm A', 'Zed'), user('vet-a', 'Veterinarian', 'Farm A', 'Amy'), user('own-b', 'Farm Owner', 'Farm B'), user('admin', 'Admin')],
 } as unknown as MasterSetup);
 const input = (over: Partial<FarmInput> = {}): FarmInput => ({ name: 'Farm C', address: ' Prey Veng ', capacity: 80, notes: '', ...over });
@@ -38,18 +37,16 @@ describe('people of a farm', () => {
 });
 
 describe('saveFarm', () => {
-  it('adds a farm and its location, trimmed', () => {
+  it('adds a farm, trimmed', () => {
     const r = saveFarm(base(), input(), null, newId);
     expect(r.renamedFrom).toBeNull();
     expect(r.farms.at(-1)).toMatchObject({ name: 'Farm C', address: 'Prey Veng', capacity: 80 });
-    expect(r.locations).toEqual(['Farm A', 'Farm B', 'Farm C']);
   });
-  it('renames a farm in the list and the locations, and reports the old name', () => {
+  it('renames a farm in the list and reports the old name', () => {
     const s = base();
     const r = saveFarm(s, input({ name: 'Farm A2' }), s.farms![0], newId);
     expect(r.renamedFrom).toBe('Farm A');
     expect(r.farms.find(f => f.id === 'F1')!.name).toBe('Farm A2');
-    expect(r.locations).toEqual(['Farm A2', 'Farm B']);
   });
   it('drops the old copied owner details when a farm is saved', () => {
     const s = base();
@@ -60,10 +57,9 @@ describe('saveFarm', () => {
 });
 
 describe('deleteFarm', () => {
-  it('removes the farm and its location only', () => {
+  it('removes the farm only', () => {
     const r = deleteFarm(base(), 'F1');
     expect(r.farms.map(f => f.id)).toEqual(['F2']);
-    expect(r.locations).toEqual(['Farm B']);
   });
   it('does nothing for an unknown farm', () => {
     expect(deleteFarm(base(), 'nope').farms).toHaveLength(2);

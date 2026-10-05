@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { pool } from '../config/database';
 import { resetDatabase, runMigrations } from './migrate';
@@ -19,11 +21,25 @@ describe.skipIf(!enabled)('schema migrations (PostgreSQL)', () => {
     const cols = (await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'")).rows.map(r => r.column_name);
     expect(cols).toEqual(expect.arrayContaining(['farm_location', 'permissions', 'pin_hash']));
     const ledger = (await pool.query('SELECT version FROM schema_migrations ORDER BY version')).rows.map(r => r.version);
-    expect(ledger).toEqual(['001', '002', '003', '004']);
+    expect(ledger).toEqual(['001', '002', '003', '004', '005']);
   });
 
   it('is idempotent: a second run applies nothing', async () => {
     expect(await runMigrations()).toEqual([]);
+  });
+
+  it('005 turns old location names still in use into farms and removes the old list', async () => {
+    const data = { breeds: ['B'], farms: [{ id: 'F1', name: 'Farm A', capacity: 40 }], locations: ['Farm A', 'Old Farm', 'Unused', ' Old Farm '] };
+    await pool.query("INSERT INTO master_settings (key, data) VALUES ('master_setup', $1) ON CONFLICT (key) DO UPDATE SET data = $1", [JSON.stringify(data)]);
+    await pool.query("INSERT INTO stock (id, no, location) VALUES ('C-005', '1', 'Old Farm')");
+    await pool.query(fs.readFileSync(path.join(__dirname, 'migrations/sql/005_farms_replace_locations.sql'), 'utf8'));
+    const after = (await pool.query("SELECT data FROM master_settings WHERE key = 'master_setup'")).rows[0].data;
+    expect(after.farms.map((f: { name: string }) => f.name)).toEqual(['Farm A', 'Old Farm']);
+    expect(after.farms[1]).toMatchObject({ capacity: 100 });
+    expect(after.farms[1].id).toMatch(/^FARM-[0-9A-F]{8}$/);
+    expect('locations' in after).toBe(false);
+    expect(after.breeds).toEqual(['B']);
+    await pool.query("DELETE FROM stock WHERE id = 'C-005'");
   });
 
   it('enforces one automatic ration deduction per reference number', async () => {

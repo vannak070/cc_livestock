@@ -5,7 +5,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { ALL_PERMISSIONS, type CustomRoleDefinition, type MasterSetup, type UserRoleItem } from '@/types/settings.types';
-import { deleteRole, roleDeleteBlock, rolesOf, saveRole, type RoleInput } from '@/lib/user-admin';
+import { deleteRole, followsRole, roleDeleteBlock, rolesOf, saveRole, type RoleInput } from '@/lib/user-admin';
 import { getErrorMessage } from '@/lib/utils';
 import RoleFlow from './RoleFlow';
 
@@ -38,7 +38,7 @@ export default function RolesPanel({ settings, actor, onSettings }: RolesPanelPr
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-base text-ink-muted">A role is a set of access you give to people. Changing a role does not change the people who already have it. It applies to people you add or edit next.</p>
+        <p className="text-base text-ink-muted">A role is a set of access you give to people. When you change a role, everyone on its usual access gets the change. People you gave their own access keep it.</p>
         <Button size="lg" onClick={() => setFlow({ role: null })}><Plus /> Make a role</Button>
       </div>
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -64,7 +64,23 @@ export default function RolesPanel({ settings, actor, onSettings }: RolesPanelPr
         role={flow?.role ?? null}
         settings={settings}
         actor={actor}
-        onSave={async (input: RoleInput) => { await onSettings({ roles: saveRole(settings, input, flow?.role ?? null, newId) }); }}
+        onSave={async (input: RoleInput) => {
+          const editing = flow?.role ?? null;
+          // Counted before saving, from the same rule the server uses.
+          const holders = editing ? (settings.users || []).filter(u => u.role === editing.name) : [];
+          const follow = editing ? holders.filter(u => followsRole(u, editing.name, editing.permissions)).length : 0;
+          const own = holders.length - follow;
+          const changed = !!editing && (input.permissions.length !== editing.permissions.length || input.permissions.some(p => !editing.permissions.includes(p)));
+          await onSettings({ roles: saveRole(settings, input, editing, newId) });
+          // Admins always have full access, so their role's list changes nothing for them.
+          if (changed && holders.length > 0 && editing && !['Super Admin', 'Admin'].includes(editing.name)) {
+            const parts = [
+              follow > 0 ? `${follow} ${follow === 1 ? 'person' : 'people'} on the usual access now ${follow === 1 ? 'has' : 'have'} the new access.` : '',
+              own > 0 ? `${own} ${own === 1 ? 'person has' : 'people have'} their own access and kept it. Change them in People if needed.` : '',
+            ].filter(Boolean);
+            setConfirm({ title: 'Role saved', description: parts.join(' '), type: 'info', confirmText: 'OK' });
+          }
+        }}
       />
 
       {confirm && (

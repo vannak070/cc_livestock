@@ -101,10 +101,10 @@ export const PERMISSION_MODULES: PermissionCategory[] = [
   },
   {
     id: 'settings',
-    label: '⚙️ ERP Master Setup',
+    label: '⚙️ Settings & Farms',
     items: [
-      { key: 'settings_manage', label: 'Manage ERP Setup & Users', description: 'Configure master dropdowns and user permissions.' },
-      { key: 'farms_manage', label: 'Manage Farms & Branches', description: 'Create and configure details, capacity, and owner/manager for each farm.' }
+      { key: 'settings_manage', label: 'Manage settings and office people', description: 'Add and change office accounts and roles, and the choices in forms such as breeds and vaccines.' },
+      { key: 'farms_manage', label: 'Manage farms and their people', description: 'Add, rename and remove farms, and add, change or remove each farm\'s owner, staff and vets.' }
     ]
   }
 ];
@@ -169,7 +169,6 @@ export interface FarmItem {
 
 export interface MasterSetup {
   breeds: string[];
-  locations: string[];
   buyTypes: string[];
   healthStatuses: string[];
   vaccineTypes: string[];

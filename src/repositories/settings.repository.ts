@@ -39,6 +39,17 @@ function stripFarmSecrets(farms: FarmItem[] | undefined): FarmItem[] {
   });
 }
 
+/** The stored roles plus any built-in role missing by name (given a free id if its own is taken). */
+export function withBuiltInRoles(roles: CustomRoleDefinition[]): CustomRoleDefinition[] {
+  const out = [...roles];
+  for (const role of DEFAULT_ROLES) {
+    if (out.some(r => r.name === role.name)) continue;
+    const id = out.some(r => r.id === role.id) ? `${role.id}-SYS` : role.id;
+    out.push({ ...role, id });
+  }
+  return out;
+}
+
 export class SettingsRepository {
   private async executeQuery(sql: string, params?: unknown[], client?: PoolClient) {
     if (client) {
@@ -54,7 +65,6 @@ export class SettingsRepository {
     if (res.rows.length === 0) {
       settings = {
         breeds: ['គោទន្លេ', 'កាត់ Brahman', 'កាត់ Wagyu'],
-        locations: ['រទាំង', 'ព្រៃវែង', 'បន្ទាយមានជ័យ', 'ក្រោល A', 'ក្រោល B'],
         buyTypes: ['Lumsum', 'Weight', 'Born in Farm', 'Transfer', 'Partnership'],
         healthStatuses: ['Good', 'Fair', 'Poor', 'Dead'],
         vaccineTypes: ['Foot and Mouth', 'Brucellosis', 'Anthrax', 'Dewormer A', 'Vitamin Boost'],
@@ -80,12 +90,12 @@ export class SettingsRepository {
       }
     }
 
-    // Self-heal: an installation whose `roles` were persisted before the
-    // Management role existed won't otherwise ever see it added, the same
-    // way an `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` self-heals schema.
-    if (!settings.roles!.some(r => r.name === 'Management')) {
-      settings.roles = [...settings.roles!, DEFAULT_ROLES[DEFAULT_ROLES.length - 1]];
-    }
+    // Self-heal: the app relies on the built-in roles by name (Farm Owner,
+    // Farm Staff, Veterinarian, Admin, ...). Older versions let them be
+    // deleted, and older installations predate some (Management), so any
+    // that are missing are put back, the same way an
+    // `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` self-heals schema.
+    settings.roles = withBuiltInRoles(settings.roles!);
 
     const usersRes = await query('SELECT * FROM users ORDER BY created_at ASC');
     if (usersRes.rows.length === 0) {
@@ -347,6 +357,22 @@ export class SettingsRepository {
 
   async renameRole(oldName: string, newName: string, client?: PoolClient): Promise<void> {
     await this.executeQuery('UPDATE users SET role = $1 WHERE role = $2', [newName, oldName], client);
+  }
+
+  /**
+   * Gives a role's new access to its people who had the role's usual (old)
+   * access or none stored; people with their own access keep it. Same rule as
+   * `followsRole` in lib/user-admin. Returns how many people changed.
+   */
+  async applyRoleAccess(role: string, before: string[], after: string[], client?: PoolClient): Promise<number> {
+    const res = await this.executeQuery(
+      `UPDATE users SET permissions = $3::jsonb
+       WHERE role = $1
+         AND (permissions IS NULL OR permissions = '[]'::jsonb OR (permissions @> $2::jsonb AND permissions <@ $2::jsonb))`,
+      [role, JSON.stringify(before), JSON.stringify(after)],
+      client
+    );
+    return res.rowCount ?? 0;
   }
 }
 

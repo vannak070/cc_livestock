@@ -156,6 +156,10 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
         </>
       )}
 
+      {step === 'role' && options.length === 0 && (
+        <p className="rounded-xl bg-amber-50 p-4 text-lg text-amber-900">There is no role you can give here. Ask a Super Admin to check the roles in Settings.</p>
+      )}
+
       {step === 'role' && (
         <ul className="space-y-3 pb-2">
           {options.map(r => (

@@ -10,8 +10,16 @@ const SECTION_PERMISSIONS: Partial<Record<keyof MasterSetup, PermissionKey[]>> =
   feedTypes: ['feed_manage', 'settings_manage']
 };
 
-// Written only by their own operations, never by a settings save.
-const OWNED_ELSEWHERE: (keyof MasterSetup)[] = ['users', 'farms', 'locations'];
+interface RoleChanges {
+  renames: { from: string; to: string }[];
+  /** Roles whose access changed; their people on the usual access get the new access. */
+  access: { role: string; before: PermissionKey[]; after: PermissionKey[] }[];
+}
+
+// Written only by their own operations, never by a settings save. `locations`
+// is the old copy of the farm names (removed by migration 005); an old screen
+// that still sends it is ignored.
+const OWNED_ELSEWHERE: string[] = ['users', 'farms', 'locations'];
 
 export class SettingsService {
   async getSettings(): Promise<MasterSetup> {
@@ -39,21 +47,24 @@ export class SettingsService {
       (patch as Record<string, unknown>)[key] = payload[key];
     }
 
-    let renames: { from: string; to: string }[] = [];
-    if (patch.roles) renames = await this.checkRoleChanges(actor, current.roles ?? [], patch.roles);
+    let changes: RoleChanges = { renames: [], access: [] };
+    if (patch.roles) changes = await this.checkRoleChanges(actor, current.roles ?? [], patch.roles);
 
     if (Object.keys(patch).length > 0) {
       await withTransaction(async client => {
         await settingsRepository.updateSettings(patch, client);
-        for (const r of renames) await settingsRepository.renameRole(r.from, r.to, client);
+        for (const r of changes.renames) await settingsRepository.renameRole(r.from, r.to, client);
+        // After renames, so the people already carry the role's new name.
+        for (const a of changes.access) await settingsRepository.applyRoleAccess(a.role, a.before, a.after, client);
       });
     }
     return redactSettingsFor(actor, await settingsRepository.getSettings());
   }
 
   /** Roles: built-in ones keep their names, a role people still hold cannot be removed, and nobody hands a role access they lack. */
-  private async checkRoleChanges(actor: Actor, before: CustomRoleDefinition[], after: CustomRoleDefinition[]): Promise<{ from: string; to: string }[]> {
-    const renames: { from: string; to: string }[] = [];
+  private async checkRoleChanges(actor: Actor, before: CustomRoleDefinition[], after: CustomRoleDefinition[]): Promise<RoleChanges> {
+    const renames: RoleChanges['renames'] = [];
+    const access: RoleChanges['access'] = [];
     const afterById = new Map(after.map(r => [r.id, r]));
     for (const old of before) {
       const now = afterById.get(old.id);
@@ -65,6 +76,11 @@ export class SettingsService {
         if (old.isSystem) throw new Error('A built-in role keeps its name.');
         renames.push({ from: old.name, to: now.name });
       }
+      if (now) {
+        const was = old.permissions || [];
+        const is = now.permissions || [];
+        if (was.length !== is.length || is.some(p => !was.includes(p))) access.push({ role: now.name, before: was, after: is });
+      }
     }
     const names = new Set<string>();
     for (const r of after) {
@@ -74,7 +90,7 @@ export class SettingsService {
       const notHeld = (r.permissions || []).filter(p => !(old?.permissions ?? []).includes(p) && !can(actor, p));
       if (notHeld.length > 0) throw new AuthzError(`You cannot give a role access you do not have yourself (${notHeld.join(', ')}).`, 403);
     }
-    return renames;
+    return { renames, access };
   }
 }
 

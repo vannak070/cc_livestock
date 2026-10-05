@@ -154,6 +154,18 @@ export function newPasswordProblem(current: string, next: string): string | null
   return null;
 }
 
+/**
+ * Whether a person uses their role's usual access rather than access made just
+ * for them. When the role changes, these people get the new access; people
+ * with their own access keep it. The server does the same in SQL
+ * (settingsRepository.applyRoleAccess).
+ */
+export function followsRole(u: Pick<UserRoleItem, 'role' | 'permissions'>, roleName: string, rolePermissions: PermissionKey[]): boolean {
+  if (u.role !== roleName) return false;
+  const own = u.permissions ?? [];
+  return own.length === 0 || (rolePermissions.every(p => own.includes(p)) && own.every(p => rolePermissions.includes(p)));
+}
+
 export interface RoleInput { name: string; description: string; permissions: PermissionKey[] }
 export type RoleErrors = Partial<Record<'name' | 'permissions', string>>;
 

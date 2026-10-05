@@ -47,10 +47,7 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }:
   const lockedFarm = currentUser?.farmLocation && !['Super Admin', 'Admin', 'Company'].includes(currentUser.role)
     ? currentUser.farmLocation
     : null;
-  const farmNames = useMemo(
-    () => (common.farms && common.farms.length > 0 ? common.farms.map(f => f.name) : common.locations || []),
-    [common.farms, common.locations]
-  );
+  const farmNames = useMemo(() => (common.farms || []).map(f => f.name), [common.farms]);
   const origins = common.purchaseTypes?.length ? common.purchaseTypes : Object.keys(ORIGIN_TEXT);
   const sexes = common.sexes?.length ? common.sexes : ['Male', 'Female'];
   const breeds = common.breeds ?? [];

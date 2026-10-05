@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assignableRoles, canChangeUser, canOpenPeople, isOfficePerson, newPasswordProblem, officeRoleNames, deleteRole, grantable, roleDeleteBlock, rolesOf, saveRole, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
+import { assignableRoles, canChangeUser, canOpenPeople, followsRole, isOfficePerson, newPasswordProblem, officeRoleNames, deleteRole, grantable, roleDeleteBlock, rolesOf, saveRole, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
 import { ALL_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS, type MasterSetup, type UserRoleItem } from '@/types/settings.types';
 
 const user = (id: string, role: string, farmLocation?: string, email = `${id}@x.com`): UserRoleItem => ({ id, name: id, email, role, status: 'Active', farmLocation });
@@ -103,6 +103,18 @@ describe('office people and farm people', () => {
   });
   it('gives every role except the farm roles from Settings', () => {
     expect(officeRoleNames(SYSTEM_ROLES)).toEqual(['Super Admin', 'Admin', 'Company', 'Management']);
+  });
+});
+
+describe('followsRole', () => {
+  it('is true for people on the role\'s usual access (any order) or with none stored, false for own access or another role', () => {
+    const usual = ['stock_view', 'weight_view'] as const;
+    expect(followsRole({ role: 'Farm Staff', permissions: ['weight_view', 'stock_view'] }, 'Farm Staff', [...usual])).toBe(true);
+    expect(followsRole({ role: 'Farm Staff', permissions: [] }, 'Farm Staff', [...usual])).toBe(true);
+    expect(followsRole({ role: 'Farm Staff' }, 'Farm Staff', [...usual])).toBe(true);
+    expect(followsRole({ role: 'Farm Staff', permissions: ['stock_view'] }, 'Farm Staff', [...usual])).toBe(false);
+    expect(followsRole({ role: 'Farm Staff', permissions: [...usual, 'sales_view'] }, 'Farm Staff', [...usual])).toBe(false);
+    expect(followsRole({ role: 'Veterinarian', permissions: [...usual] }, 'Farm Staff', [...usual])).toBe(false);
   });
 });
 

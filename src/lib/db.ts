@@ -46,7 +46,6 @@ function getJsonDbData(): ERPLivestockData {
   // Dropdown option lists only — these are UI choices, not business records,
   // and they exist so an offline read doesn't render empty selects.
   parsed.settings.breeds = parsed.settings.breeds || parsed.common?.breeds || ['គោទន្លេ', 'កាត់ Brahman', 'កាត់ Wagyu'];
-  parsed.settings.locations = parsed.settings.locations || ['រទាំង', 'ព្រៃវែង', 'បន្ទាយមានជ័យ', 'ក្រោល A', 'ក្រោល B'];
   parsed.settings.buyTypes = parsed.settings.buyTypes || parsed.common?.buyTypes || ['Lumsum', 'Weight', 'Born in Farm', 'Transfer', 'Partnership'];
   parsed.settings.healthStatuses = parsed.settings.healthStatuses || parsed.common?.healthStatuses || ['Good', 'Fair', 'Poor', 'Dead'];
   parsed.settings.vaccineTypes = parsed.settings.vaccineTypes || ['Foot and Mouth', 'Brucellosis', 'Anthrax', 'Dewormer A', 'Vitamin Boost'];

@@ -29,7 +29,7 @@ describe.skipIf(!enabled)('people and farms are changed one at a time', () => {
   beforeEach(async () => {
     for (const t of ['feed_transactions', 'batch_cows', 'batches', 'stock', 'users']) await pool.query(`DELETE FROM ${t}`);
     await pool.query("DELETE FROM master_settings");
-    await settingsRepository.patchBlob({ farms: [], locations: [] });
+    await settingsRepository.patchBlob({ farms: [] });
     await pool.query("INSERT INTO users (id, name, email, role, status, password) VALUES ('sa','Super','sa@x.com','Super Admin','Active','x'), ('ad','Admin','ad@x.com','Admin','Active','x'), ('own','Owner','own@x.com','Farm Owner','Active','x')");
     await pool.query("UPDATE users SET farm_location = 'Farm A' WHERE id = 'own'");
   });
@@ -42,7 +42,7 @@ describe.skipIf(!enabled)('people and farms are changed one at a time', () => {
       const s = await settingsRepository.getSettings();
       expect(s.breeds).toEqual(['New breed']);
       expect(s.farms).toEqual([]);
-      expect(s.locations).toEqual([]);
+      expect('locations' in s).toBe(false);
     });
   });
 
@@ -122,7 +122,7 @@ describe.skipIf(!enabled)('people and farms are changed one at a time', () => {
       expect(saved.name).toBe('Farm B');
       const s = await settingsRepository.getSettings();
       expect(s.farms!.map(f => f.name)).toEqual(['Farm B']);
-      expect(s.locations).toEqual(['Farm B']);
+      expect('locations' in s).toBe(false);
       expect((await pool.query('SELECT COUNT(*)::int AS n FROM users')).rows[0].n).toBe(before);
     });
     it('refuses a repeated farm name', async () => {
@@ -146,7 +146,7 @@ describe.skipIf(!enabled)('people and farms are changed one at a time', () => {
       expect((await userRow('staff@x.com')).farm_location).toBe('Farm B2');
       const s = await settingsRepository.getSettings();
       expect(s.farms!.map(x => x.name)).toEqual(['Farm B2']);
-      expect(s.locations).toEqual(['Farm B2']);
+      expect('locations' in s).toBe(false);
     });
     it('refuses to delete a farm that still has cattle, an active batch or any person, then deletes an empty one', async () => {
       const f = await farmService.saveFarm(superAdmin, farm({ name: 'Farm B' }), null);
@@ -161,7 +161,7 @@ describe.skipIf(!enabled)('people and farms are changed one at a time', () => {
       await farmService.deleteFarm(superAdmin, f.id);
       const s = await settingsRepository.getSettings();
       expect(s.farms).toEqual([]);
-      expect(s.locations).toEqual([]);
+      expect('locations' in s).toBe(false);
     });
     it('needs permission', async () => {
       const staff = { id: 'st', name: 'St', email: 'st@x.com', role: 'Farm Staff', status: 'Active', farmLocation: 'Farm A' } as UserRoleItem;
@@ -205,6 +205,18 @@ describe.skipIf(!enabled)('people and farms are changed one at a time', () => {
       expect((await userRow('acc@x.com')).role).toBe('Finance');
       await expect(settingsService.updateSettings({ roles: base } as never, superAdmin)).rejects.toThrow(/1 person has/);
       await expect(settingsService.updateSettings({ roles: base.map(r => (r.name === 'Farm Staff' ? { ...r, name: 'Staffer' } : r)) } as never, superAdmin)).rejects.toThrow(/keeps its name/);
+    });
+    it('gives a changed role\'s new access to people on its usual access, and leaves people with their own access alone', async () => {
+      const base = (await settingsRepository.getSettings()).roles!;
+      await settingsService.updateSettings({ roles: [...base, custom] } as never, superAdmin);
+      await userAdminService.createUser(superAdmin, person({ email: 'usual@x.com', role: 'Accountant', farmLocation: '', permissions: ['sales_view'] }));
+      await userAdminService.createUser(superAdmin, person({ email: 'mine@x.com', role: 'Accountant', farmLocation: '', permissions: ['sales_view', 'analytics_view'] }));
+      await userAdminService.createUser(superAdmin, person({ email: 'other@x.com', role: 'Management', farmLocation: '', permissions: ['sales_view'] }));
+      // Renamed and changed in the same save: the people follow both.
+      await settingsService.updateSettings({ roles: [...base, { ...custom, name: 'Finance', permissions: ['sales_view', 'sales_record'] }] } as never, superAdmin);
+      expect(await userRow('usual@x.com')).toMatchObject({ role: 'Finance', permissions: ['sales_view', 'sales_record'] });
+      expect((await userRow('mine@x.com')).permissions).toEqual(['sales_view', 'analytics_view']);
+      expect((await userRow('other@x.com')).permissions).toEqual(['sales_view']);
     });
   });
 });

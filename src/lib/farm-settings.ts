@@ -43,15 +43,13 @@ export function validateFarm(settings: Pick<MasterSetup, 'farms'>, input: FarmIn
 }
 
 /**
- * The farm list and location names after saving a farm. `renamedFrom` is the old
- * name when the farm was renamed, so the caller can move everything that points
- * at it.
+ * The farm list after saving a farm. `renamedFrom` is the old name when the
+ * farm was renamed, so the caller can move everything that points at it.
  */
-export function saveFarm(settings: Pick<MasterSetup, 'farms' | 'locations'>, input: FarmInput, editing: FarmItem | null, newId: () => string): { farms: FarmItem[]; locations: string[]; renamedFrom: string | null } {
+export function saveFarm(settings: Pick<MasterSetup, 'farms'>, input: FarmInput, editing: FarmItem | null, newId: () => string): { farms: FarmItem[]; renamedFrom: string | null } {
   const name = input.name.trim();
   const details = { name, address: input.address.trim(), capacity: input.capacity, notes: input.notes.trim() };
   let farms = [...(settings.farms || [])];
-  const locations = [...(settings.locations || [])];
 
   if (editing) {
     // Owner details used to be copied onto the farm; they live on the person now.
@@ -61,20 +59,14 @@ export function saveFarm(settings: Pick<MasterSetup, 'farms' | 'locations'>, inp
       void _n; void _e;
       return { ...rest, ...details };
     });
-    const at = locations.indexOf(editing.name);
-    if (at !== -1) locations[at] = name;
-    if (!locations.includes(name)) locations.push(name);
-    return { farms, locations, renamedFrom: editing.name !== name ? editing.name : null };
+    return { farms, renamedFrom: editing.name !== name ? editing.name : null };
   }
 
   farms.push({ id: `FARM-${newId()}`, ...details });
-  if (!locations.includes(name)) locations.push(name);
-  return { farms, locations, renamedFrom: null };
+  return { farms, renamedFrom: null };
 }
 
-/** The farm list and location names without the farm. */
-export function deleteFarm(settings: Pick<MasterSetup, 'farms' | 'locations'>, farmId: string): { farms: FarmItem[]; locations: string[] } {
-  const target = (settings.farms || []).find(f => f.id === farmId);
-  if (!target) return { farms: settings.farms || [], locations: settings.locations || [] };
-  return { farms: (settings.farms || []).filter(f => f.id !== farmId), locations: (settings.locations || []).filter(l => l !== target.name) };
+/** The farm list without the farm. */
+export function deleteFarm(settings: Pick<MasterSetup, 'farms'>, farmId: string): { farms: FarmItem[] } {
+  return { farms: (settings.farms || []).filter(f => f.id !== farmId) };
 }

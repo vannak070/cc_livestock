@@ -30,11 +30,11 @@ export class FarmService {
     const first = Object.values(errors)[0];
     if (first) throw new Error(first);
 
-    const { farms, locations, renamedFrom } = withFarm(settings, input, editing, newId);
+    const { farms, renamedFrom } = withFarm(settings, input, editing, newId);
     const name = input.name.trim();
     await withTransaction(async client => {
       if (renamedFrom) await farmRepository.renameEverywhere(renamedFrom, name, client);
-      await settingsRepository.patchBlob({ farms, locations }, client);
+      await settingsRepository.patchBlob({ farms }, client);
     });
     return farms.find(f => (editing ? f.id === editing.id : f.name === name))!;
   }
@@ -57,8 +57,8 @@ export class FarmService {
     if (!farm) throw new Error('That farm no longer exists.');
     const block = await this.deleteBlock(farm.name);
     if (block) throw new Error(block);
-    const { farms, locations } = withoutFarm(settings, farmId);
-    await settingsRepository.patchBlob({ farms, locations });
+    const { farms } = withoutFarm(settings, farmId);
+    await settingsRepository.patchBlob({ farms });
   }
 
   /**
