@@ -1,5 +1,6 @@
 import { settingsRepository } from '../repositories/settings.repository';
 import { hasPermission } from './utils';
+import { isFarmOwner, visibleUsers } from './user-admin';
 import { MasterSetup, PermissionKey, UserRoleItem } from './types';
 
 /**
@@ -37,7 +38,12 @@ export function canManageUsers(actor: Actor): boolean {
   return can(actor, 'settings_manage') || can(actor, 'farms_manage');
 }
 
-/** Account emails and roles are only sent to people who manage accounts. */
+/**
+ * Account emails and roles are only sent to people who manage accounts. A farm
+ * owner gets just the staff and vets of their own farm, the people they manage.
+ */
 export function redactSettingsFor(actor: Actor, settings: MasterSetup): MasterSetup {
-  return canManageUsers(actor) ? settings : { ...settings, users: [] };
+  if (canManageUsers(actor)) return settings;
+  if (isFarmOwner(actor) && actor.farmLocation) return { ...settings, users: visibleUsers(settings.users || [], actor) };
+  return { ...settings, users: [] };
 }

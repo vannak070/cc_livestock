@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assignableRoles, canChangeUser, deleteRole, grantable, roleDeleteBlock, rolesOf, saveRole, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
+import { assignableRoles, canChangeUser, canOpenPeople, newPasswordProblem, deleteRole, grantable, roleDeleteBlock, rolesOf, saveRole, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
 import { ALL_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS, type MasterSetup, type UserRoleItem } from '@/types/settings.types';
 
 const user = (id: string, role: string, farmLocation?: string, email = `${id}@x.com`): UserRoleItem => ({ id, name: id, email, role, status: 'Active', farmLocation });
@@ -68,6 +68,44 @@ describe('validatePerson', () => {
   it('refuses a role or access the person cannot give', () => {
     expect(validatePerson(settings(), input({ role: 'Admin', farmLocation: '' }), null, owner).role).toBeTruthy();
     expect(validatePerson(settings(), input({ permissions: [...DEFAULT_ROLE_PERMISSIONS['Farm Staff'], 'settings_manage'] }), null, owner).permissions).toMatch(/settings_manage/);
+  });
+});
+
+describe('your own account', () => {
+  const ad = { ...user('ad', 'Admin'), permissions: DEFAULT_ROLE_PERMISSIONS['Admin'] };
+  const mine = (over: Partial<PersonInput> = {}) => input({ name: 'ad', email: 'ad@x.com', role: 'Admin', farmLocation: '', permissions: DEFAULT_ROLE_PERMISSIONS['Admin'], ...over });
+
+  it('lets you change your name, email and password', () => {
+    expect(validatePerson(settings(), mine({ name: 'Renamed', email: 'me@x.com', password: 'longenough' }), ad, ad)).toEqual({});
+  });
+  it('stops you changing your own role, farm or access', () => {
+    expect(validatePerson(settings(), mine({ role: 'Farm Staff', farmLocation: 'Farm A' }), ad, ad).role).toMatch(/own role/);
+    expect(validatePerson(settings(), mine({ farmLocation: 'Farm A' }), ad, ad).farmLocation).toMatch(/own farm/);
+    expect(validatePerson(settings(), mine({ permissions: DEFAULT_ROLE_PERMISSIONS['Admin'].filter(p => p !== 'settings_manage') }), ad, ad).permissions).toMatch(/own access/);
+  });
+  it('still lets a Super Admin change another Super Admin', () => {
+    const other = user('sa2', 'Super Admin');
+    expect(validatePerson(settings(), input({ name: 'sa2', email: 'sa2@x.com', role: 'Admin', farmLocation: '', permissions: DEFAULT_ROLE_PERMISSIONS['Admin'] }), other, sa)).toEqual({});
+  });
+});
+
+describe('canOpenPeople', () => {
+  it('opens for account managers and for a farm owner with a farm', () => {
+    expect(canOpenPeople(sa)).toBe(true);
+    expect(canOpenPeople(owner)).toBe(true);
+    expect(canOpenPeople({ ...owner, farmLocation: undefined })).toBe(false);
+    expect(canOpenPeople({ ...user('st', 'Farm Staff', 'Farm A'), permissions: DEFAULT_ROLE_PERMISSIONS['Farm Staff'] })).toBe(false);
+    expect(canOpenPeople(null)).toBe(false);
+  });
+});
+
+describe('newPasswordProblem', () => {
+  it('needs the current password, 8+ characters, no edge spaces and a change', () => {
+    expect(newPasswordProblem('', 'abcdefgh')).toMatch(/current/);
+    expect(newPasswordProblem('old', 'short')).toMatch(/at least 8/);
+    expect(newPasswordProblem('old', ' abcdefgh')).toMatch(/space/);
+    expect(newPasswordProblem('abcdefgh', 'abcdefgh')).toMatch(/different/);
+    expect(newPasswordProblem('old', 'abcdefgh')).toBeNull();
   });
 });
 

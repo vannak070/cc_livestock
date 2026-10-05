@@ -19,14 +19,18 @@ import {
   Layers,
   DollarSign,
   PlusCircle,
-  MoreHorizontal
+  MoreHorizontal,
+  Users,
+  KeyRound
 } from 'lucide-react';
 import { UserRoleItem } from '@/lib/types';
 import { hasPermission } from '@/lib/utils';
+import { canOpenPeople, isFarmOwner } from '@/lib/user-admin';
 import { useLanguage } from '@/context/LanguageContext';
 import LanguageSwitcher from '../LanguageSwitcher';
 import InstallAppButton from '../InstallAppButton';
 import ShareAppButton from '../ShareAppButton';
+import ChangePasswordDialog from '../features/account/ChangePasswordDialog';
 
 export type ActiveTabType =
   | 'today'
@@ -130,6 +134,7 @@ export default function SidebarLayout({
   const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [recordSheetOpen, setRecordSheetOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const totalAlerts = healthAlertsCount + vaccineAlertsCount;
   const can = (key: Parameters<typeof hasPermission>[1]) => hasPermission(currentUser, key);
@@ -153,13 +158,14 @@ export default function SidebarLayout({
     'analytics': t('nav.analytics'),
     'proposal-plan': t('nav.proposalPlan'),
     'farms': t('nav.farmsBranches'),
-    'settings': t('nav.masterSettings')
+    // A farm owner's Settings page is only the people on their farm.
+    'settings': currentUser && isFarmOwner(currentUser) ? t('nav.people', 'People') : t('nav.masterSettings')
   };
 
   // "Office" pages are for people who look at money and reports; farm staff
   // and vets (who have none of these permissions) see only daily work.
   const showSummary = can('dashboard_view') && (can('sales_view') || can('analytics_view'));
-  const hasOffice = showSummary || can('sales_view') || can('analytics_view') || can('farms_manage') || can('settings_manage');
+  const hasOffice = showSummary || can('sales_view') || can('analytics_view') || can('farms_manage') || canOpenPeople(currentUser);
 
   const userInitials = currentUser?.name
     ? currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
@@ -245,8 +251,8 @@ export default function SidebarLayout({
             {can('farms_manage') && (
               <NavItem icon={<Building className="h-5 w-5" />} label={tabLabels['farms']} isActive={activeTab === 'farms'} onClick={() => handleTabChange('farms')} />
             )}
-            {can('settings_manage') && (
-              <NavItem icon={<Settings className="h-5 w-5" />} label={tabLabels['settings']} isActive={activeTab === 'settings'} onClick={() => handleTabChange('settings')} />
+            {canOpenPeople(currentUser) && (
+              <NavItem icon={currentUser && isFarmOwner(currentUser) ? <Users className="h-5 w-5" /> : <Settings className="h-5 w-5" />} label={tabLabels['settings']} isActive={activeTab === 'settings'} onClick={() => handleTabChange('settings')} />
             )}
           </NavSection>
         )}
@@ -282,6 +288,14 @@ export default function SidebarLayout({
               </button>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => { setMobileMenuOpen(false); setPasswordOpen(true); }}
+            className="mt-1 w-full flex items-center gap-3 min-h-12 px-3 py-2.5 rounded-xl text-ink hover:bg-slate-100 font-medium transition-colors duration-150 cursor-pointer"
+          >
+            <KeyRound className="h-5 w-5 text-ink-muted" aria-hidden="true" />
+            <span className="text-base leading-tight text-left">{t('nav.changePassword', 'Change my password')}</span>
+          </button>
         </div>
       )}
     </div>
@@ -377,6 +391,8 @@ export default function SidebarLayout({
           : bottomTab(tabLabels['dashboard'], <LayoutDashboard className="h-6 w-6" />, () => handleTabChange('dashboard'), activeTab === 'dashboard')}
         {bottomTab(t('nav.more', 'More'), <MoreHorizontal className="h-6 w-6" />, () => { setRecordSheetOpen(false); setMobileMenuOpen(true); }, mobileMenuOpen)}
       </nav>
+
+      <ChangePasswordDialog isOpen={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </div>
   );
 }

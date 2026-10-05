@@ -260,6 +260,10 @@ export async function resetUserPasswordAction(id: string) {
 export async function deleteUserAction(id: string) {
   return runAction('Failed to remove the person', [], actor => deleteUser(actor, id));
 }
+// Anyone signed in may change their own password.
+export async function changeMyPasswordAction(current: string, next: string) {
+  return runAction('Failed to change your password', [], actor => authService.changeOwnPassword(actor, current, next), { revalidate: false });
+}
 export async function saveFarmAction(input: FarmInput, farmId: string | null) {
   return runAction('Failed to save the farm', ['farms_manage', 'settings_manage'], actor => {
     farmGuard.notFarmBound(actor);

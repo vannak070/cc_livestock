@@ -70,12 +70,14 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
   const [tempPassword, setTempPassword] = useState<string | undefined>();
   const [copied, setCopied] = useState(false);
 
-  const needsFarm = FARM_ROLES.includes(role) && !lockedFarm && farmNames.length > 0;
+  // Your own role, farm and access are changed by another admin, so you cannot lock yourself out.
+  const self = !!person && person.id === actor.id;
+  const needsFarm = FARM_ROLES.includes(role) && !lockedFarm && farmNames.length > 0 && !self;
   const steps: Step[] = [
-    'who', ...(soleRole ? [] : ['role' as Step]),
+    'who', ...(soleRole || self ? [] : ['role' as Step]),
     ...(needsFarm ? ['farm' as Step] : []),
     'signin',
-    ...(isFarmOwner(actor) ? [] : ['access' as Step]),
+    ...(isFarmOwner(actor) || self ? [] : ['access' as Step]),
   ];
   const at = steps.indexOf(step);
   const last = steps[steps.length - 1];
@@ -128,7 +130,7 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
   const sameAsRole = permissions.length === roleDefault.length && permissions.every(p => roleDefault.includes(p));
 
   const heading: Record<Step, { title: string; sub: string }> = {
-    who: { title: edit ? 'Edit person' : 'Add a person', sub: 'Their name, and the email they sign in with.' },
+    who: { title: self ? 'Edit my account' : edit ? 'Edit person' : 'Add a person', sub: self ? 'Your name and sign-in. Another admin changes your role and access.' : 'Their name, and the email they sign in with.' },
     role: { title: 'What is their role?', sub: 'The role sets what they can see and do.' },
     farm: { title: 'Which farm?', sub: 'They will only see this farm.' },
     signin: { title: 'Signing in', sub: edit ? 'Change the password only if they need a new one.' : 'Choose a password, or let us make one.' },

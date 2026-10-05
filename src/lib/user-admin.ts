@@ -41,6 +41,12 @@ export function isFarmOwner(actor: Pick<UserRoleItem, 'role'>): boolean {
   return actor.role === 'Farm Owner';
 }
 
+/** Whether this person gets the People page: account managers, and a farm owner for their own farm. */
+export function canOpenPeople(user: Pick<UserRoleItem, 'role' | 'permissions' | 'farmLocation'> | undefined | null): boolean {
+  if (!user) return false;
+  return hasPermission(user, 'settings_manage') || (isFarmOwner(user) && !!user.farmLocation);
+}
+
 export function visibleUsers(users: UserRoleItem[], actor: Actor): UserRoleItem[] {
   if (!isFarmOwner(actor)) return users;
   return users.filter(u => u.farmLocation === actor.farmLocation && (u.role === 'Farm Staff' || u.role === 'Veterinarian'));
@@ -112,7 +118,26 @@ export function validatePerson(settings: Pick<MasterSetup, 'users' | 'roles' | '
   const before = editing ? effectivePermissions(editing, roles) : [];
   const notHeld = input.permissions.filter(p => !before.includes(p) && !hasPermission(actor, p));
   if (notHeld.length > 0) errors.permissions = `You cannot give access you do not have yourself (${notHeld.join(', ')}).`;
+
+  // Nobody changes their own role, farm or access, so no one can lock themselves
+  // (or the last Super Admin) out. Another admin has to do it.
+  if (editing && editing.id === actor.id) {
+    const ask = 'Ask another admin to change it.';
+    if (input.role !== editing.role) errors.role = `You cannot change your own role. ${ask}`;
+    if (norm(input.farmLocation) !== norm(editing.farmLocation)) errors.farmLocation = `You cannot change your own farm. ${ask}`;
+    const sameAccess = input.permissions.length === before.length && input.permissions.every(p => before.includes(p));
+    if (!sameAccess) errors.permissions = `You cannot change your own access. ${ask}`;
+  }
   return errors;
+}
+
+/** Problem with a new password someone picks for themselves, or null when it is fine. */
+export function newPasswordProblem(current: string, next: string): string | null {
+  if (!current) return 'Type your current password.';
+  if (next.length < MIN_PASSWORD_LENGTH) return `A password needs at least ${MIN_PASSWORD_LENGTH} characters.`;
+  if (next !== next.trim()) return 'A password cannot start or end with a space.';
+  if (next === current) return 'Choose a password that is different from the current one.';
+  return null;
 }
 
 export interface RoleInput { name: string; description: string; permissions: PermissionKey[] }

@@ -51,6 +51,21 @@ describe('canManageUsers / redactSettingsFor', () => {
     expect(out.breeds).toEqual(['B']);
   });
 
+  it('gives a farm owner only the staff and vets of their own farm', () => {
+    const roster = {
+      users: [
+        { id: 'a', role: 'Farm Staff', farmLocation: 'North' },
+        { id: 'b', role: 'Veterinarian', farmLocation: 'North' },
+        { id: 'c', role: 'Farm Staff', farmLocation: 'South' },
+        { id: 'd', role: 'Admin' },
+        { id: 'e', role: 'Farm Owner', farmLocation: 'North' },
+      ],
+    } as unknown as MasterSetup;
+    const owner = actor({ id: 'e', role: 'Farm Owner', farmLocation: 'North' });
+    expect(redactSettingsFor(owner, roster).users.map(u => u.id)).toEqual(['a', 'b']);
+    expect(redactSettingsFor(actor({ role: 'Farm Owner' }), roster).users).toEqual([]);
+  });
+
   it('keeps the roster for account managers', () => {
     const out = redactSettingsFor(actor({ role: 'Admin' }), settings);
     expect(out.users).toHaveLength(1);

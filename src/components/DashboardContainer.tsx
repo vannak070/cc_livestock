@@ -53,6 +53,7 @@ import { ERPLivestockData, FeedProductItem, FeedStockTransaction, UserRoleItem }
 import { ProposalPlanParams } from '@/types';
 import { SalesRecord } from '@/lib/xlsx-parser';
 import { hasPermission } from '@/lib/utils';
+import { canOpenPeople } from '@/lib/user-admin';
 import { PermissionKey } from '@/types/settings.types';
 import { sickCattle, cattleWithDiseaseHistory } from '@/lib/attention';
 import { Scale, Syringe, PlusCircle, DollarSign, Package } from 'lucide-react';
@@ -387,12 +388,13 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     else if (activeTab === 'weight-tracking') permissionKey = 'weight_view';
     else if (activeTab === 'sales-finance') permissionKey = 'sales_view';
     else if (activeTab === 'analytics') permissionKey = 'analytics_view';
-    else if (activeTab === 'settings') permissionKey = 'settings_manage';
     else if (activeTab === 'farms') permissionKey = 'farms_manage';
     else if (activeTab === 'feed-inventory') permissionKey = 'feed_view';
     else if (activeTab === 'proposal-plan') permissionKey = 'analytics_view';
 
-    if (permissionKey && !hasPermission(currentUser, permissionKey) && activeTab !== 'today') {
+    // Settings is also a farm owner's People page, so it has its own rule.
+    const blocked = activeTab === 'settings' ? !canOpenPeople(currentUser) : !!permissionKey && !hasPermission(currentUser, permissionKey);
+    if (blocked && activeTab !== 'today') {
       setActiveTab('today');
     }
   }, [activeTab, currentUser]);
