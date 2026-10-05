@@ -37,7 +37,7 @@ import HealthPage from './features/health/HealthPage';
 import WeightsPage from './features/weight/WeightsPage';
 import SalesPage from './features/sales/SalesPage';
 import ReportsPage from './features/reports/ReportsPage';
-import ProposalPlanTab from './ProposalPlanTab';
+import PlanningPage from './features/planning/PlanningPage';
 import SettingsTab from './SettingsTab';
 import FarmsPage from './features/farms/FarmsPage';
 import { useOnChange } from '@/hooks/useOnChange';
@@ -548,7 +548,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       )}
 
       {activeTab === 'proposal-plan' && (
-        <ProposalPlanTab
+        <PlanningPage
           initialPlan={dbData.proposalPlan?.params}
           onSavePlan={async (params) => {
             await saveProposalPlanMutation.mutateAsync(params);

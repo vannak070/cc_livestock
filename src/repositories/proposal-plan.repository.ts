@@ -3,7 +3,7 @@ import { ProposalPlanParams, ProposalPlanRecord } from '../types/proposal.types'
 
 // Single global "current plan" row — id is always 'current'. There is no
 // per-user or per-farm plan; whoever last saves it sets what everyone sees,
-// same as the web ProposalPlanTab.tsx's own single shared simulation.
+// same as the Planning page's single shared simulation (src/lib/proposal-plan.ts).
 const SINGLETON_ID = 'current';
 
 export class ProposalPlanRepository {
