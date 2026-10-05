@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, History, Minus, Plus } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { BatchItem, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import type { StockItem } from '@/lib/xlsx-parser';
 import {
-  addDays, amountText, farmHeadCount, farmRations, farmToday, farmsToRecord, feedUnit, kgPerUnit, recordedUnits, round1, unitWord,
+  addDays, amountText, farmHeadCount, farmRations, farmToday, farmsToRecord, feedUnit, kgPerUnit, previousUnits, recordedUnits, round1, unitWord,
   type DailyFeedInput
 } from '@/lib/daily-feed';
 import { Choice, FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, money } from '../flow/FlowShell';
@@ -63,6 +63,7 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [opened, setOpened] = useState<Record<string, boolean>>({});
 
   const rations = useMemo(() => (farm ? farmRations(farm, batches, stock, products) : []), [farm, batches, stock, products]);
   const alreadyRecorded = rations.some(r => r.items.some(i => i.product && recordedUnits(transactions, r.batch.id, day, i.product.id) !== null));
@@ -74,6 +75,17 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
   };
   const valueOf = (batchId: string, productId: string, plan: number) => values[key(batchId, productId)] ?? startValue(batchId, productId, plan);
   const setValue = (batchId: string, productId: string, v: string) => { setValues(s => ({ ...s, [key(batchId, productId)]: v })); setError(''); };
+
+  const isOpen = (batchId: string) => opened[batchId] ?? rations.length === 1;
+  const toggleOpen = (batchId: string) => setOpened(o => ({ ...o, [batchId]: !isOpen(batchId) }));
+
+  // Amounts from the latest earlier day that was recorded, for batches that have one.
+  const lastTime = rations.flatMap(r => r.items.filter(i => i.product).map(i => ({ batchId: r.batch.id, productId: i.product!.id, units: previousUnits(transactions, r.batch.id, i.product!.id, day) })))
+    .filter((x): x is { batchId: string; productId: string; units: number } => x.units !== null);
+  const useLastTime = () => {
+    setValues(s => ({ ...s, ...Object.fromEntries(lastTime.map(x => [key(x.batchId, x.productId), String(x.units)])) }));
+    setError('');
+  };
 
   const lines = rations.flatMap(r => r.items.filter(i => i.product).map(i => {
     const p = i.product!;
@@ -193,12 +205,40 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
               {unlinked.map(u => `${u.name} (${u.batch})`).join(', ')} {unlinked.length === 1 ? 'is' : 'are'} not in your feed list, so {unlinked.length === 1 ? 'it' : 'they'} cannot be recorded. Open the batch, Feeding tab, tap the pencil and choose the feed.
             </p>
           )}
+          {rations.length > 1 && (
+            <p className="text-base text-ink-muted">{rations.length} batches on {farm}. Tap a batch to open it and change its amounts.</p>
+          )}
+          {lastTime.length > 0 && (
+            <button type="button" onClick={useLastTime} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-200 px-4 text-lg font-medium text-ink hover:border-emerald-600">
+              <History className="h-5 w-5" aria-hidden /> Fill in the amounts from the last recorded day
+            </button>
+          )}
           {rations.map(r => (
-            <section key={r.batch.id} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
-              <div>
-                <p className="text-xl font-semibold text-ink">{r.batch.name}</p>
-                <p className="text-base text-ink-muted">{r.head} head{r.bulls || r.cows ? ` (${[r.bulls ? `${r.bulls} bulls` : '', r.cows ? `${r.cows} cows` : ''].filter(Boolean).join(', ')})` : ''}</p>
-              </div>
+            <section key={r.batch.id} className="rounded-2xl border border-slate-200 bg-white">
+              {(() => {
+                const feeds = r.items.filter(i => i.product);
+                const done = feeds.length > 0 && feeds.every(i => recordedUnits(transactions, r.batch.id, day, i.product!.id) !== null);
+                const changed = feeds.some(i => Number(valueOf(r.batch.id, i.product!.id, i.planUnits)) !== i.planUnits);
+                const chip = done ? { text: 'Recorded', cls: 'bg-emerald-100 text-emerald-800' } : changed ? { text: 'Changed', cls: 'bg-amber-100 text-amber-900' } : { text: 'As planned', cls: 'bg-slate-100 text-ink-muted' };
+                return (
+                  <button type="button" aria-expanded={isOpen(r.batch.id)} onClick={() => toggleOpen(r.batch.id)} className="flex w-full items-center justify-between gap-3 p-4 text-left">
+                    <span className="min-w-0">
+                      <span className="block text-xl font-semibold text-ink">{r.batch.name}</span>
+                      <span className="block text-base text-ink-muted">{r.head} head{r.bulls || r.cows ? ` (${[r.bulls ? `${r.bulls} bulls` : '', r.cows ? `${r.cows} cows` : ''].filter(Boolean).join(', ')})` : ''}</span>
+                      {!isOpen(r.batch.id) && (
+                        <span className="mt-1 block text-base text-ink">
+                          {feeds.map(i => `${i.product!.name} ${amountText(i.product!, Number(valueOf(r.batch.id, i.product!.id, i.planUnits)) || 0)}`).join(' · ')}
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className={`rounded-full px-3 py-1 text-base font-medium ${chip.cls}`}>{chip.text}</span>
+                      {isOpen(r.batch.id) ? <ChevronUp className="h-6 w-6 text-ink-muted" aria-hidden /> : <ChevronDown className="h-6 w-6 text-ink-muted" aria-hidden />}
+                    </span>
+                  </button>
+                );
+              })()}
+              {isOpen(r.batch.id) && <div className="space-y-3 border-t border-slate-100 p-4">
               {r.items.filter(i => i.product).map(i => {
                 const p = i.product!;
                 const unit = feedUnit(p);
@@ -222,6 +262,7 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
                   </div>
                 );
               })}
+              </div>}
             </section>
           ))}
           <p className="text-base text-ink-muted">To feed something every day (for example grass), add it to the batch&apos;s feeding plan.</p>

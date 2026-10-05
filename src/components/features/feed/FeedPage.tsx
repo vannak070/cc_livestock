@@ -8,13 +8,14 @@ import { ConfirmModal } from '@/components/ui/confirm-modal';
 import type { ERPLivestockData, FarmItem, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import { format2DecimalsWithCommas, getErrorMessage, hasPermission } from '@/lib/utils';
 import { feedStockLevels } from '@/lib/attention';
-import { addDays, amountText, dailyFeedReport, farmToday, farmsToRecord, feedUnit, missedFeedDays, round1, unitWord, type FeedDayStatus } from '@/lib/daily-feed';
+import { addDays, amountText, dailyFeedReport, farmToday, farmsToRecord, feedUnit, missedFeedDays, movementOnFarm, round1, unitWord, type FeedDayStatus } from '@/lib/daily-feed';
 import { dayLabel } from './DailyFeedFlow';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import FeedProductFlow from './FeedProductFlow';
 import { FeedCategoryModal } from './FeedCategoryModal';
 import FeedInFlow from './FeedInFlow';
+import { canAddProduct, canEditProduct, isDefaultProduct } from '@/lib/feed-products';
 
 interface FeedPageProps {
   data: ERPLivestockData;
@@ -78,6 +79,8 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
   useOnChange(JSON.stringify([tab, farm, category, move, query, startDate, endDate, days]), () => setVisible(PAGE));
 
   const canManage = hasPermission(currentUser, 'feed_manage');
+  // A farm owner puts their own farm's products into stock too.
+  const canFeedIn = canManage || (hasPermission(currentUser, 'feed_own_products') && !!currentUser?.farmLocation);
   const showFarmFilter = !currentUser?.farmLocation && farms.length > 0;
   const effectiveFarm = currentUser?.farmLocation || farm;
   const products = useMemo(() => data.feedProducts || [], [data.feedProducts]);
@@ -86,10 +89,12 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
   const categories = useMemo(() => [...new Set(products.map(p => p.category).filter(Boolean))].sort(), [products]);
 
   // Movements that touch the chosen farm (all of them when no farm is chosen).
+  // Old automatic rows carry no farm; they count for the farm of their batch.
   const scopedTx = useMemo(() => {
     if (!effectiveFarm) return transactions;
-    return transactions.filter(t => (isPlace(t.targetFarm) && t.targetFarm === effectiveFarm) || (isPlace(t.sourceFarm) && t.sourceFarm === effectiveFarm));
-  }, [transactions, effectiveFarm]);
+    const batchFarm = new Map((data.batches || []).map(b => [b.id, b.farmLocation]));
+    return transactions.filter(t => movementOnFarm(t, effectiveFarm, batchFarm));
+  }, [transactions, effectiveFarm, data.batches]);
 
   // Same rule as the Today screen: stock from the movements, days left from the feeding programs.
   const levels = useMemo(() => {
@@ -218,10 +223,10 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
           <h2 className="text-2xl font-semibold text-ink">Feed</h2>
           <p className="text-base text-ink-muted">What is in store and how long it will last.</p>
         </div>
-        {(canManage || onRecordDay) && (
+        {(canFeedIn || onRecordDay) && (
           <div className="flex flex-wrap gap-2">
             {onRecordDay && <Button size="lg" onClick={() => onRecordDay()}><Wheat /> Record today&apos;s feed</Button>}
-            {canManage && <Button size="lg" variant={onRecordDay ? 'outline' : 'default'} onClick={onOpenFeedIn}><ArrowDownToLine /> Feed in</Button>}
+            {canFeedIn && <Button size="lg" variant={onRecordDay ? 'outline' : 'default'} onClick={onOpenFeedIn}><ArrowDownToLine /> Feed in</Button>}
           </div>
         )}
       </div>
@@ -253,7 +258,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
             <span className="font-semibold">Running low: </span>
             {lowItems.slice(0, 3).map(l => `${l.productName} (${amountText(productById.get(l.productId), l.bags)})`).join(', ')}{lowItems.length > 3 ? ` and ${lowItems.length - 3} more` : ''}
           </p>
-          {canManage && <Button onClick={onOpenFeedIn}><ArrowDownToLine /> Feed in</Button>}
+          {canFeedIn && <Button onClick={onOpenFeedIn}><ArrowDownToLine /> Feed in</Button>}
         </div>
       )}
 
@@ -460,12 +465,13 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
 
       {tab === 'products' && (
         <div className="space-y-3">
-          {canManage && (
+          {canAddProduct(currentUser) && (
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => setProductModal({ open: true, product: null })}><Plus /> Add feed</Button>
-              <Button variant="outline" onClick={() => setCategoryOpen(true)}><Settings /> Kinds of feed</Button>
+              {canManage && <Button variant="outline" onClick={() => setCategoryOpen(true)}><Settings /> Kinds of feed</Button>}
             </div>
           )}
+          {!canManage && canAddProduct(currentUser) && <p className="text-base text-ink-muted">Feeds marked Default are set by the office and cannot be changed. You can add and change your own.</p>}
           {productRows.length === 0 ? (
             <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No feed products match.</p>
           ) : (
@@ -473,12 +479,15 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
               {productRows.map(p => (
                 <li key={p.id} className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="min-w-0">
-                    <p className="text-xl font-semibold text-ink">{p.name}</p>
+                    <p className="flex flex-wrap items-center gap-2 text-xl font-semibold text-ink">
+                      {p.name}
+                      <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium ${isDefaultProduct(p) ? 'bg-slate-100 text-ink-muted' : 'bg-emerald-100 text-emerald-800'}`}>{isDefaultProduct(p) ? 'Default' : currentUser?.farmLocation ? 'Your farm' : p.ownerFarm}</span>
+                    </p>
                     <p className="text-base text-ink-muted">{[p.category, feedUnit(p) === 'kg' ? 'counted in kg' : `${p.weightPerUnit} kg per ${feedUnit(p)}`].filter(Boolean).join(' · ')}</p>
                     <p className="text-base text-ink">{feedUnit(p) === 'kg' ? `${riel(p.unitCost)} a kg` : `${riel(p.costPerBag || p.unitCost * p.weightPerUnit)} a ${feedUnit(p)} · ${riel(p.unitCost)} a kg`}</p>
                     <p className="text-base text-ink-muted">{p.trackStock === false ? 'Grown or cut on the farm, not kept as stock' : `Warn below ${amountText(p, p.minThresholdBags || 50)}`}{p.supplier ? ` · ${p.supplier}` : ''}</p>
                   </div>
-                  {canManage && (
+                  {canEditProduct(currentUser, p) && (
                     <div className="flex shrink-0">
                       <Button variant="ghost" size="icon" aria-label={`Edit ${p.name}`} onClick={() => setProductModal({ open: true, product: p })}><Pencil /></Button>
                       <Button variant="ghost" size="icon" aria-label={`Delete ${p.name}`} onClick={() => askDelete(p)}><Trash2 className="text-rose-700" /></Button>

@@ -13,7 +13,7 @@ describe('monthlyMoney', () => {
   const logs = [{ cowId: 'A', cost: 20_000 }];
   const rows = monthlyMoney(stock, sales, logs);
   it('lists months oldest first with what was bought and sold', () => {
-    expect(rows.map(r => [r.label, r.bought, r.sold, r.soldCount])).toEqual([['Aug 26', 7_000_000, 0, 0], ['Sep 26', 5_000_000, 0, 0], ['Oct 26', 0, 9_500_000, 2], ['Nov 26', 0, 1_000_000, 1]]);
+    expect(rows.map(r => [r.label, r.bought, r.sold, r.soldCount])).toEqual([['Aug 2026', 7_000_000, 0, 0], ['Sep 2026', 5_000_000, 0, 0], ['Oct 2026', 0, 9_500_000, 2], ['Nov 2026', 0, 1_000_000, 1]]);
   });
   it('counts profit only for animals that still have a record', () => {
     expect(rows[2].profit).toBe(5_000_000 - 4_000_000 - 20_000 + (4_500_000 - 5_000_000)); // A: +980k, C: -500k

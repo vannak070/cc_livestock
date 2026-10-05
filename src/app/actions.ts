@@ -23,8 +23,6 @@ import {
   updateWeightRecord,
   deleteSalesRecord,
   updateSalesRecord,
-  saveFeedProduct,
-  deleteFeedProduct,
   addFeedTransaction,
   saveProposalPlan,
   deleteProposalPlan,
@@ -44,12 +42,15 @@ import { MasterSetup, BatchItem, HealthLogItem, FeedProductItem, FeedStockTransa
 import { runAction } from '@/lib/run-action';
 import { authService } from '@/services/auth.service';
 import { dailyFeedService } from '@/services/daily-feed.service';
+import { farmCostService } from '@/services/farm-cost.service';
+import type { FarmCostInput } from '@/lib/farm-costs';
 import { batchMoveService } from '@/services/batch-move.service';
 import type { DailyFeedInput } from '@/lib/daily-feed';
 import { startSession, endSession } from '@/lib/session';
 import { scopeDataForActor } from '@/lib/data-scope';
 import { scopeFor } from '@/lib/farm-scope';
 import { farmGuard } from '@/lib/farm-guard';
+import { feedProductService } from '@/services/feed-product.service';
 
 // Every action below is a public endpoint as far as the network is
 // concerned. runAction (src/lib/run-action.ts) checks the caller's session and
@@ -238,20 +239,33 @@ export async function recordBatchHealthLogAction(batchId: string, log: Omit<Heal
 
 // ─── Feed ───────────────────────────────────────────────────────────────────
 export async function saveFeedProductAction(product: FeedProductItem) {
-  return runAction('Failed to save feed product', ['feed_manage'], () => saveFeedProduct(product));
+  return runAction('Failed to save feed product', ['feed_manage', 'feed_own_products'], actor => feedProductService.save(actor, product));
 }
 
 export async function deleteFeedProductAction(productId: string) {
-  return runAction('Failed to delete feed product', ['feed_manage'], () => deleteFeedProduct(productId));
+  return runAction('Failed to delete feed product', ['feed_manage', 'feed_own_products'], actor => feedProductService.remove(actor, productId));
 }
 
 export async function addFeedTransactionAction(tx: FeedStockTransaction) {
-  return runAction('Failed to add feed transaction', ['feed_manage'], () => addFeedTransaction(tx));
+  return runAction('Failed to add feed transaction', ['feed_manage', 'feed_own_products'], async actor => {
+    await feedProductService.assertCanMove(actor, tx);
+    return addFeedTransaction(tx);
+  });
 }
 
 // A farm account records its own farm; the office can record any farm for them.
 export async function recordDailyFeedAction(input: DailyFeedInput) {
   return runAction('Failed to save the day\'s feed', ['feed_record'], actor => dailyFeedService.record(actor, input));
+}
+
+// ─── Running costs ──────────────────────────────────────────────────────────
+// A farm account can only record or delete its own farm's costs (checked in the service).
+export async function addFarmCostAction(input: FarmCostInput) {
+  return runAction('Failed to save the cost', ['costs_record'], actor => farmCostService.add(actor, input));
+}
+
+export async function deleteFarmCostAction(id: string) {
+  return runAction('Failed to delete the cost', ['costs_delete'], actor => farmCostService.remove(actor, id));
 }
 
 // ─── Settings & planning ────────────────────────────────────────────────────

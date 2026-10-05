@@ -31,7 +31,7 @@ export function monthlyMoney(stock: StockItem[], sales: SalesRecord[], logs: Pic
   const row = (key: string): MonthRow => {
     let r = rows.get(key);
     if (!r) {
-      r = { month: key, label: `${MONTHS[Number(key.slice(5)) - 1]} ${key.slice(2, 4)}`, bought: 0, sold: 0, soldCount: 0, profit: 0 };
+      r = { month: key, label: `${MONTHS[Number(key.slice(5)) - 1]} ${key.slice(0, 4)}`, bought: 0, sold: 0, soldCount: 0, profit: 0 };
       rows.set(key, r);
     }
     return r;

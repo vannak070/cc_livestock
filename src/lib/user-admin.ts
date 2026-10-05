@@ -55,6 +55,15 @@ export function officeRoleNames(roles: CustomRoleDefinition[]): string[] {
   return roles.map(r => r.name).filter(n => !FARM_ROLES.includes(n));
 }
 
+/**
+ * How many of today's permissions a list holds. Stored roles and people can
+ * still carry keys of removed features (the old expenses_* ones), which must
+ * not count ("27 of 24").
+ */
+export function knownPermissionCount(perms: readonly string[] | undefined): number {
+  return new Set((perms || []).filter(p => (ALL_PERMISSIONS as readonly string[]).includes(p))).size;
+}
+
 /** Whether this person gets the People page: account managers, and a farm owner for their own farm. */
 export function canOpenPeople(user: Pick<UserRoleItem, 'role' | 'permissions' | 'farmLocation'> | undefined | null): boolean {
   if (!user) return false;

@@ -16,6 +16,8 @@ export interface FeedProductItem {
   status: 'Active' | 'Inactive';
   /** False for feed grown or cut on the farm: its daily use is recorded, but it is not kept as stock. */
   trackStock?: boolean;
+  /** The farm that made this product. Empty = a default product set by the office: everyone can use it, only the office can change it. */
+  ownerFarm?: string;
   createdAt?: string;
 }
 

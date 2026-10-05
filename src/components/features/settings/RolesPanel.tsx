@@ -5,7 +5,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { ALL_PERMISSIONS, type CustomRoleDefinition, type MasterSetup, type UserRoleItem } from '@/types/settings.types';
-import { deleteRole, followsRole, roleDeleteBlock, rolesOf, saveRole, type RoleInput } from '@/lib/user-admin';
+import { deleteRole, followsRole, roleDeleteBlock, rolesOf, saveRole, type RoleInput, knownPermissionCount } from '@/lib/user-admin';
 import { getErrorMessage } from '@/lib/utils';
 import RoleFlow from './RoleFlow';
 
@@ -49,7 +49,7 @@ export default function RolesPanel({ settings, actor, onSettings }: RolesPanelPr
               <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${r.isSystem ? 'bg-slate-200 text-ink' : 'bg-emerald-100 text-emerald-800'}`}>{r.isSystem ? 'Built in' : 'Yours'}</span>
             </div>
             <p className="text-base text-ink-muted">{r.description || 'Custom role'}</p>
-            <p className="text-base text-ink">{r.permissions.length} of {ALL_PERMISSIONS.length} things · {people(r.name)} {people(r.name) === 1 ? 'person' : 'people'}</p>
+            <p className="text-base text-ink">{knownPermissionCount(r.permissions)} of {ALL_PERMISSIONS.length} things · {people(r.name)} {people(r.name) === 1 ? 'person' : 'people'}</p>
             <div className="mt-auto flex gap-2 border-t border-slate-100 pt-3">
               {r.name !== 'Super Admin' || actor.role === 'Super Admin' ? <Button variant="outline" size="sm" onClick={() => setFlow({ role: r })}><Pencil /> Edit</Button> : null}
               {!r.isSystem && <Button variant="ghost" size="sm" aria-label={`Delete ${r.name}`} onClick={() => askDelete(r)}><Trash2 className="text-rose-700" /></Button>}

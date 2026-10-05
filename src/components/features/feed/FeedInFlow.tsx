@@ -13,6 +13,8 @@ interface FeedInFlowProps {
   products: FeedProductItem[];
   farms: FarmItem[];
   currentUser?: UserRoleItem;
+  /** The farm an office account is working on; used as the starting choice. */
+  defaultFarm?: string;
   onSave: (tx: FeedStockTransaction) => Promise<void>;
   /** 'out' records feed used by hand (spoilage, a correction); the daily ration job does the usual deductions. */
   mode?: 'in' | 'out';
@@ -32,7 +34,7 @@ export default function FeedInFlow(props: FeedInFlowProps) {
   );
 }
 
-function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in' }: FeedInFlowProps) {
+function FeedInBody({ onClose, products, farms, currentUser, defaultFarm, onSave, mode = 'in' }: FeedInFlowProps) {
   const out = mode === 'out';
   // Feed grown on the farm is not kept as stock, so it never comes in or goes out by hand.
   const active = products.filter(p => p.status !== 'Inactive' && p.trackStock !== false);
@@ -44,7 +46,7 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in'
   const [step, setStep] = useState<Step>(single ? 'bags' : 'pick');
   const [productId, setProductId] = useState(single ? active[0].id : '');
   const [bags, setBags] = useState('');
-  const [farm, setFarm] = useState(lockedFarm ?? (farms.length === 1 ? farms[0].name : ''));
+  const [farm, setFarm] = useState(lockedFarm ?? (defaultFarm && farms.some(f => f.name === defaultFarm) ? defaultFarm : farms.length === 1 ? farms[0].name : ''));
   const [date, setDate] = useState(today());
   const [ref, setRef] = useState('');
   const [notes, setNotes] = useState('');

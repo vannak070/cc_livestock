@@ -20,7 +20,8 @@ import {
   DollarSign,
   PlusCircle,
   MoreHorizontal,
-  Users
+  Users,
+  Receipt
 } from 'lucide-react';
 import { UserRoleItem } from '@/lib/types';
 import { hasPermission } from '@/lib/utils';
@@ -42,7 +43,8 @@ export type ActiveTabType =
   | 'analytics'
   | 'proposal-plan'
   | 'settings'
-  | 'farms';
+  | 'farms'
+  | 'costs';
 
 /** Something a person can record from Today or the phone's Record button. */
 export interface RecordAction {
@@ -61,6 +63,8 @@ interface SidebarLayoutProps {
   vaccineAlertsCount: number;
   currentUser?: UserRoleItem | null;
   onLogout?: () => void;
+  /** The "Working on" farm choice for office accounts; shown in the header, or above the page on phones. */
+  workingOn?: React.ReactNode;
 }
 
 interface NavItemProps {
@@ -127,7 +131,8 @@ export default function SidebarLayout({
   healthAlertsCount,
   vaccineAlertsCount,
   currentUser,
-  onLogout
+  onLogout,
+  workingOn
 }: SidebarLayoutProps) {
   const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -151,6 +156,7 @@ export default function SidebarLayout({
     'health-tracking': t('nav.healthVaccines'),
     'feed-inventory': t('nav.feedStock'),
     'batch-management': t('nav.batchManagement'),
+    'costs': t('nav.costs', 'Costs'),
     'sales-finance': t('nav.financeLedger'),
     'analytics': t('nav.analytics'),
     'proposal-plan': t('nav.proposalPlan'),
@@ -228,6 +234,9 @@ export default function SidebarLayout({
           )}
           {can('batch_view') && (
             <NavItem icon={<Layers className="h-5 w-5" />} label={tabLabels['batch-management']} isActive={activeTab === 'batch-management'} onClick={() => handleTabChange('batch-management')} />
+          )}
+          {can('costs_view') && (
+            <NavItem icon={<Receipt className="h-5 w-5" />} label={tabLabels['costs']} isActive={activeTab === 'costs'} onClick={() => handleTabChange('costs')} />
           )}
         </NavSection>
 
@@ -357,6 +366,7 @@ export default function SidebarLayout({
             <h1 className="text-xl md:text-2xl font-bold text-ink truncate">{tabLabels[activeTab]}</h1>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
+            {workingOn && <div className="hidden md:block">{workingOn}</div>}
             <LanguageSwitcher />
             <div className="hidden lg:flex text-sm text-ink-muted bg-slate-50 py-2 px-3.5 rounded-full border border-slate-200 items-center gap-2">
               <Calendar className="h-4 w-4 text-emerald-700" />
@@ -367,6 +377,7 @@ export default function SidebarLayout({
 
         {/* Page Content (extra space at the bottom on phones for the bottom bar) */}
         <div className="p-4 sm:p-6 pb-28 md:pb-6 flex-1 min-w-0">
+          {workingOn && <div className="mb-4 md:hidden">{workingOn}</div>}
           {children}
         </div>
       </main>

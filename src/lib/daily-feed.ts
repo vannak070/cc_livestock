@@ -75,6 +75,19 @@ export function parseFeedRef(ref?: string): { kind: 'recorded' | 'estimated'; ba
   return { kind: m[1] === 'DAILY' ? 'recorded' : 'estimated', batchId: m[2], day: m[3] };
 }
 
+/**
+ * Whether a feed movement belongs to a farm: it came in to it or went out of
+ * it, or it is a daily record/old automatic entry of one of the farm's
+ * batches (old automatic rows were written without a farm).
+ */
+export function movementOnFarm(t: Pick<FeedStockTransaction, 'sourceFarm' | 'targetFarm' | 'referenceNo'>, farm: string, batchFarm: Map<string, string | undefined>): boolean {
+  const place = (s?: string) => !!s && !s.startsWith('Daily Feed') && s !== 'Supplier' && s !== 'Central Warehouse';
+  if ((place(t.targetFarm) && t.targetFarm === farm) || (place(t.sourceFarm) && t.sourceFarm === farm)) return true;
+  if (place(t.sourceFarm)) return false;
+  const ref = parseFeedRef(t.referenceNo);
+  return !!ref && batchFarm.get(ref.batchId) === farm;
+}
+
 // ─── The plan for a farm ─────────────────────────────────────────────────────
 
 export interface RationItem {
@@ -156,6 +169,15 @@ export function recordedUnits(transactions: FeedStockTransaction[], batchId: str
   const ref = dailyRef(batchId, day, productId);
   const rows = transactions.filter(t => t.referenceNo === ref);
   return rows.length ? rows.reduce((s, t) => s + (t.quantityBags || 0), 0) : null;
+}
+
+/** Units recorded for a batch's feed on the latest earlier day that has a record (looking back `lookback` days); null when none. */
+export function previousUnits(transactions: FeedStockTransaction[], batchId: string, productId: string, day: string, lookback = 14): number | null {
+  for (let d = addDays(day, -1); d >= addDays(day, -lookback); d = addDays(d, -1)) {
+    const u = recordedUnits(transactions, batchId, d, productId);
+    if (u !== null) return u;
+  }
+  return null;
 }
 
 export type FeedDayStatus = 'recorded' | 'partly' | 'estimated' | 'missing';

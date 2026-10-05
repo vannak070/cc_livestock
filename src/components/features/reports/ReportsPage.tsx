@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import type { BatchItem, ERPLivestockData, FarmItem, UserRoleItem } from '@/lib/types';
 import { batchCattle, batchSummary } from '@/lib/batch-stats';
 import { composition, forecast, monthlyMoney, type Share } from '@/lib/report-stats';
-import { money as cattleMoney } from '@/lib/cattle-stats';
+import { farmProfit, sumMonths } from '@/lib/farm-costs';
 import { Input } from '@/components/ui/input';
 import { NUM } from '../flow/FlowShell';
 
@@ -130,20 +130,25 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
 
   const months = useMemo(() => monthlyMoney(scoped.stock, scoped.salesTracking, scoped.healthLogs), [scoped.stock, scoped.salesTracking, scoped.healthLogs]);
   const last12 = months.slice(-12);
-  const totals = useMemo(() => {
-    const revenue = scoped.salesTracking.reduce((s, x) => s + (x.totalPrice || 0), 0);
-    const byId = new Map(scoped.stock.map(c => [c.id, c]));
-    let profit = 0;
-    let known = 0;
-    for (const s of scoped.salesTracking) {
-      const cow = byId.get(s.cowId);
-      if (!cow) continue;
-      const r = cattleMoney({ totalPrice: cow.totalPrice, status: 'Sold' }, s, scoped.healthLogs.filter(l => l.cowId === s.cowId)).result;
-      if (r !== null) { profit += r; known += 1; }
-    }
-    return { revenue, profit, known, sold: scoped.salesTracking.length };
-  }, [scoped.salesTracking, scoped.stock, scoped.healthLogs]);
+  const totals = useMemo(() => ({
+    revenue: scoped.salesTracking.reduce((s, x) => s + (x.totalPrice || 0), 0),
+    sold: scoped.salesTracking.length,
+  }), [scoped.salesTracking]);
   const feedPerDay = [...summaries.values()].reduce((s, x) => s + x.feedCostPerDay, 0);
+
+  // Farm profit: sales less what the sold cattle cost to buy and feed, medicine and running costs.
+  const farmMoney = useMemo(() => farmProfit({
+    stock: data.stock,
+    sales: data.salesTracking,
+    healthLogs: data.healthLogs,
+    feedTransactions: data.feedTransactions || [],
+    batches: data.batches,
+    costs: data.farmCosts || [],
+    farm: effectiveFarm || undefined,
+  }), [data.stock, data.salesTracking, data.healthLogs, data.feedTransactions, data.batches, data.farmCosts, effectiveFarm]);
+  const farmMonths = farmMoney.months;
+  const farmTotals = useMemo(() => sumMonths(farmMonths), [farmMonths]);
+  const farmCosts = farmTotals.cattleCost + farmTotals.medicine + farmTotals.feed + farmTotals.other;
 
   const forecastBatch = activeBatches.find(b => b.id === batchId) ?? activeBatches[0];
 
@@ -205,47 +210,79 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
 
       {tab === 'money' && (
         <div className="space-y-4">
-          <section className="grid grid-cols-3 gap-2 sm:gap-3">
+          <section className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             <Tile label="Sales" value={riel(totals.revenue)} sub={`${totals.sold} sold`} />
-            <Tile label="Profit" value={totals.known ? signedRiel(totals.profit) : '—'} sub={totals.known ? 'sold animals only' : 'No sales yet'} tone={totals.known ? (totals.profit < 0 ? 'bad' : 'good') : undefined} />
-            <Tile label="Feed each day" value={feedPerDay > 0 ? riel(feedPerDay) : '—'} sub="active batches" />
+            <Tile label="Costs" value={riel(farmCosts)} sub="of the cattle sold, plus running" />
+            <Tile label="Farm profit" value={farmMonths.length ? signedRiel(farmTotals.profit) : '—'} sub="sales less all costs" tone={farmMonths.length ? (farmTotals.profit < 0 ? 'bad' : 'good') : undefined} />
+            <Tile label="Feed in the herd" value={riel(farmMoney.feedInHerd)} sub={feedPerDay > 0 ? `eaten, not sold yet · ${riel(feedPerDay)} a day` : 'eaten, not sold yet'} />
           </section>
 
-          {last12.length === 0 ? (
-            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">Money by month appears once cattle are bought or sold.</p>
-          ) : (
-            <>
-              <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
-                <h3 className="mb-2 text-lg font-semibold text-ink">Bought and sold each month</h3>
-                <div className="h-72" role="img" aria-label="Cattle bought and sold each month; the same numbers are listed below the chart">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={last12} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2}>
-                      <CartesianGrid stroke="#e2e8f0" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 14, fill: '#475569' }} tickLine={false} />
-                      <YAxis width={52} tick={{ fontSize: 14, fill: '#475569' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => (v >= 1_000_000 ? `${r1(v / 1_000_000)}M` : v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
-                      <Tooltip formatter={(v, name) => [riel(Number(v)), String(name)]} />
-                      <Legend wrapperStyle={{ fontSize: 14 }} />
-                      <Bar dataKey="sold" name="Sold" fill={SOLD} radius={[4, 4, 0, 0]} barSize={16} isAnimationActive={false} />
-                      <Bar dataKey="bought" name="Bought" fill={BOUGHT} radius={[4, 4, 0, 0]} barSize={16} isAnimationActive={false} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </section>
-              <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                {[...last12].reverse().map(m => (
-                  <li key={m.month} className="flex items-start justify-between gap-4 border-b border-slate-100 px-4 py-3 last:border-0">
-                    <div>
-                      <p className="text-lg font-semibold text-ink">{m.label}</p>
-                      <p className="text-base text-ink-muted">Bought {riel(m.bought)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-base text-ink">Sold {riel(m.sold)}{m.soldCount ? ` (${m.soldCount})` : ''}</p>
-                      {m.soldCount > 0 && <p className={`text-base font-medium ${m.profit < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{m.profit < 0 ? 'Loss' : 'Profit'} {riel(Math.abs(m.profit))}</p>}
-                    </div>
+          {farmMonths.length > 0 && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-4">
+              <h3 className="mb-2 text-lg font-semibold text-ink">Where the money went</h3>
+              <ul className="divide-y divide-slate-100">
+                {[
+                  { label: 'Cattle that were sold', hint: 'what they cost to buy', value: farmTotals.cattleCost },
+                  { label: 'Feed they ate', hint: 'their share of the daily feed records', value: farmTotals.feed },
+                  { label: 'Medicine', hint: 'from Health', value: farmTotals.medicine },
+                  { label: 'Running costs', hint: 'wages, power, fuel and more, from Costs', value: farmTotals.other },
+                ].map(r => (
+                  <li key={r.label} className="flex items-baseline justify-between gap-3 py-2">
+                    <span className="min-w-0"><span className="block text-base text-ink">{r.label}</span><span className="block text-sm text-ink-muted">{r.hint}</span></span>
+                    <span className="shrink-0 text-base font-medium text-ink">{riel(r.value)}</span>
                   </li>
                 ))}
               </ul>
-            </>
+              <p className="mt-2 text-sm text-ink-muted">
+                Feed counts when the animals that ate it are sold: each day&apos;s feed is shared evenly by the batch&apos;s animals that day. Feed eaten by cattle still on the farm ({riel(farmMoney.feedInHerd)}) is not a cost yet. Feed taken out by hand counts in the month it left the store. The Sales page shows the same profit per animal, before running costs.
+              </p>
+            </section>
+          )}
+
+          {last12.length > 0 && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
+              <h3 className="mb-2 text-lg font-semibold text-ink">Bought and sold each month</h3>
+              <div className="h-72" role="img" aria-label="Cattle bought and sold each month; profit by month is listed below the chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={last12} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2}>
+                    <CartesianGrid stroke="#e2e8f0" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 14, fill: '#475569' }} tickLine={false} />
+                    <YAxis width={52} tick={{ fontSize: 14, fill: '#475569' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => (v >= 1_000_000 ? `${r1(v / 1_000_000)}M` : v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
+                    <Tooltip formatter={(v, name) => [riel(Number(v)), String(name)]} />
+                    <Legend wrapperStyle={{ fontSize: 14 }} />
+                    <Bar dataKey="sold" name="Sold" fill={SOLD} radius={[4, 4, 0, 0]} barSize={16} isAnimationActive={false} />
+                    <Bar dataKey="bought" name="Bought" fill={BOUGHT} radius={[4, 4, 0, 0]} barSize={16} isAnimationActive={false} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+          )}
+
+          {farmMonths.length === 0 ? (
+            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">Money by month appears once cattle are sold, or feed and other costs are recorded.</p>
+          ) : (
+            <section>
+              <h3 className="mb-2 text-lg font-semibold text-ink">Farm profit each month</h3>
+              <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                {[...farmMonths].slice(-12).reverse().map(m => {
+                  const spent = m.cattleCost + m.medicine + m.feed + m.other;
+                  return (
+                    <li key={m.month} className="border-b border-slate-100 px-4 py-3 last:border-0">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-lg font-semibold text-ink">{m.label}</p>
+                          <p className="text-base text-ink-muted">Sold {riel(m.sales)}{m.soldCount ? ` (${m.soldCount})` : ''} · Costs {riel(spent)}</p>
+                        </div>
+                        <p className={`shrink-0 text-base font-medium ${m.profit < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{m.profit < 0 ? 'Loss' : 'Profit'} {riel(Math.abs(m.profit))}</p>
+                      </div>
+                      <p className="mt-1 text-sm text-ink-muted">
+                        {[m.cattleCost && `Cattle ${riel(m.cattleCost)}`, m.feed && `Feed ${riel(m.feed)}`, m.medicine && `Medicine ${riel(m.medicine)}`, m.other && `Running ${riel(m.other)}`].filter(Boolean).join(' · ')}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           )}
         </div>
       )}

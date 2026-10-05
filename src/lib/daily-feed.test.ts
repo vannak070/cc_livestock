@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  addDays, amountText, dailyFeedProblem, dailyFeedReport, farmHeadCount, farmRations, farmToday, feedDayStatus, kgPerUnit, missedFeedDays, parseFeedRef, recordedUnits, todayNotRecorded, unlinkedRationFeeds
+  addDays, amountText, dailyFeedProblem, dailyFeedReport, farmHeadCount, farmRations, movementOnFarm, farmToday, feedDayStatus, kgPerUnit, missedFeedDays, parseFeedRef, previousUnits, recordedUnits, todayNotRecorded, unlinkedRationFeeds
 } from './daily-feed';
 import type { BatchItem, FeedProductItem, FeedStockTransaction } from './types';
 import type { StockItem } from './xlsx-parser';
@@ -118,5 +118,26 @@ describe('farmHeadCount', () => {
   it('counts the cattle on the farm and how many are in a fed batch', () => {
     const extra = [...stock, cow('C9', 'Female'), { ...cow('X1', 'Male'), location: 'Other' } as StockItem];
     expect(farmHeadCount('SNR Farm', [batch()], extra)).toEqual({ onFarm: 4, bulls: 2, cows: 2, inFedBatches: 2 });
+  });
+});
+
+describe('movementOnFarm', () => {
+  const batchFarm = new Map([['BULLS', 'SNR Farm'], ['AWAY', 'Other']]);
+  it('counts deliveries and uses of the farm, and old farm-less automatic rows through their batch', () => {
+    expect(movementOnFarm({ sourceFarm: 'Supplier', targetFarm: 'SNR Farm' }, 'SNR Farm', batchFarm)).toBe(true);
+    expect(movementOnFarm({ sourceFarm: 'SNR Farm', targetFarm: 'Daily Feed Ration (Bulls)' }, 'SNR Farm', batchFarm)).toBe(true);
+    expect(movementOnFarm({ sourceFarm: '', targetFarm: '', referenceNo: 'AUTO-RATION-BULLS-2026-08-01-0' }, 'SNR Farm', batchFarm)).toBe(true);
+    expect(movementOnFarm({ sourceFarm: '', targetFarm: '', referenceNo: 'AUTO-RATION-AWAY-2026-08-01-0' }, 'SNR Farm', batchFarm)).toBe(false);
+    expect(movementOnFarm({ sourceFarm: 'Other', targetFarm: 'Daily Feed Ration (X)', referenceNo: 'DAILY-BULLS-2026-10-01-P' }, 'SNR Farm', batchFarm)).toBe(false);
+  });
+
+  it('previousUnits finds the latest earlier recorded day, within the lookback', () => {
+    const tx = (day: string, q: number) => ({ referenceNo: `DAILY-BULLS-${day}-PROD-F01`, quantityBags: q }) as unknown as FeedStockTransaction;
+    const txs = [tx('2026-10-01', 4), tx('2026-10-03', 5), tx('2026-10-05', 6)];
+    expect(previousUnits(txs, 'BULLS', 'PROD-F01', '2026-10-05')).toBe(5);
+    expect(previousUnits(txs, 'BULLS', 'PROD-F01', '2026-10-02')).toBe(4);
+    expect(previousUnits(txs, 'BULLS', 'PROD-F01', '2026-10-01')).toBeNull();
+    expect(previousUnits(txs, 'OTHER', 'PROD-F01', '2026-10-05')).toBeNull();
+    expect(previousUnits(txs, 'BULLS', 'PROD-F01', '2026-10-30', 14)).toBeNull();
   });
 });

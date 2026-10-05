@@ -52,3 +52,6 @@ next-env.d.ts
 # local dev server logs (scripts/dev-all.sh)
 .dev-logs/
 src/data/db.json
+
+# Local test accounts (passwords for local testing only)
+/.local/

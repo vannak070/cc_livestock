@@ -48,9 +48,12 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
 
   const [step, setStep] = useState<Step>('name');
   const [name, setName] = useState(batch?.name ?? '');
-  const [farm, setFarm] = useState(batch?.farmLocation ?? lockedFarm ?? (farmNames.length === 1 ? farmNames[0] : ''));
-  const [start, setStart] = useState(batch?.startDate ?? today());
-  const [target, setTarget] = useState(batch?.sellingTargetDate ?? '');
+  // An office account working on one farm starts new batches on it (the page passes them as tied to that farm).
+  const focusFarm = currentUser?.farmLocation && !lockedFarm ? currentUser.farmLocation : undefined;
+  const [farm, setFarm] = useState(batch?.farmLocation ?? lockedFarm ?? (focusFarm && farmNames.includes(focusFarm) ? focusFarm : farmNames.length === 1 ? farmNames[0] : ''));
+  // Stored dates can carry a time (2026-06-10T00:00:00Z); a date box only shows YYYY-MM-DD.
+  const [start, setStart] = useState(batch?.startDate ? batch.startDate.slice(0, 10) : today());
+  const [target, setTarget] = useState(batch?.sellingTargetDate ? batch.sellingTargetDate.slice(0, 10) : '');
   const [price, setPrice] = useState(batch?.expectedSellingPrice ? String(batch.expectedSellingPrice) : '');
   const [picked, setPicked] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);

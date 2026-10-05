@@ -5,10 +5,11 @@ import { ArrowLeft, Beef, Scale, Syringe, DollarSign, Trash2 } from 'lucide-reac
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
-import type { HealthLogItem, UserRoleItem } from '@/lib/types';
+import type { BatchItem, FeedStockTransaction, HealthLogItem, UserRoleItem } from '@/lib/types';
 import type { SalesRecord, StockItem, WeightRecord } from '@/lib/xlsx-parser';
 import { hasPermission, getErrorMessage } from '@/lib/utils';
 import { weighSchedules } from '@/lib/attention';
+import { feedShares } from '@/lib/farm-costs';
 import { daysOnFarm, growth, money, weighPoints } from '@/lib/cattle-stats';
 
 interface CattleDetailPageProps {
@@ -17,6 +18,9 @@ interface CattleDetailPageProps {
   weightTracking: WeightRecord[];
   salesTracking: SalesRecord[];
   healthLogs: HealthLogItem[];
+  /** For this animal's share of its batch's daily feed. */
+  feedTransactions?: FeedStockTransaction[];
+  batches?: BatchItem[];
   currentUser?: UserRoleItem;
   onBack: () => void;
   onWeigh: (cowId: string) => void;
@@ -59,7 +63,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default function CattleDetailPage({ cowId, stock, weightTracking, salesTracking, healthLogs, currentUser, onBack, onWeigh, onTreat, onSell, onDelete }: CattleDetailPageProps) {
+export default function CattleDetailPage({ cowId, stock, weightTracking, salesTracking, healthLogs, feedTransactions = [], batches = [], currentUser, onBack, onWeigh, onTreat, onSell, onDelete }: CattleDetailPageProps) {
   const [tab, setTab] = useState<Tab>('overview');
   const [photoFailed, setPhotoFailed] = useState(false);
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger' | 'success'; confirmText: string; onConfirm?: () => void }>(null);
@@ -71,6 +75,11 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
   );
   const logs = useMemo(() => healthLogs.filter(l => l.cowId === cowId).sort((a, b) => b.date.localeCompare(a.date)), [healthLogs, cowId]);
   const sale = salesTracking.find(s => s.cowId === cowId);
+  // Its share of the batch's daily feed, split the same way as on Sales and Reports.
+  const feed = useMemo(() => {
+    const id = cow?.id ?? cowId;
+    return Math.round(feedShares(feedTransactions, batches, stock, salesTracking).byCow.get(id) ?? 0);
+  }, [feedTransactions, batches, stock, salesTracking, cow?.id, cowId]);
 
   if (!cow) {
     return (
@@ -85,7 +94,8 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
   const isActive = status === 'active';
   const g = growth(cow, points);
   const days = daysOnFarm(cow, sale);
-  const m = money(cow, sale, logs);
+  const base = money(cow, sale, logs);
+  const m = { ...base, invested: base.invested + feed, result: base.result === null ? null : base.result - feed };
   const sick = SICK.includes(cow.healthStatus?.toLowerCase() || '');
   const due = isActive ? weighSchedules({ stock: [cow], weightTracking })[0] : undefined;
   const needsWeigh = due && due.status !== 'weighed';
@@ -258,6 +268,7 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
         <div className="space-y-3">
           <dl className="rounded-2xl border border-slate-200 bg-white px-5">
             <Row label="Bought for" value={m.cost > 0 ? riel(m.cost) : 'Nothing paid'} />
+            <Row label="Feed eaten" value={riel(feed)} />
             <Row label={`Health costs (${logs.length})`} value={riel(m.medical)} />
             <Row label="Cost so far" value={<span className="font-semibold">{riel(m.invested)}</span>} />
             {m.revenue !== null && <Row label="Sold for" value={riel(m.revenue)} />}
@@ -268,6 +279,7 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
             </div>
           )}
           {m.result === null && <p className="text-base text-ink-muted">Profit is shown once the animal is sold.</p>}
+          <p className="text-sm text-ink-muted">Feed is this animal&apos;s share of its batch&apos;s daily feed: each day is shared evenly by the animals in the batch that day.</p>
         </div>
       )}
 

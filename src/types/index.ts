@@ -4,6 +4,7 @@ import { HealthLogItem } from './health.types';
 import { MasterSetup } from './settings.types';
 import { FeedProductItem, FeedStockTransaction } from './feed.types';
 import { ProposalPlanRecord } from './proposal.types';
+import { FarmCostItem } from './cost.types';
 
 export * from './stock.types';
 export * from './batch.types';
@@ -11,6 +12,7 @@ export * from './health.types';
 export * from './settings.types';
 export * from './feed.types';
 export * from './proposal.types';
+export * from './cost.types';
 
 export interface ERPLivestockData {
   stock: StockItem[];
@@ -23,4 +25,5 @@ export interface ERPLivestockData {
   feedProducts?: FeedProductItem[];
   feedTransactions?: FeedStockTransaction[];
   proposalPlans?: ProposalPlanRecord[];
+  farmCosts?: FarmCostItem[];
 }

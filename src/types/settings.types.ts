@@ -17,11 +17,15 @@ export type PermissionKey =
   | 'sales_view'
   | 'sales_record'
   | 'sales_delete'
+  | 'costs_view'
+  | 'costs_record'
+  | 'costs_delete'
   | 'analytics_view'
   | 'settings_manage'
   | 'farms_manage'
   | 'feed_view'
   | 'feed_record'
+  | 'feed_own_products'
   | 'feed_manage';
 
 export interface PermissionCategory {
@@ -86,6 +90,15 @@ export const PERMISSION_MODULES: PermissionCategory[] = [
     ]
   },
   {
+    id: 'costs',
+    label: '🧾 Farm Running Costs',
+    items: [
+      { key: 'costs_view', label: 'View running costs', description: 'See wages, power and water, fuel, repairs and other farm costs.' },
+      { key: 'costs_record', label: 'Record running costs', description: 'Write down a cost paid; a farm account only for its own farm.' },
+      { key: 'costs_delete', label: 'Delete running costs', description: 'Remove a cost that was written down by mistake.' }
+    ]
+  },
+  {
     id: 'analytics',
     label: '📈 Business Intelligence Reports',
     items: [
@@ -98,6 +111,7 @@ export const PERMISSION_MODULES: PermissionCategory[] = [
     items: [
       { key: 'feed_view', label: 'View Cattle Feed Inventory', description: 'Access feed balances, product catalog, and transaction logs.' },
       { key: 'feed_record', label: 'Record daily feed use', description: 'Write down what each batch ate today (bags, grass); a farm account only for its own farm.' },
+      { key: 'feed_own_products', label: 'Add and edit own feed products', description: 'Make feed products for your own farm and change them. The default products set by the office cannot be changed.' },
       { key: 'feed_manage', label: 'Manage Cattle Feed Stock', description: 'Add/edit/delete feed products, log procurement stock-in, and manage categories.' }
     ]
   },
@@ -118,13 +132,13 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
   'Admin': ALL_PERMISSIONS,
   'Company': [...ALL_PERMISSIONS.filter(p => p !== 'settings_manage'), 'settings_manage'],
   'Farm Owner': ALL_PERMISSIONS.filter(p => p !== 'settings_manage' && p !== 'farms_manage' && p !== 'feed_manage'),
-  'Farm Staff': ['dashboard_view', 'stock_view', 'batch_view', 'weight_view', 'weight_record', 'health_view', 'health_record', 'feed_view', 'feed_record'],
+  'Farm Staff': ['dashboard_view', 'stock_view', 'batch_view', 'weight_view', 'weight_record', 'health_view', 'health_record', 'feed_view', 'feed_record', 'costs_view', 'costs_record'],
   'Veterinarian': ['dashboard_view', 'stock_view', 'stock_edit', 'weight_view', 'weight_record', 'health_view', 'health_record', 'health_delete', 'feed_view'],
   // Read-only oversight: sees every report, changes nothing. This is the
   // role intended for PIN sign-in on the mobile app, so it deliberately
   // holds no create/edit/delete permission at all — a shorter credential
   // must not unlock a wider set of actions.
-  'Management': ['dashboard_view', 'stock_view', 'batch_view', 'weight_view', 'health_view', 'sales_view', 'analytics_view', 'feed_view']
+  'Management': ['dashboard_view', 'stock_view', 'batch_view', 'weight_view', 'health_view', 'sales_view', 'costs_view', 'analytics_view', 'feed_view']
 };
 
 export interface CustomRoleDefinition {
@@ -182,6 +196,8 @@ export interface MasterSetup {
   weightUnits: string[];
   revenueTypes: string[];
   purchaseTypes: string[];
+  /** Kinds of farm running cost (Costs page). Missing in older settings: the defaults are used. */
+  costCategories?: string[];
   users: UserRoleItem[];
   roles?: CustomRoleDefinition[];
   farms?: FarmItem[];

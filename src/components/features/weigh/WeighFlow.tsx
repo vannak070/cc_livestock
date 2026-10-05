@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Search, TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Search, TrendingDown, TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { StockItem } from '@/lib/types';
@@ -15,13 +16,16 @@ interface WeighFlowProps {
   /** Active cattle the person may weigh. */
   cattle: StockItem[];
   weightTracking: WeightRecord[];
+  /** Batches the person may weigh together; when given, the first step offers one animal or a batch. */
+  batches?: { id: string; name: string; head: number }[];
+  onPickBatch?: (batchId: string) => void;
   healthStatuses: string[];
   /** Skips step 1 when the caller already knows which animal. */
   preselectedCowId?: string | null;
   onSave: (cowId: string, weight: number, healthStatus: string, date: string) => Promise<void>;
 }
 
-type Step = 'pick' | 'kg' | 'check' | 'done';
+type Step = 'kind' | 'batch' | 'pick' | 'kg' | 'check' | 'done';
 
 function dueLabel(s: WeighSchedule | undefined): string {
   if (!s || s.daysElapsed === 999) return 'Never weighed';
@@ -38,11 +42,12 @@ export default function WeighFlow(props: WeighFlowProps) {
   );
 }
 
-function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, preselectedCowId, onSave }: WeighFlowProps) {
+function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, preselectedCowId, batches = [], onPickBatch, onSave }: WeighFlowProps) {
   const known = preselectedCowId ? cattle.find(c => c.id === preselectedCowId) : undefined;
   const statuses = healthStatuses.length ? healthStatuses : ['Good', 'Fair', 'Poor'];
 
-  const [step, setStep] = useState<Step>(known ? 'kg' : 'pick');
+  const canBatch = !known && batches.length > 0 && !!onPickBatch;
+  const [step, setStep] = useState<Step>(known ? 'kg' : canBatch ? 'kind' : 'pick');
   const [cowId, setCowId] = useState<string | null>(known?.id ?? null);
   const [query, setQuery] = useState('');
   const [weight, setWeight] = useState('');
@@ -67,7 +72,7 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
       .filter(c => c && (!q || c.id.toLowerCase().includes(q) || c.breed?.toLowerCase().includes(q)));
   }, [schedules, cowById, query]);
 
-  const steps: Step[] = known ? ['kg', 'check'] : ['pick', 'kg', 'check'];
+  const steps: Step[] = known ? ['kg', 'check'] : canBatch ? ['kind', 'pick', 'kg', 'check'] : ['pick', 'kg', 'check'];
   const kg = Number(weight);
   const change = cow && kg > 0 && cow.weight ? Math.round((kg - cow.weight) * 10) / 10 : null;
 
@@ -103,16 +108,18 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
     } else if (step === 'check') save();
   };
 
-  const back = () => { setError(''); setStep(step === 'check' ? 'kg' : 'pick'); };
+  const back = () => { setError(''); setStep(step === 'check' ? 'kg' : step === 'batch' ? 'kind' : canBatch && step === 'pick' ? 'kind' : 'pick'); };
 
-  const another = () => { setCowId(null); setQuery(''); setWeight(''); setError(''); setStep('pick'); };
+  const another = () => { setCowId(null); setQuery(''); setWeight(''); setError(''); setStep(canBatch ? 'kind' : 'pick'); };
 
   const summary = cow && step !== 'done' && step !== 'pick'
     ? [cow.id, kg > 0 && step === 'check' ? `${kg} kg` : ''].filter(Boolean).join(' · ')
     : '';
 
-  const title = { pick: 'Which animal?', kg: `Weigh ${cow?.id ?? ''}`, check: 'How does it look?', done: 'Saved' }[step];
+  const title = { kind: 'What are you weighing?', batch: 'Which batch?', pick: 'Which animal?', kg: `Weigh ${cow?.id ?? ''}`, check: 'How does it look?', done: 'Saved' }[step];
   const subtitle = {
+    kind: 'One animal on the scale, or a group together.',
+    batch: 'You will type the weights in the next screen.',
     pick: 'Animals due for weighing are at the top.',
     kg: [cow?.breed, cow?.location].filter(Boolean).join(' · '),
     check: 'Pick one, then save.',
@@ -127,11 +134,41 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
       subtitle={subtitle}
       summary={summary && step === 'check' ? summary : ''}
       error={error}
-      onSubmit={step === 'pick' || step === 'done' ? undefined : next}
-      footer={step === 'kg' || step === 'check'
+      onSubmit={step === 'kind' || step === 'batch' || step === 'pick' || step === 'done' ? undefined : next}
+      footer={step === 'batch' || (step === 'pick' && canBatch) ? <Button type="button" variant="secondary" size="lg" onClick={back} aria-label="Go back"><ArrowLeft /></Button> : step === 'kg' || step === 'check'
         ? <FlowFooter onBack={step === 'kg' && known ? undefined : back} label={step === 'check' ? (saving ? 'Saving…' : 'Save weight') : 'Next'} busy={saving} />
         : null}
     >
+      {step === 'kind' && (
+        <ul className="space-y-3">
+          <li>
+            <button type="button" onClick={() => setStep('pick')} className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600">
+              <span className="text-xl font-semibold text-ink">One animal</span>
+              <span className="text-base text-ink-muted">Weigh and record a single animal.</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" onClick={() => setStep('batch')} className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600">
+              <span className="text-xl font-semibold text-ink">A whole batch</span>
+              <span className="text-base text-ink-muted">One total for the group, each animal, or a 3-animal estimate.</span>
+            </button>
+          </li>
+        </ul>
+      )}
+
+      {step === 'batch' && (
+        <ul className="space-y-3 pb-2">
+          {batches.map(b => (
+            <li key={b.id}>
+              <RowButton onClick={() => onPickBatch?.(b.id)}>
+                <span className="block text-xl font-semibold text-ink">{b.name}</span>
+                <span className="text-lg text-ink-muted">{b.head} animals</span>
+              </RowButton>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {step === 'pick' && (
         <>
           <div className="relative">

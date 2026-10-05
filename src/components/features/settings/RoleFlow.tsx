@@ -5,7 +5,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { CustomRoleDefinition, MasterSetup, PermissionKey, UserRoleItem } from '@/types/settings.types';
 import { ALL_PERMISSIONS } from '@/types/settings.types';
-import { grantable, validateRole, type RoleInput } from '@/lib/user-admin';
+import { grantable, validateRole, type RoleInput, knownPermissionCount } from '@/lib/user-admin';
 import { FlowFooter, FlowShell, Question } from '../flow/FlowShell';
 import PermissionPicker from './PermissionPicker';
 
@@ -72,7 +72,7 @@ function RoleBody({ onClose, role, settings, actor, onSave }: RoleFlowProps) {
       steps={STEPS}
       step={step}
       title={step === 'name' ? (role ? 'Edit role' : 'Make a role') : 'What can this role do?'}
-      subtitle={step === 'name' ? 'A role is a set of access you can give to many people.' : `${permissions.length} of ${ALL_PERMISSIONS.length} things allowed`}
+      subtitle={step === 'name' ? 'A role is a set of access you can give to many people.' : `${knownPermissionCount(permissions)} of ${ALL_PERMISSIONS.length} things allowed`}
       summary={step === 'access' ? name.trim() : ''}
       error={error}
       onSubmit={next}

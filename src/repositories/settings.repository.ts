@@ -4,6 +4,7 @@ import { hashPassword, verifyPassword } from '../lib/password';
 import { validatePinStrength } from '../lib/pin';
 import { MasterSetup, UserRoleItem, CustomRoleDefinition, DEFAULT_ROLE_PERMISSIONS, FarmItem } from '../lib/types';
 import { PoolClient } from 'pg';
+import { DEFAULT_COST_CATEGORIES } from '../lib/farm-costs';
 
 const DEFAULT_ROLES: CustomRoleDefinition[] = [
   { id: 'ROLE-01', name: 'Super Admin', description: 'Full system management and security authority.', permissions: DEFAULT_ROLE_PERMISSIONS['Super Admin'], isSystem: true },
@@ -96,6 +97,7 @@ export class SettingsRepository {
     // that are missing are put back, the same way an
     // `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` self-heals schema.
     settings.roles = withBuiltInRoles(settings.roles!);
+    if (!settings.costCategories?.length) settings.costCategories = [...DEFAULT_COST_CATEGORIES];
 
     const usersRes = await query('SELECT * FROM users ORDER BY created_at ASC');
     if (usersRes.rows.length === 0) {

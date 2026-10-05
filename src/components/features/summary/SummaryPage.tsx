@@ -9,10 +9,13 @@ import { batchesNearSelling, feedStockLevels, sickCattle, weighSchedules } from 
 import { farmToday, farmsToRecord, missedFeedDays } from '@/lib/daily-feed';
 import { batchSummary } from '@/lib/batch-stats';
 import { monthlyMoney } from '@/lib/report-stats';
+import { farmProfit as computeFarmProfit, sumMonths } from '@/lib/farm-costs';
 
 interface SummaryPageProps {
   data: ERPLivestockData;
   onNavigateToTab: (tab: ActiveTabType) => void;
+  /** Whether the profit box can open Reports (which has the breakdown); otherwise it opens Sales. */
+  canSeeReports?: boolean;
 }
 
 const SOLD = '#0E7A38';
@@ -36,7 +39,7 @@ function Tile({ label, value, sub, tone, onClick }: { label: string; value: stri
     : <div className={cls}>{inner}</div>;
 }
 
-export default function SummaryPage({ data, onNavigateToTab }: SummaryPageProps) {
+export default function SummaryPage({ data, onNavigateToTab, canSeeReports }: SummaryPageProps) {
   const active = useMemo(() => data.stock.filter(c => norm(c.status) === 'active'), [data.stock]);
   const soldCount = data.stock.filter(c => norm(c.status) === 'sold').length;
   const products = useMemo(() => data.feedProducts || [], [data.feedProducts]);
@@ -46,6 +49,18 @@ export default function SummaryPage({ data, onNavigateToTab }: SummaryPageProps)
     return { rows, revenue: rows.reduce((s, r) => s + r.sold, 0), profit: rows.reduce((s, r) => s + r.profit, 0), sales: rows.reduce((s, r) => s + r.soldCount, 0) };
   }, [data.stock, data.salesTracking, data.healthLogs]);
   const months = money.rows.filter(r => r.sold > 0).slice(-6);
+  // Farm profit: sales less what the sold cattle cost to buy and feed, medicine and running costs.
+  const farmProfit = useMemo(() => {
+    const { months: rows } = computeFarmProfit({
+      stock: data.stock,
+      sales: data.salesTracking,
+      healthLogs: data.healthLogs,
+      feedTransactions: data.feedTransactions || [],
+      batches: data.batches,
+      costs: data.farmCosts || [],
+    });
+    return rows.length ? sumMonths(rows).profit : null;
+  }, [data.stock, data.salesTracking, data.healthLogs, data.feedTransactions, data.batches, data.farmCosts]);
 
   const sick = sickCattle(active);
   const dueToWeigh = weighSchedules(data).filter(s => s.status !== 'weighed');
@@ -91,7 +106,7 @@ export default function SummaryPage({ data, onNavigateToTab }: SummaryPageProps)
 
       <section className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <Tile label="Cattle on the farm" value={String(active.length)} sub={`${soldCount} sold so far`} onClick={() => onNavigateToTab('cow-inventory')} />
-        <Tile label="Profit" value={money.sales ? `${money.profit < 0 ? '−' : ''}${riel(Math.abs(money.profit))}` : '—'} sub={money.sales ? `from ${money.sales} sold` : 'No sales yet'} tone={money.sales ? (money.profit < 0 ? 'bad' : 'good') : undefined} onClick={() => onNavigateToTab('sales-finance')} />
+        <Tile label="Farm profit" value={farmProfit !== null ? `${farmProfit < 0 ? '−' : ''}${riel(Math.abs(farmProfit))}` : '—'} sub={farmProfit !== null ? `after feed and all costs · ${money.sales} sold` : 'Nothing sold or spent yet'} tone={farmProfit !== null ? (farmProfit < 0 ? 'bad' : 'good') : undefined} onClick={() => onNavigateToTab(canSeeReports ? 'analytics' : 'sales-finance')} />
         <Tile label="Feed lasts about" value={tightest ? `${tightest.daysLeft} days` : '—'} sub={tightest ? `then ${tightest.productName} runs out` : 'No feeding program'} tone={feedTone} onClick={() => onNavigateToTab('feed-inventory')} />
         <Tile
           label="Next sale"
@@ -134,7 +149,7 @@ export default function SummaryPage({ data, onNavigateToTab }: SummaryPageProps)
                 <BarChart data={months} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke="#e2e8f0" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 14, fill: '#475569' }} tickLine={false} />
-                  <YAxis width={52} tick={{ fontSize: 14, fill: '#475569' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => (v >= 1_000_000 ? `${Math.round(v / 100_000) / 10}M` : `${Math.round(v / 1000)}k`)} />
+                  <YAxis width={52} tick={{ fontSize: 14, fill: '#475569' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => (v === 0 ? '0' : v >= 1_000_000 ? `${Math.round(v / 100_000) / 10}M` : `${Math.round(v / 1000)}k`)} />
                   <Tooltip formatter={(v) => [riel(Number(v)), 'Sold']} />
                   <Bar dataKey="sold" name="Sold" fill={SOLD} radius={[4, 4, 0, 0]} barSize={28} isAnimationActive={false} />
                 </BarChart>

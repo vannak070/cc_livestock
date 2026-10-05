@@ -65,6 +65,7 @@ export class FeedRepository {
         supplier: row.supplier ? String(row.supplier) : undefined,
         status: row.status === 'Inactive' ? 'Inactive' : 'Active',
         trackStock: row.track_stock !== false,
+        ownerFarm: row.owner_farm ? String(row.owner_farm) : undefined,
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined
       };
     });
@@ -114,6 +115,11 @@ export class FeedRepository {
           if (product.trackStock === false) throw new Error(`Could not mark ${product.name} as grown on the farm: run "npm run safe-migrate" first (${err instanceof Error ? err.message : err}).`);
         });
     }
+    // Same approach for the owner farm (migration 009).
+    await this.executeQuery('UPDATE feed_products SET owner_farm = $1 WHERE id = $2', [product.ownerFarm || null, product.id], client)
+      .catch(err => {
+        if (product.ownerFarm) throw new Error(`Could not save ${product.name} for ${product.ownerFarm}: run "npm run safe-migrate" first (${err instanceof Error ? err.message : err}).`);
+      });
     return product;
   }
 

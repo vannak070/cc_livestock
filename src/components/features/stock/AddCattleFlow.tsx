@@ -17,6 +17,8 @@ interface AddCattleFlowProps {
   /** Cattle already on the farm, used to catch a repeated tag number. */
   existingCattle: Pick<StockItem, 'id'>[];
   currentUser?: UserRoleItem;
+  /** The farm an office account is working on; used as the starting choice. */
+  defaultFarm?: string;
   onSave: (cow: NewCattle) => Promise<void>;
 }
 
@@ -43,7 +45,7 @@ export default function AddCattleFlow(props: AddCattleFlowProps) {
   );
 }
 
-function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }: AddCattleFlowProps) {
+function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFarm, onSave }: AddCattleFlowProps) {
   const lockedFarm = currentUser?.farmLocation && !['Super Admin', 'Admin', 'Company'].includes(currentUser.role)
     ? currentUser.farmLocation
     : null;
@@ -65,7 +67,7 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }:
   const [breed, setBreed] = useState('');
   const [age, setAge] = useState('');
   const [date, setDate] = useState(today());
-  const [farm, setFarm] = useState(lockedFarm ?? (farmNames.length === 1 ? farmNames[0] : ''));
+  const [farm, setFarm] = useState(lockedFarm ?? (defaultFarm && farmNames.includes(defaultFarm) ? defaultFarm : farmNames.length === 1 ? farmNames[0] : ''));
   const [buyType, setBuyType] = useState(wholeType);
   const [price, setPrice] = useState('');
   const [payment, setPayment] = useState('');

@@ -2,6 +2,7 @@ import { settingsRepository } from '../repositories/settings.repository';
 import { CustomRoleDefinition, MasterSetup, PermissionKey } from '../lib/types';
 import { withTransaction } from '../config/database';
 import { Actor, AuthzError, assertPermission, can, redactSettingsFor } from '../lib/authz';
+import { costCategoriesProblem } from '../lib/farm-costs';
 
 // Master settings is one document, but different screens own different
 // parts of it: the feed category dialog edits feedTypes, and Settings edits
@@ -45,6 +46,12 @@ export class SettingsService {
       if (JSON.stringify(current[key]) === JSON.stringify(payload[key])) continue;
       assertPermission(actor, ...(SECTION_PERMISSIONS[key] || ['settings_manage']));
       (patch as Record<string, unknown>)[key] = payload[key];
+    }
+
+    if (patch.costCategories !== undefined) {
+      const problem = costCategoriesProblem(patch.costCategories);
+      if (problem) throw new Error(problem);
+      patch.costCategories = patch.costCategories.map(c => c.trim());
     }
 
     let changes: RoleChanges = { renames: [], access: [] };

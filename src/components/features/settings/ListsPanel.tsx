@@ -7,8 +7,9 @@ import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Input } from '@/components/ui/input';
 import type { MasterSetup } from '@/types/settings.types';
 import { getErrorMessage } from '@/lib/utils';
+import { MAX_CATEGORY_LENGTH, costCategoriesFrom } from '@/lib/farm-costs';
 
-type ListKey = 'breeds' | 'sexes' | 'healthStatuses' | 'vaccineTypes' | 'diseaseTypes' | 'feedTypes' | 'batchTypes' | 'weightUnits' | 'buyTypes' | 'purchaseTypes' | 'paymentMethods' | 'revenueTypes';
+type ListKey = 'breeds' | 'sexes' | 'healthStatuses' | 'vaccineTypes' | 'diseaseTypes' | 'feedTypes' | 'batchTypes' | 'weightUnits' | 'buyTypes' | 'purchaseTypes' | 'paymentMethods' | 'revenueTypes' | 'costCategories';
 
 const GROUPS: { title: string; lists: { key: ListKey; label: string; hint: string; careful?: boolean }[] }[] = [
   { title: 'Cattle', lists: [
@@ -28,8 +29,17 @@ const GROUPS: { title: string; lists: { key: ListKey; label: string; hint: strin
     { key: 'purchaseTypes', label: 'Where cattle came from', hint: 'For example Bought or Born in farm.', careful: true },
     { key: 'paymentMethods', label: 'Payment methods', hint: 'How you pay for cattle.' },
     { key: 'revenueTypes', label: 'Kinds of income', hint: 'For recording income.' },
+    { key: 'costCategories', label: 'Kinds of running cost', hint: 'What a cost can be for on the Costs page. Feed, medicine and cattle are not listed: they have their own pages.' },
   ] },
 ];
+
+// Lists that must never be empty; the form refuses to remove the last item.
+const KEEP_ONE: ListKey[] = ['costCategories'];
+
+function listOf(settings: MasterSetup, key: ListKey): string[] {
+  if (key === 'costCategories') return costCategoriesFrom(settings);
+  return (settings[key] as string[] | undefined) ?? [];
+}
 
 interface ListsPanelProps {
   settings: MasterSetup;
@@ -43,12 +53,13 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger'; confirmText: string; onConfirm?: () => void }>(null);
 
   const meta = GROUPS.flatMap(g => g.lists).find(l => l.key === open);
-  const items = open ? ((settings[open] as string[] | undefined) ?? []) : [];
+  const items = open ? listOf(settings, open) : [];
 
   const add = async () => {
     const value = text.trim();
     if (!open || !value) return;
     if (items.some(i => i.toLowerCase() === value.toLowerCase())) { setError(`"${value}" is already in the list.`); return; }
+    if (open === 'costCategories' && value.length > MAX_CATEGORY_LENGTH) { setError(`Keep it under ${MAX_CATEGORY_LENGTH} letters.`); return; }
     setError('');
     try {
       await onSettings({ [open]: [...items, value] });
@@ -60,6 +71,10 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
 
   const askRemove = (item: string) => {
     if (!open) return;
+    if (KEEP_ONE.includes(open) && items.length <= 1) {
+      setConfirm({ title: 'Keep at least one', description: 'This list needs at least one choice. Add another before removing this one.', type: 'danger', confirmText: 'OK' });
+      return;
+    }
     setConfirm({
       title: `Remove "${item}"?`,
       description: meta?.careful
@@ -115,7 +130,7 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
                     <span className="block text-lg font-semibold text-ink">{l.label}</span>
                     <span className="block text-base text-ink-muted">{l.hint}</span>
                   </span>
-                  <span className="shrink-0 text-base font-medium text-ink-muted">{((settings[l.key] as string[] | undefined) ?? []).length}</span>
+                  <span className="shrink-0 text-base font-medium text-ink-muted">{listOf(settings, l.key).length}</span>
                 </button>
               </li>
             ))}

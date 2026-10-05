@@ -6,7 +6,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ALL_PERMISSIONS, type MasterSetup, type PermissionKey, type UserRoleItem } from '@/types/settings.types';
-import { FARM_ROLES, MIN_PASSWORD_LENGTH, assignableRoles, effectivePermissions, grantable, isFarmOwner, rolesOf, validatePerson, type PersonErrors, type PersonInput } from '@/lib/user-admin';
+import { FARM_ROLES, MIN_PASSWORD_LENGTH, assignableRoles, effectivePermissions, grantable, isFarmOwner, rolesOf, validatePerson, type PersonErrors, type PersonInput, knownPermissionCount } from '@/lib/user-admin';
 import { FlowFooter, FlowShell, PickList, Question, RowButton } from '../flow/FlowShell';
 import PermissionPicker from './PermissionPicker';
 
@@ -168,7 +168,7 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
                 <span>
                   <span className="block text-xl font-semibold text-ink">{r.name}</span>
                   <span className="block text-base text-ink-muted">{r.description || 'Custom role'}</span>
-                  <span className="block text-sm text-ink-muted">{r.permissions.length} of {ALL_PERMISSIONS.length} things</span>
+                  <span className="block text-sm text-ink-muted">{knownPermissionCount(r.permissions)} of {ALL_PERMISSIONS.length} things</span>
                 </span>
                 {role === r.name && <Check className="h-7 w-7 shrink-0 text-emerald-700" aria-hidden />}
               </RowButton>
@@ -192,7 +192,7 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
         <>
           <div className="rounded-xl bg-slate-50 p-4">
             <p className="text-lg text-ink">{sameAsRole ? <>Uses the usual <span className="font-semibold">{role}</span> access.</> : <>Custom access, different from the usual <span className="font-semibold">{role}</span>.</>}</p>
-            <p className="text-base text-ink-muted">{permissions.length} of {ALL_PERMISSIONS.length} things allowed</p>
+            <p className="text-base text-ink-muted">{knownPermissionCount(permissions)} of {ALL_PERMISSIONS.length} things allowed</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button type="button" variant="outline" onClick={() => setFineTune(v => !v)}>{fineTune ? 'Hide the list' : 'Change what they can do'}</Button>

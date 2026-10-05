@@ -23,6 +23,7 @@ const data = {
   weightTracking: [{ cowId: 'A1' }, { cowId: 'B1' }],
   healthLogs: [{ cowId: 'A1' }, { cowId: 'B1' }],
   salesTracking: [{ cowId: 'A1' }, { cowId: 'B1' }],
+  farmCosts: [{ id: 'C-A', farmLocation: 'Farm A' }, { id: 'C-B', farmLocation: 'Farm B' }],
   common: { locations: ['Farm A', 'Farm B'] },
   settings: { users: [{ id: 'u', email: 'e@x.test' }], breeds: [] }
 } as unknown as ERPLivestockData;
@@ -52,6 +53,13 @@ describe('scopeDataForActor', () => {
     expect(ids).toContain('BT-A');
     expect(out.batches.find(b => b.id === 'BT-A')!.cowIds).toEqual(['A1']);
     expect(ids).not.toContain('BT-B');
+  });
+
+  it("gives running costs only to people allowed to see them, and only their farm's", () => {
+    expect(scopeDataForActor(data, user({ role: 'Admin' })).farmCosts?.map(c => c.id)).toEqual(['C-A', 'C-B']);
+    expect(scopeDataForActor(data, user({ farmLocation: 'Farm A', permissions: ['costs_view'] })).farmCosts?.map(c => c.id)).toEqual(['C-A']);
+    expect(scopeDataForActor(data, user({ farmLocation: 'Farm A', role: 'Veterinarian', permissions: ['health_view'] })).farmCosts).toEqual([]);
+    expect(scopeDataForActor(data, user({ role: 'Company', permissions: ['sales_view'] })).farmCosts).toEqual([]);
   });
 
   it('matches farm names case- and whitespace-insensitively', () => {

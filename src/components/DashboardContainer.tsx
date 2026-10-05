@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   getLivestockDataAction, 
@@ -29,6 +29,8 @@ import {
   moveCowToBatchAction,
   saveProposalPlanAction,
   deleteProposalPlanAction,
+  addFarmCostAction,
+  deleteFarmCostAction,
   logoutAction
 } from '@/app/actions';
 import { useRouter } from 'next/navigation';
@@ -53,15 +55,23 @@ import type { DailyFeedInput } from '@/lib/daily-feed';
 import TreatFlow from './features/health/TreatFlow';
 import SellFlow from './features/sales/SellFlow';
 import WeighFlow from './features/weigh/WeighFlow';
+import WeighGroupFlow from './features/batch/WeighGroupFlow';
+import { batchCattle } from '@/lib/batch-stats';
 import AddCattleFlow from './features/stock/AddCattleFlow';
+import CostsPage from './features/costs/CostsPage';
+import CostFlow from './features/costs/CostFlow';
+import { costCategoriesFrom, type FarmCostInput } from '@/lib/farm-costs';
 import { ERPLivestockData, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import { ProposalPlanParams } from '@/types';
 import { SalesRecord } from '@/lib/xlsx-parser';
 import { hasPermission } from '@/lib/utils';
 import { canOpenPeople } from '@/lib/user-admin';
+import { scopeDataToFarm } from '@/lib/farm-view';
+import { readFocus, saveFocus, validFocus } from '@/lib/working-on';
+import WorkingOnSwitcher from './layout/WorkingOnSwitcher';
 import { PermissionKey } from '@/types/settings.types';
 import { sickCattle, cattleWithDiseaseHistory } from '@/lib/attention';
-import { Scale, Syringe, PlusCircle, DollarSign, Package, Wheat } from 'lucide-react';
+import { Scale, Syringe, PlusCircle, DollarSign, Package, Wheat, Receipt } from 'lucide-react';
 
 interface DashboardContainerProps {
   initialData: ERPLivestockData;
@@ -80,10 +90,12 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   const [isQuickEntryOpen, setIsQuickEntryOpen] = useState(false);
   const [quickEntryTab, setQuickEntryTab] = useState<'add' | 'weight' | 'sale' | 'treat' | 'feed'>('add');
   const [preselectedCowId, setPreselectedCowId] = useState<string | null>(null);
+  const [weighBatchId, setWeighBatchId] = useState<string | null>(null);
   // The day's feed dialog: optionally for one farm (the office helping a farm) and/or a missed day.
   const [dailyFeed, setDailyFeed] = useState<null | { farm?: string; day?: string }>(null);
   // Several animals chosen up front for Treat, for example a whole batch.
   const [treatCowIds, setTreatCowIds] = useState<string[] | undefined>(undefined);
+  const [costOpen, setCostOpen] = useState(false);
 
   const [selectedCowDetailsId, setSelectedCowDetailsId] = useState<string | null>(null);
   // Leaving the Cattle page closes the animal that was open.
@@ -105,7 +117,20 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   });
 
   // Already scoped to this user's farm on the server (src/lib/data-scope.ts).
-  const dbData = rawDbData;
+  const fullData = rawDbData;
+
+  // "Working on": an office account can look at one farm at a time. Every page and form
+  // then works on that farm only, as a farm's own staff see it. It is a view choice, not
+  // a permission, and is remembered on this browser. Farms and Settings keep seeing everything.
+  const farmNames = useMemo(() => (fullData.settings?.farms ?? []).map(f => f.name), [fullData.settings?.farms]);
+  const canChooseFarm = !currentUser.farmLocation && farmNames.length > 1;
+  const [focus, setFocus] = useState('');
+  useEffect(() => { setFocus(readFocus(currentUser.id)); }, [currentUser.id]);
+  const focusFarm = canChooseFarm ? validFocus(focus, farmNames) : '';
+  const chooseFarm = (farm: string) => { setFocus(farm); saveFocus(currentUser.id, farm); };
+  const dbData = useMemo(() => (focusFarm ? scopeDataToFarm(fullData, focusFarm, { includeFeed: true }) : fullData), [fullData, focusFarm]);
+  // The same person, tied to the chosen farm, for the pages that hide their own farm filters for farm staff.
+  const pageUser = useMemo(() => (focusFarm ? { ...currentUser, farmLocation: focusFarm } : currentUser), [currentUser, focusFarm]);
 
   // Mutations
   const addCowMutation = useMutation({
@@ -379,6 +404,24 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     }
   });
 
+  const addCostMutation = useMutation({
+    mutationFn: async (input: FarmCostInput) => {
+      const res = await addFarmCostAction(input);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
+  });
+
+  const deleteCostMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await deleteFarmCostAction(id);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
+  });
+
   // Active cows list & health alert counters (strictly scoped to current user's farm)
   const activeCows = dbData.stock.filter(c => c.status.toLowerCase() === 'active');
   const healthAlertsCount = sickCattle(dbData.stock).length;
@@ -400,7 +443,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     hasPermission(currentUser, 'health_record') && { key: 'treat', label: 'Treat', icon: <Syringe className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('treat') },
     hasPermission(currentUser, 'stock_create') && { key: 'add', label: 'Add cattle', icon: <PlusCircle className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('add') },
     hasPermission(currentUser, 'sales_record') && { key: 'sell', label: 'Sell', icon: <DollarSign className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('sale') },
-    hasPermission(currentUser, 'feed_manage') && { key: 'feed', label: 'Feed in', icon: <Package className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('feed') }
+    (hasPermission(currentUser, 'feed_manage') || (hasPermission(currentUser, 'feed_own_products') && !!currentUser?.farmLocation)) && { key: 'feed', label: 'Feed in', icon: <Package className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('feed') },
+    hasPermission(currentUser, 'costs_record') && { key: 'cost', label: 'Cost', icon: <Receipt className="h-7 w-7" />, onClick: () => setCostOpen(true) }
   ] as (RecordAction | false)[]).filter((a): a is RecordAction => !!a);
 
   const handleViewDetails = (cowId: string) => {
@@ -427,6 +471,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     else if (activeTab === 'farms') permissionKey = 'farms_manage';
     else if (activeTab === 'feed-inventory') permissionKey = 'feed_view';
     else if (activeTab === 'proposal-plan') permissionKey = 'analytics_view';
+    else if (activeTab === 'costs') permissionKey = 'costs_view';
 
     // Settings is also a farm owner's People page, so it has its own rule.
     const blocked = activeTab === 'settings' ? !canOpenPeople(currentUser) : !!permissionKey && !hasPermission(currentUser, permissionKey);
@@ -444,12 +489,13 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       vaccineAlertsCount={vaccineAlertsCount}
       currentUser={currentUser}
       onLogout={handleLogout}
+      workingOn={canChooseFarm ? <WorkingOnSwitcher farms={farmNames} value={focusFarm} onChange={chooseFarm} /> : undefined}
     >
       {/* Dynamic Tab Rendering */}
       {activeTab === 'today' && (
         <TodayTab
           data={dbData}
-          currentUser={currentUser}
+          currentUser={pageUser}
           recordActions={recordActions}
           onNavigate={setActiveTab}
           onRecordFeed={hasPermission(currentUser, 'feed_record') ? (farm, day) => setDailyFeed({ farm, day }) : undefined}
@@ -460,6 +506,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         <SummaryPage
           data={dbData}
           onNavigateToTab={(tab) => setActiveTab(tab)}
+          canSeeReports={hasPermission(currentUser, 'analytics_view')}
         />
       )}
 
@@ -470,7 +517,9 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           weightTracking={dbData.weightTracking}
           salesTracking={dbData.salesTracking}
           healthLogs={dbData.healthLogs}
-          currentUser={currentUser}
+          feedTransactions={dbData.feedTransactions}
+          batches={dbData.batches}
+          currentUser={pageUser}
           onBack={() => setSelectedCowDetailsId(null)}
           onWeigh={cowId => handleOpenQuickEntry('weight', cowId)}
           onTreat={cowId => handleOpenQuickEntry('treat', cowId)}
@@ -487,7 +536,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           weightTracking={dbData.weightTracking}
           onViewDetails={handleViewDetails}
           onAddCowClick={() => handleOpenQuickEntry('add', null)}
-          currentUser={currentUser}
+          currentUser={pageUser}
           farms={dbData.settings?.farms ?? []}
         />
       )}
@@ -498,7 +547,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           onCreateBatch={async (batch) => {
             const batchWithLoc = {
               ...batch,
-              farmLocation: batch.farmLocation || currentUser?.farmLocation || undefined
+              farmLocation: batch.farmLocation || pageUser?.farmLocation || undefined
             };
             await createBatchMutation.mutateAsync(batchWithLoc);
           }}
@@ -529,7 +578,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
             setTreatCowIds(cowIds);
             setIsQuickEntryOpen(true);
           }}
-          currentUser={currentUser}
+          currentUser={pageUser}
           farms={dbData.settings?.farms ?? []}
         />
       )}
@@ -548,7 +597,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           }}
           onOpenFeedIn={() => handleOpenQuickEntry('feed')}
           onRecordDay={hasPermission(currentUser, 'feed_record') ? (farm, day) => setDailyFeed({ farm, day }) : undefined}
-          currentUser={currentUser}
+          currentUser={pageUser}
           farms={dbData.settings?.farms ?? []}
         />
       )}
@@ -563,7 +612,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           onUpdateHealthLog={async (logId, updates) => {
             await updateHealthLogMutation.mutateAsync({ logId, updates });
           }}
-          currentUser={currentUser}
+          currentUser={pageUser}
           farms={dbData.settings?.farms ?? []}
         />
       )}
@@ -578,7 +627,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           onUpdateWeightRecord={async (cowId, trackingDate, currentWeight, healthStatus) => {
             await updateWeightRecordMutation.mutateAsync({ cowId, trackingDate, currentWeight, healthStatus });
           }}
-          currentUser={currentUser}
+          currentUser={pageUser}
           farms={dbData.settings?.farms ?? []}
         />
       )}
@@ -593,15 +642,27 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
             await updateSalesRecordMutation.mutateAsync({ cowId, updates });
           }}
           onRecordSaleClick={() => handleOpenQuickEntry('sale', null)}
-          currentUser={currentUser}
+          currentUser={pageUser}
           farms={dbData.settings?.farms ?? []}
+        />
+      )}
+
+      {activeTab === 'costs' && (
+        <CostsPage
+          costs={dbData.farmCosts ?? []}
+          currentUser={pageUser}
+          farms={dbData.settings?.farms ?? []}
+          onRecordCost={() => setCostOpen(true)}
+          onDeleteCost={async id => {
+            await deleteCostMutation.mutateAsync(id);
+          }}
         />
       )}
 
       {activeTab === 'analytics' && (
         <ReportsPage
           data={dbData}
-          currentUser={currentUser}
+          currentUser={pageUser}
           farms={dbData.settings?.farms ?? []}
         />
       )}
@@ -630,8 +691,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         <FarmsPage
           settings={dbData.settings}
           currentUser={currentUser}
-          stock={dbData.stock}
-          batches={dbData.batches}
+          stock={fullData.stock}
+          batches={fullData.batches}
           onRecordFeed={hasPermission(currentUser, 'feed_record') ? farm => setDailyFeed({ farm }) : undefined}
         />
       )}
@@ -645,16 +706,31 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         weightTracking={dbData.weightTracking}
         healthStatuses={dbData.settings.healthStatuses}
         preselectedCowId={preselectedCowId}
+        batches={dbData.batches.filter(b => b.status === 'Active' && batchCattle(b, activeCows).length > 0).map(b => ({ id: b.id, name: b.name, head: batchCattle(b, activeCows).length }))}
+        onPickBatch={id => { setIsQuickEntryOpen(false); setWeighBatchId(id); }}
         onSave={async (cowId, weight, healthStatus, date) => {
           await addWeightMutation.mutateAsync({ cowId, weight, healthStatus, date });
         }}
       />
+      {weighBatchId && (() => {
+        const wb = dbData.batches.find(b => b.id === weighBatchId);
+        return wb ? (
+          <WeighGroupFlow
+            isOpen
+            onClose={() => setWeighBatchId(null)}
+            batch={wb}
+            cattle={batchCattle(wb, activeCows)}
+            onSave={async records => { await recordBatchWeightsMutation.mutateAsync(records); }}
+          />
+        ) : null;
+      })()}
       <AddCattleFlow
         isOpen={isQuickEntryOpen && quickEntryTab === 'add'}
         onClose={() => setIsQuickEntryOpen(false)}
         common={dbData.settings}
         existingCattle={activeCows}
         currentUser={currentUser}
+        defaultFarm={focusFarm || undefined}
         onSave={async cow => {
           await addCowMutation.mutateAsync(cow);
         }}
@@ -662,9 +738,10 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       <FeedInFlow
         isOpen={isQuickEntryOpen && quickEntryTab === 'feed'}
         onClose={() => setIsQuickEntryOpen(false)}
-        products={dbData.feedProducts || []}
+        products={hasPermission(currentUser, 'feed_manage') ? dbData.feedProducts || [] : (dbData.feedProducts || []).filter(p => p.ownerFarm === currentUser?.farmLocation)}
         farms={dbData.settings?.farms ?? []}
         currentUser={currentUser}
+        defaultFarm={focusFarm || undefined}
         onSave={async tx => {
           await addFeedTransactionMutation.mutateAsync(tx);
         }}
@@ -678,10 +755,20 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         transactions={dbData.feedTransactions || []}
         farms={dbData.settings?.farms ?? []}
         currentUser={currentUser}
-        presetFarm={dailyFeed?.farm}
+        presetFarm={dailyFeed?.farm ?? (focusFarm || undefined)}
         presetDay={dailyFeed?.day}
         onSave={async input => {
           await recordDailyFeedMutation.mutateAsync(input);
+        }}
+      />
+      <CostFlow
+        isOpen={costOpen}
+        onClose={() => setCostOpen(false)}
+        farms={dbData.settings?.farms ?? []}
+        categories={costCategoriesFrom(dbData.settings)}
+        currentUser={currentUser}
+        onSave={async input => {
+          await addCostMutation.mutateAsync(input);
         }}
       />
       <TreatFlow

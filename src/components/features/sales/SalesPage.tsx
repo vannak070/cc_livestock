@@ -10,6 +10,7 @@ import type { ERPLivestockData, FarmItem, UserRoleItem } from '@/lib/types';
 import type { SalesRecord } from '@/lib/xlsx-parser';
 import { format2DecimalsWithCommas, getErrorMessage, hasPermission } from '@/lib/utils';
 import { money as cattleMoney } from '@/lib/cattle-stats';
+import { feedShares } from '@/lib/farm-costs';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { Choice, NUM } from '../flow/FlowShell';
@@ -74,17 +75,26 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
       .sort((a, b) => (b.salesDate ?? '').localeCompare(a.salesDate ?? '') || a.cowId.localeCompare(b.cowId));
   }, [data.salesTracking, cowById, farm, query, startDate, endDate]);
 
-  // Profit per sale: what the buyer paid, less what the animal cost (purchase + health).
-  const profits = useMemo(() => {
-    const map = new Map<string, number | null>();
+  // Each animal's share of its batch's daily feed (the same split Reports uses for farm profit).
+  const feedByCow = useMemo(
+    () => feedShares(data.feedTransactions || [], data.batches, data.stock, data.salesTracking).byCow,
+    [data.feedTransactions, data.batches, data.stock, data.salesTracking]
+  );
+
+  // Profit per sale: what the buyer paid, less what the animal cost to buy, treat and feed.
+  const { profits, breakdown } = useMemo(() => {
+    const profits = new Map<string, number | null>();
+    const breakdown = new Map<string, { bought: number; feed: number; medicine: number }>();
     for (const s of sales) {
       const cow = cowById.get(s.cowId);
-      if (!cow) { map.set(s.cowId, null); continue; }
+      if (!cow) { profits.set(s.cowId, null); continue; }
       const m = cattleMoney({ totalPrice: cow.totalPrice, status: 'Sold' }, s, data.healthLogs.filter(l => l.cowId === s.cowId));
-      map.set(s.cowId, m.result);
+      const feed = Math.round(feedByCow.get(s.cowId) ?? 0);
+      profits.set(s.cowId, m.result === null ? null : m.result - feed);
+      breakdown.set(s.cowId, { bought: m.cost, feed, medicine: m.medical });
     }
-    return map;
-  }, [sales, cowById, data.healthLogs]);
+    return { profits, breakdown };
+  }, [sales, cowById, data.healthLogs, feedByCow]);
 
   const revenue = sales.reduce((sum, s) => sum + (s.totalPrice || 0), 0);
   const known = sales.filter(s => profits.get(s.cowId) !== null && profits.get(s.cowId) !== undefined);
@@ -107,6 +117,9 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
       { header: 'Sale Weight (kg)', key: 'weight' },
       { header: 'Unit Price (៛)', key: 'unitPrice', formatter: (v) => `៛ ${format2DecimalsWithCommas(v)}` },
       { header: 'Total (៛)', key: 'totalPrice', formatter: (v) => `៛ ${format2DecimalsWithCommas(v)}` },
+      { header: 'Bought for (៛)', key: 'cowId', formatter: (id) => { const b = breakdown.get(id); return b ? `៛ ${format2DecimalsWithCommas(b.bought)}` : ''; } },
+      { header: 'Feed (៛)', key: 'cowId', formatter: (id) => { const b = breakdown.get(id); return b ? `៛ ${format2DecimalsWithCommas(b.feed)}` : ''; } },
+      { header: 'Medicine (៛)', key: 'cowId', formatter: (id) => { const b = breakdown.get(id); return b ? `៛ ${format2DecimalsWithCommas(b.medicine)}` : ''; } },
       { header: 'Profit (៛)', key: 'cowId', formatter: (id) => { const p = profits.get(id); return p === null || p === undefined ? '' : `៛ ${format2DecimalsWithCommas(p)}`; } },
     ],
   });
@@ -162,7 +175,7 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
 
       <section className="grid grid-cols-3 gap-2 sm:gap-3">
         <Tile label="Sales" value={riel(revenue)} sub={`${sales.length} ${sales.length === 1 ? 'animal' : 'animals'} sold`} />
-        <Tile label="Profit" value={known.length ? `${profit < 0 ? '−' : ''}${riel(Math.abs(profit))}` : '—'} sub={known.length ? 'after what they cost' : 'No sales yet'} tone={known.length ? (profit < 0 ? 'bad' : 'good') : undefined} />
+        <Tile label="Profit" value={known.length ? `${profit < 0 ? '−' : ''}${riel(Math.abs(profit))}` : '—'} sub={known.length ? 'after buying, feed and medicine' : 'No sales yet'} tone={known.length ? (profit < 0 ? 'bad' : 'good') : undefined} />
         <Tile label="Average price" value={perKg !== null ? riel(perKg) : '—'} sub="for each kg sold" />
       </section>
 
@@ -207,6 +220,7 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {sales.slice(0, visible).map(s => {
             const p = profits.get(s.cowId);
+            const b = breakdown.get(s.cowId);
             return (
               <li key={s.cowId} className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -224,7 +238,10 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
                 <p className="mt-2 text-2xl font-semibold text-ink">{riel(s.totalPrice)}</p>
                 <p className="text-base text-ink-muted">{byWeight(s) ? `${s.weight} kg × ${riel(s.unitPrice)} a kg` : 'One price for the animal'}</p>
                 {p !== null && p !== undefined && (
-                  <p className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-medium ${p < 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>{p < 0 ? 'Loss' : 'Profit'} {riel(Math.abs(p))}</p>
+                  <>
+                    <p className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-medium ${p < 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>{p < 0 ? 'Loss' : 'Profit'} {riel(Math.abs(p))}</p>
+                    {b && <p className="mt-1 text-sm text-ink-muted">{[`Bought ${riel(b.bought)}`, `feed ${riel(b.feed)}`, b.medicine > 0 ? `medicine ${riel(b.medicine)}` : null].filter(Boolean).join(' · ')}</p>}
+                  </>
                 )}
               </li>
             );

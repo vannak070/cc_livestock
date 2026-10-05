@@ -20,8 +20,8 @@ interface WeighGroupFlowProps {
   onSave: (records: GroupWeight[]) => Promise<void>;
 }
 
-type Mode = 'each' | 'sample';
-type Step = 'mode' | 'weights' | 'best' | 'medium' | 'low' | 'check' | 'done';
+type Mode = 'each' | 'sample' | 'lump';
+type Step = 'mode' | 'total' | 'weights' | 'best' | 'medium' | 'low' | 'check' | 'done';
 
 const SAMPLE_ROLE: Record<'best' | 'medium' | 'low', { title: string; hint: string }> = {
   best: { title: 'A fast grower', hint: 'Pick an animal that is growing well, then weigh it.' },
@@ -44,6 +44,7 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
   const [mode, setMode] = useState<Mode>('each');
   const [typed, setTyped] = useState<Record<string, string>>({});
   const [query, setQuery] = useState('');
+  const [total, setTotal] = useState('');
   const [sample, setSample] = useState<Record<'best' | 'medium' | 'low', { cowId: string; weight: string }>>({
     best: { cowId: '', weight: '' }, medium: { cowId: '', weight: '' }, low: { cowId: '', weight: '' },
   });
@@ -52,7 +53,7 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
   const [error, setError] = useState('');
   const [savedCount, setSavedCount] = useState(0);
 
-  const steps: Step[] = mode === 'each' ? ['mode', 'weights', 'check'] : ['mode', 'best', 'medium', 'low', 'check'];
+  const steps: Step[] = mode === 'each' ? ['mode', 'weights', 'check'] : mode === 'lump' ? ['mode', 'total', 'check'] : ['mode', 'best', 'medium', 'low', 'check'];
   const at = steps.indexOf(step);
 
   const shown = useMemo(() => {
@@ -65,8 +66,13 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
   const samples = (['best', 'medium', 'low'] as const).map(k => ({ cowId: sample[k].cowId, weight: Number(sample[k].weight) }));
   const estimate = estimateFromSamples(cattle, samples);
 
+  const lumpKg = Number(total);
+  const lumpAvg = lumpKg > 0 && cattle.length ? Math.round((lumpKg / cattle.length) * 10) / 10 : 0;
+
   const records = (): GroupWeight[] =>
-    mode === 'each'
+    mode === 'lump'
+      ? cattle.map(c => ({ cowId: c.id, currentWeight: lumpAvg, healthStatus: c.healthStatus, trackingDate: date }))
+      : mode === 'each'
       ? typedRows.map(c => ({ cowId: c.id, currentWeight: Number(typed[c.id]), healthStatus: c.healthStatus, trackingDate: date }))
       : estimate.records.map(r => ({ cowId: r.cowId, currentWeight: r.currentWeight, healthStatus: cattle.find(c => c.id === r.cowId)?.healthStatus ?? 'Good', trackingDate: date }));
 
@@ -86,6 +92,7 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
   };
 
   const next = () => {
+    if (step === 'total' && !(lumpAvg > 0)) { setError('Type the total weight of the group, in kg.'); return; }
     if (step === 'weights' && typedRows.length === 0) { setError('Type the weight of at least one animal.'); return; }
     if (step === 'best' || step === 'medium' || step === 'low') {
       const s = sample[step];
@@ -100,44 +107,71 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
 
   const title: Record<Step, string> = {
     mode: 'Weigh the group',
+    total: 'Total weight of the group',
     weights: 'Type the weights',
     best: SAMPLE_ROLE.best.title,
     medium: SAMPLE_ROLE.medium.title,
     low: SAMPLE_ROLE.low.title,
-    check: mode === 'each' ? 'Check and save' : 'Check the estimate',
+    check: mode !== 'sample' ? 'Check and save' : 'Check the estimate',
     done: 'Saved',
   };
   const subtitle: Record<Step, string> = {
     mode: `${batch.name} · ${cattle.length} animals`,
+    total: `${batch.name} · ${cattle.length} animals weighed together`,
     weights: 'Only animals you type a weight for are saved.',
-    best: SAMPLE_ROLE.best.hint,
-    medium: SAMPLE_ROLE.medium.hint,
-    low: SAMPLE_ROLE.low.hint,
+    best: sample.best.cowId ? 'Type what the scale shows.' : SAMPLE_ROLE.best.hint,
+    medium: sample.medium.cowId ? 'Type what the scale shows.' : SAMPLE_ROLE.medium.hint,
+    low: sample.low.cowId ? 'Type what the scale shows.' : SAMPLE_ROLE.low.hint,
     check: 'Pick the date, then save.',
     done: 'The weights are on the records.',
   };
 
-  const samplePick = (role: 'best' | 'medium' | 'low') => (
-    <>
-      <ul className="space-y-3">
-        {cattle.filter(c => !chosen.has(c.id) || sample[role].cowId === c.id).map(c => (
-          <li key={c.id}>
-            <RowButton onClick={() => { setSample({ ...sample, [role]: { ...sample[role], cowId: c.id } }); setError(''); }} selected={sample[role].cowId === c.id}>
-              <span>
-                <span className="block text-xl font-semibold text-ink">{c.id}</span>
-                <span className="block text-base text-ink-muted">{[c.breed, c.weight ? `last ${c.weight} kg` : null].filter(Boolean).join(' · ')}</span>
-              </span>
-            </RowButton>
-          </li>
-        ))}
-      </ul>
-      {sample[role].cowId && (
-        <Question label={`Weight of ${sample[role].cowId} (kg)`}>
-          <Input aria-label="Weight in kg" type="number" step="any" inputMode="decimal" value={sample[role].weight} onChange={e => { setSample({ ...sample, [role]: { ...sample[role], weight: e.target.value } }); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
-        </Question>
-      )}
-    </>
-  );
+  const samplePick = (role: 'best' | 'medium' | 'low') => {
+    const picked = cattle.find(c => c.id === sample[role].cowId);
+    const set = (v: Partial<{ cowId: string; weight: string }>) => { setSample({ ...sample, [role]: { ...sample[role], ...v } }); setError(''); };
+    if (picked) {
+      const kg = Number(sample[role].weight);
+      const gain = picked.weight && kg > 0 ? Math.round((kg - picked.weight) * 10) / 10 : null;
+      return (
+        <>
+          <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-emerald-600 bg-emerald-50 px-5 py-3">
+            <span>
+              <span className="block text-xl font-semibold text-ink">{picked.id}</span>
+              <span className="block text-base text-ink-muted">{[picked.breed, picked.weight ? `last ${picked.weight} kg` : null].filter(Boolean).join(' · ')}</span>
+            </span>
+            <button type="button" onClick={() => set({ cowId: '', weight: '' })} className="rounded-lg px-3 py-2 text-lg font-medium text-emerald-800 underline">Change</button>
+          </div>
+          <Question label="Weight on the scale (kg)">
+            <Input aria-label="Weight in kg" type="number" step="any" inputMode="decimal" autoFocus value={sample[role].weight} onChange={e => set({ weight: e.target.value })} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
+            {gain !== null && <p className={`mt-3 text-lg font-medium ${gain < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{gain > 0 ? '+' : ''}{gain} kg since last time</p>}
+          </Question>
+        </>
+      );
+    }
+    const q = query.trim().toLowerCase();
+    const options = cattle.filter(c => !chosen.has(c.id) && (!q || c.id.toLowerCase().includes(q)));
+    return (
+      <>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
+          <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search tag number" aria-label="Search tag number" className="h-14 pl-10 text-lg" />
+        </div>
+        <ul className="space-y-3 pb-2">
+          {options.map(c => (
+            <li key={c.id}>
+              <RowButton onClick={() => { set({ cowId: c.id }); setQuery(''); }}>
+                <span>
+                  <span className="block text-xl font-semibold text-ink">{c.id}</span>
+                  <span className="block text-base text-ink-muted">{[c.breed, c.weight ? `last ${c.weight} kg` : null].filter(Boolean).join(' · ')}</span>
+                </span>
+              </RowButton>
+            </li>
+          ))}
+          {options.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">No animal with that tag.</li>}
+        </ul>
+      </>
+    );
+  };
 
   return (
     <FlowShell
@@ -154,6 +188,12 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
       {step === 'mode' && (
         <ul className="space-y-3">
           <li>
+            <button type="button" onClick={() => { setMode('lump'); setStep('total'); }} className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600">
+              <span className="text-xl font-semibold text-ink">Weigh the whole group together</span>
+              <span className="text-base text-ink-muted">Type one total. Each animal gets the average.</span>
+            </button>
+          </li>
+          <li>
             <button type="button" onClick={() => { setMode('each'); setStep('weights'); }} className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600">
               <span className="text-xl font-semibold text-ink">Weigh each animal</span>
               <span className="text-base text-ink-muted">Type a weight for every animal you weighed.</span>
@@ -166,6 +206,15 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
             </button>
           </li>
         </ul>
+      )}
+
+      {step === 'total' && (
+        <Question label="Total weight (kg)">
+          <Input aria-label="Total weight in kg" type="number" step="any" inputMode="decimal" autoFocus value={total} onChange={e => { setTotal(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
+          <p className="mt-3 text-lg text-ink-muted">
+            {lumpAvg > 0 ? <>Average: <span className="font-semibold text-ink">{lumpAvg} kg</span> for each of {cattle.length} animals</> : `Shared between ${cattle.length} animals`}
+          </p>
+        </Question>
       )}
 
       {step === 'weights' && (
@@ -212,6 +261,7 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
               </p>
             </div>
           )}
+          {mode === 'lump' && <p className="rounded-xl bg-slate-50 p-4 text-lg text-ink">Every one of the <span className="font-semibold">{cattle.length}</span> animals is saved at <span className="font-semibold">{lumpAvg} kg</span> (total {lumpKg} kg ÷ {cattle.length}). This is an average, not a scale reading for each animal.</p>}
           {mode === 'each' && <p className="rounded-xl bg-slate-50 p-4 text-lg text-ink">Saving <span className="font-semibold">{typedRows.length}</span> {typedRows.length === 1 ? 'weight' : 'weights'}.</p>}
           <Question label="Date weighed"><Input aria-label="Date weighed" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" /></Question>
         </>
@@ -220,9 +270,9 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
       {step === 'done' && (
         <FlowDone
           message={<><span className="font-semibold">{savedCount} {savedCount === 1 ? 'weight' : 'weights'}</span> saved</>}
-          detail={mode === 'sample' ? 'Estimates were saved for the animals you did not weigh.' : undefined}
+          detail={mode === 'sample' ? 'Estimates were saved for the animals you did not weigh.' : mode === 'lump' ? 'Each animal was saved at the group average.' : undefined}
           again="Weigh again"
-          onAgain={() => { setTyped({}); setQuery(''); setSample({ best: { cowId: '', weight: '' }, medium: { cowId: '', weight: '' }, low: { cowId: '', weight: '' } }); setError(''); setStep('mode'); }}
+          onAgain={() => { setTyped({}); setTotal(''); setQuery(''); setSample({ best: { cowId: '', weight: '' }, medium: { cowId: '', weight: '' }, low: { cowId: '', weight: '' } }); setError(''); setStep('mode'); }}
           onClose={onClose}
         />
       )}
