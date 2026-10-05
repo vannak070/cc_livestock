@@ -35,7 +35,7 @@ import BatchesPage from './features/batch/BatchesPage';
 import FeedPage from './features/feed/FeedPage';
 import HealthPage from './features/health/HealthPage';
 import WeightsPage from './features/weight/WeightsPage';
-import FinanceTab from './FinanceTab';
+import SalesPage from './features/sales/SalesPage';
 import AnalyticsTab from './AnalyticsTab';
 import ProposalPlanTab from './ProposalPlanTab';
 import SettingsTab from './SettingsTab';
@@ -525,7 +525,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       )}
 
       {activeTab === 'sales-finance' && (
-        <FinanceTab
+        <SalesPage
           data={dbData}
           onDeleteSalesRecord={async (cowId: string) => {
             await deleteSalesRecordMutation.mutateAsync(cowId);
