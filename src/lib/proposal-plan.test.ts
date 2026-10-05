@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_PLAN, calculatePlan, feedForPeriod } from './proposal-plan';
+import { DEFAULT_PLAN, calculatePlan, feedForPeriod, parsePlanParams, planName } from './proposal-plan';
 
 describe('calculatePlan with the standard plan', () => {
   const r = calculatePlan(DEFAULT_PLAN);
@@ -45,5 +45,30 @@ describe('calculatePlan edge cases', () => {
 describe('feedForPeriod', () => {
   it('gives kg and cost of each feed', () => {
     expect(feedForPeriod(DEFAULT_PLAN, 100, 30)).toEqual({ grassKg: 90_000, grassCostKhr: 18_000_000, concentrateKg: 21_000, concentrateCostKhr: 25_200_000, totalCostKhr: 43_200_000 });
+  });
+});
+
+describe('parsePlanParams', () => {
+  it('accepts a complete set of numbers', () => {
+    expect(parsePlanParams({ ...DEFAULT_PLAN, extra: 'ignored' })).toEqual(DEFAULT_PLAN);
+  });
+  it('rejects missing, non-numeric, negative or infinite values and non-objects', () => {
+    const { targetStockLevel, ...missing } = DEFAULT_PLAN;
+    void targetStockLevel;
+    expect(parsePlanParams(missing)).toBeNull();
+    expect(parsePlanParams({ ...DEFAULT_PLAN, dailyWeightGainKg: '1.2' })).toBeNull();
+    expect(parsePlanParams({ ...DEFAULT_PLAN, dailyWeightGainKg: -1 })).toBeNull();
+    expect(parsePlanParams({ ...DEFAULT_PLAN, sellingPricePerKgKhr: Infinity })).toBeNull();
+    expect(parsePlanParams(null)).toBeNull();
+    expect(parsePlanParams('x')).toBeNull();
+  });
+});
+
+describe('planName', () => {
+  it('trims, caps at 60 characters and falls back to Plan N', () => {
+    expect(planName('  Big farm  ', 3)).toBe('Big farm');
+    expect(planName('x'.repeat(80), 3)).toHaveLength(60);
+    expect(planName('   ', 3)).toBe('Plan 3');
+    expect(planName(undefined, 7)).toBe('Plan 7');
   });
 });

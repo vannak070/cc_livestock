@@ -11,6 +11,7 @@ import { healthService } from '../services/health.service';
 import { settingsService } from '../services/settings.service';
 import { feedRepository } from '../repositories/feed.repository';
 import { proposalPlanRepository } from '../repositories/proposal-plan.repository';
+import { proposalPlanService } from '../services/proposal-plan.service';
 import { FeedProductItem, FeedStockTransaction, ProposalPlanParams, ProposalPlanRecord } from './types';
 
 import { Actor, AuthzError } from './authz';
@@ -91,7 +92,7 @@ async function requireDb<T>(operation: string, run: () => Promise<T>): Promise<T
  */
 export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
   try {
-    const [stock, weightTracking, salesTracking, batches, healthLogs, settings, feedProducts, feedTransactions, proposalPlan] = await Promise.all([
+    const [stock, weightTracking, salesTracking, batches, healthLogs, settings, feedProducts, feedTransactions, proposalPlans] = await Promise.all([
       stockService.getAllStock(scope),
       weightService.getAllWeightRecords(scope),
       salesService.getAllSales(scope),
@@ -100,7 +101,7 @@ export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
       settingsService.getSettings(),
       feedRepository.getProducts().catch(() => []),
       feedRepository.getTransactions().catch(() => []),
-      proposalPlanRepository.get().catch(() => null)
+      proposalPlanRepository.findAll().catch(() => [])
     ]);
 
     const common = {
@@ -125,7 +126,7 @@ export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
       settings,
       feedProducts: feedProducts || [],
       feedTransactions: feedTransactions || [],
-      proposalPlan: proposalPlan || undefined
+      proposalPlans
     };
 
     // Reads must not write: the daily feed ration deduction runs on its own
@@ -155,8 +156,12 @@ export async function addFeedTransaction(tx: FeedStockTransaction): Promise<Feed
 }
 
 // ─── Proposal / Plan ────────────────────────────────────────────────────────
-export async function saveProposalPlan(params: ProposalPlanParams): Promise<ProposalPlanRecord> {
-  return requireDb('save proposal plan', () => proposalPlanRepository.save(params));
+export async function saveProposalPlan(slot: number, name: string, params: ProposalPlanParams, updatedBy?: string): Promise<ProposalPlanRecord> {
+  return requireDb('save proposal plan', () => proposalPlanService.savePlan(slot, name, params, updatedBy));
+}
+
+export async function deleteProposalPlan(slot: number): Promise<boolean> {
+  return requireDb('delete proposal plan', () => proposalPlanService.deletePlan(slot));
 }
 
 // ─── 1. Stock / Inventory ───────────────────────────────────────────────────

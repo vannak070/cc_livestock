@@ -22,5 +22,5 @@ export interface ERPLivestockData {
   settings: MasterSetup;
   feedProducts?: FeedProductItem[];
   feedTransactions?: FeedStockTransaction[];
-  proposalPlan?: ProposalPlanRecord;
+  proposalPlans?: ProposalPlanRecord[];
 }

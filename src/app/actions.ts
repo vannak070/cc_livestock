@@ -27,7 +27,8 @@ import {
   saveFeedProduct,
   deleteFeedProduct,
   addFeedTransaction,
-  saveProposalPlan
+  saveProposalPlan,
+  deleteProposalPlan
 } from '@/lib/db';
 import { StockItem, WeightRecord, SalesRecord } from '@/lib/xlsx-parser';
 import { MasterSetup, BatchItem, HealthLogItem, FeedProductItem, FeedStockTransaction, ProposalPlanParams } from '@/lib/types';
@@ -241,6 +242,10 @@ export async function updateSettingsAction(settings: MasterSetup) {
   return runAction('Failed to update setup configurations', [], actor => updateSettings(settings, actor));
 }
 
-export async function saveProposalPlanAction(params: ProposalPlanParams) {
-  return runAction('Failed to save proposal plan', ['analytics_view'], () => saveProposalPlan(params));
+export async function saveProposalPlanAction(slot: number, name: string, params: ProposalPlanParams) {
+  return runAction('Failed to save plan', ['analytics_view'], actor => saveProposalPlan(slot, name, params, actor.name));
+}
+
+export async function deleteProposalPlanAction(slot: number) {
+  return runAction('Failed to delete plan', ['analytics_view'], () => deleteProposalPlan(slot));
 }

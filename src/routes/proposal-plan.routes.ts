@@ -4,7 +4,8 @@ import { requirePermission } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.get('/', requirePermission('analytics_view'), (req, res, next) => proposalPlanController.get(req, res).catch(next));
-router.post('/', requirePermission('analytics_view'), (req, res, next) => proposalPlanController.save(req, res).catch(next));
+router.get('/', requirePermission('analytics_view'), (req, res, next) => proposalPlanController.list(req, res).catch(next));
+router.put('/:slot', requirePermission('analytics_view'), (req, res, next) => proposalPlanController.save(req, res).catch(next));
+router.delete('/:slot', requirePermission('analytics_view'), (req, res, next) => proposalPlanController.remove(req, res).catch(next));
 
 export default router;

@@ -1,8 +1,7 @@
 // Mirrors DEFAULT_PLAN in src/lib/proposal-plan.ts — the full
 // set of interactive simulation inputs for the Fattening Proposal Tool.
-// This is a single, global "current plan" (not per-farm, not per-user):
-// whoever last saved it sets what everyone — including the mobile app's
-// read-only summary — sees.
+// Plans are global (not per-farm, not per-user): up to ten named slots that
+// everyone with access sees.
 export interface ProposalPlanParams {
   targetStockLevel: number;
   numberOfBatches: number;
@@ -19,7 +18,14 @@ export interface ProposalPlanParams {
   concentrateCostPerKgKhr: number;
 }
 
+/** One saved planning scenario: Plan 1 .. Plan 10. */
 export interface ProposalPlanRecord {
+  /** 1 to 10. */
+  slot: number;
+  name: string;
   params: ProposalPlanParams;
   updatedAt: string; // ISO timestamp
+  updatedBy?: string;
 }
+
+export const MAX_PLANS = 10;

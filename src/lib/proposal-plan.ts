@@ -156,3 +156,23 @@ export function feedForPeriod(p: Pick<ProposalPlanParams, 'grassKgPerHeadDay' | 
   const concentrateCostKhr = concentrateKg * p.concentrateCostPerKgKhr;
   return { grassKg, grassCostKhr, concentrateKg, concentrateCostKhr, totalCostKhr: grassCostKhr + concentrateCostKhr };
 }
+
+const PARAM_KEYS = Object.keys(DEFAULT_PLAN) as (keyof ProposalPlanParams)[];
+
+/** A plan's numbers from untrusted input, or null when anything is missing, not a number, or negative. */
+export function parsePlanParams(raw: unknown): ProposalPlanParams | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const out = {} as ProposalPlanParams;
+  for (const key of PARAM_KEYS) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
+    out[key] = value;
+  }
+  return out;
+}
+
+/** The name to keep for a plan: trimmed, at most 60 characters, "Plan N" when empty. */
+export function planName(raw: unknown, slot: number): string {
+  const name = typeof raw === 'string' ? raw.trim().slice(0, 60) : '';
+  return name || `Plan ${slot}`;
+}

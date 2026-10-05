@@ -25,6 +25,7 @@ import {
   deleteFeedProductAction,
   addFeedTransactionAction,
   saveProposalPlanAction,
+  deleteProposalPlanAction,
   logoutAction
 } from '@/app/actions';
 import { useRouter } from 'next/navigation';
@@ -309,8 +310,19 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   });
 
   const saveProposalPlanMutation = useMutation({
-    mutationFn: async (params: ProposalPlanParams) => {
-      const res = await saveProposalPlanAction(params);
+    mutationFn: async ({ slot, name, params }: { slot: number; name: string; params: ProposalPlanParams }) => {
+      const res = await saveProposalPlanAction(slot, name, params);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+    }
+  });
+
+  const deleteProposalPlanMutation = useMutation({
+    mutationFn: async (slot: number) => {
+      const res = await deleteProposalPlanAction(slot);
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
@@ -549,9 +561,12 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
 
       {activeTab === 'proposal-plan' && (
         <PlanningPage
-          initialPlan={dbData.proposalPlan?.params}
-          onSavePlan={async (params) => {
-            await saveProposalPlanMutation.mutateAsync(params);
+          plans={dbData.proposalPlans ?? []}
+          onSavePlan={async (slot, name, params) => {
+            await saveProposalPlanMutation.mutateAsync({ slot, name, params });
+          }}
+          onDeletePlan={async (slot) => {
+            await deleteProposalPlanMutation.mutateAsync(slot);
           }}
         />
       )}

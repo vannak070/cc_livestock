@@ -13,13 +13,13 @@ describe.skipIf(!enabled)('schema migrations (PostgreSQL)', () => {
     await resetDatabase();
     const tables = (await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")).rows.map(r => r.table_name);
     for (const t of ['users', 'stock', 'batches', 'batch_cows', 'weight_tracking', 'sales_tracking', 'health_logs',
-      'feed_products', 'feed_transactions', 'proposal_plan', 'master_settings', 'schema_migrations']) {
+      'feed_products', 'feed_transactions', 'proposal_plan', 'proposal_plans', 'master_settings', 'schema_migrations']) {
       expect(tables).toContain(t);
     }
     const cols = (await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'")).rows.map(r => r.column_name);
     expect(cols).toEqual(expect.arrayContaining(['farm_location', 'permissions', 'pin_hash']));
     const ledger = (await pool.query('SELECT version FROM schema_migrations ORDER BY version')).rows.map(r => r.version);
-    expect(ledger).toEqual(['001', '002', '003']);
+    expect(ledger).toEqual(['001', '002', '003', '004']);
   });
 
   it('is idempotent: a second run applies nothing', async () => {

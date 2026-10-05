@@ -1,33 +1,40 @@
+import type { QueryResultRow } from 'pg';
 import { query } from '../config/database';
 import { ProposalPlanParams, ProposalPlanRecord } from '../types/proposal.types';
 
-// Single global "current plan" row — id is always 'current'. There is no
-// per-user or per-farm plan; whoever last saves it sets what everyone sees,
-// same as the Planning page's single shared simulation (src/lib/proposal-plan.ts).
-const SINGLETON_ID = 'current';
+// Up to ten named planning scenarios, slots 1 to 10. They are global: not per
+// farm and not per user, so everyone with access sees the same plans.
+function toRecord(row: QueryResultRow): ProposalPlanRecord {
+  return {
+    slot: Number(row.slot),
+    name: row.name,
+    params: row.params as ProposalPlanParams,
+    updatedAt: new Date(row.updated_at).toISOString(),
+    ...(row.updated_by ? { updatedBy: row.updated_by as string } : {}),
+  };
+}
 
 export class ProposalPlanRepository {
-  async get(): Promise<ProposalPlanRecord | null> {
-    const res = await query('SELECT params, updated_at FROM proposal_plan WHERE id = $1', [SINGLETON_ID]);
-    if (res.rows.length === 0) return null;
-    return {
-      params: res.rows[0].params,
-      updatedAt: new Date(res.rows[0].updated_at).toISOString()
-    };
+  async findAll(): Promise<ProposalPlanRecord[]> {
+    const res = await query('SELECT slot, name, params, updated_by, updated_at FROM proposal_plans ORDER BY slot');
+    return res.rows.map(toRecord);
   }
 
-  async save(params: ProposalPlanParams): Promise<ProposalPlanRecord> {
+  async save(slot: number, name: string, params: ProposalPlanParams, updatedBy?: string): Promise<ProposalPlanRecord> {
     const res = await query(
-      `INSERT INTO proposal_plan (id, params, updated_at)
-       VALUES ($1, $2, CURRENT_TIMESTAMP)
-       ON CONFLICT (id) DO UPDATE SET params = EXCLUDED.params, updated_at = CURRENT_TIMESTAMP
-       RETURNING params, updated_at`,
-      [SINGLETON_ID, JSON.stringify(params)]
+      `INSERT INTO proposal_plans (slot, name, params, updated_by, updated_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       ON CONFLICT (slot) DO UPDATE
+         SET name = EXCLUDED.name, params = EXCLUDED.params, updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP
+       RETURNING slot, name, params, updated_by, updated_at`,
+      [slot, name, JSON.stringify(params), updatedBy ?? null]
     );
-    return {
-      params: res.rows[0].params,
-      updatedAt: new Date(res.rows[0].updated_at).toISOString()
-    };
+    return toRecord(res.rows[0]);
+  }
+
+  async delete(slot: number): Promise<boolean> {
+    const res = await query('DELETE FROM proposal_plans WHERE slot = $1 RETURNING slot', [slot]);
+    return res.rows.length > 0;
   }
 }
 
