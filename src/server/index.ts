@@ -1,6 +1,6 @@
 import app from './app';
 import { connectWithRetry } from '../config/database';
-import { runDailyFeedStockOuts } from '../lib/daily-feed-cron';
+import { startFeedJob } from '../lib/feed-job-scheduler';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
@@ -9,10 +9,8 @@ async function startServer() {
     console.log('[Server Init] Connecting to PostgreSQL database...');
     await connectWithRetry(10, 1000);
 
-    const runFeedJob = () =>
-      runDailyFeedStockOuts().catch(e => console.warn('[Daily Feed Cron] Run failed:', e instanceof Error ? e.message : e));
-    runFeedJob();
-    setInterval(runFeedJob, 60 * 60 * 1000).unref(); // hourly; idempotent, so it also catches up after downtime
+    // Hourly; also run by the web app. Idempotent, so it also catches up after downtime.
+    startFeedJob('API server');
 
     app.listen(PORT, () => {
       console.log(`=======================================================`);
