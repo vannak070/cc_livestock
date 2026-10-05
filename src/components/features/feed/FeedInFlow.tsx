@@ -13,6 +13,8 @@ interface FeedInFlowProps {
   farms: FarmItem[];
   currentUser?: UserRoleItem;
   onSave: (tx: FeedStockTransaction) => Promise<void>;
+  /** 'out' records feed used by hand (spoilage, a correction); the daily ration job does the usual deductions. */
+  mode?: 'in' | 'out';
 }
 
 type Step = 'pick' | 'bags' | 'where' | 'extra' | 'done';
@@ -29,7 +31,8 @@ export default function FeedInFlow(props: FeedInFlowProps) {
   );
 }
 
-function FeedInBody({ onClose, products, farms, currentUser, onSave }: FeedInFlowProps) {
+function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in' }: FeedInFlowProps) {
+  const out = mode === 'out';
   const active = products.filter(p => p.status !== 'Inactive');
   const single = active.length === 1;
   const lockedFarm = currentUser?.farmLocation && !['Super Admin', 'Admin', 'Company'].includes(currentUser.role)
@@ -67,14 +70,14 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave }: FeedInFlo
         date,
         productId: product.id,
         productName: product.name,
-        type: 'STOCK_IN',
+        type: out ? 'STOCK_OUT' : 'STOCK_IN',
         quantityBags: count,
         quantityKg: kg,
         unitCost: product.unitCost,
         totalCost: cost,
-        sourceFarm: 'Supplier',
-        targetFarm: farm,
-        referenceNo: ref.trim() || `TX-${now.toString().slice(-6)}`,
+        sourceFarm: out ? farm : 'Supplier',
+        targetFarm: out ? 'Daily Feeding Ration' : farm,
+        referenceNo: (!out && ref.trim()) || `TX-${now.toString().slice(-6)}`,
         recordedBy: currentUser?.name || 'Admin User',
         notes: notes.trim(),
       });
@@ -105,13 +108,19 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave }: FeedInFlo
     ? [product.name, `${count} ${count === 1 ? 'bag' : 'bags'}`, step === 'extra' ? farm : ''].filter(Boolean).join(' · ')
     : '';
 
-  const title = { pick: 'Which feed arrived?', bags: product ? `How much ${product.name}?` : 'How much?', where: 'Where was it delivered?', extra: 'Anything else?', done: 'Feed added' }[step];
+  const title = {
+    pick: out ? 'Which feed was used?' : 'Which feed arrived?',
+    bags: product ? (out ? `How much ${product.name} was used?` : `How much ${product.name}?`) : 'How much?',
+    where: out ? 'Taken from where?' : 'Where was it delivered?',
+    extra: 'Anything else?',
+    done: out ? 'Feed taken out' : 'Feed added',
+  }[step];
   const subtitle = {
-    pick: 'Choose the feed that was delivered.',
-    bags: 'Count the bags that came in.',
-    where: 'Which farm received it, and when.',
-    extra: 'Both are optional.',
-    done: 'The stock count has gone up.',
+    pick: out ? 'Choose the feed that was taken out of store.' : 'Choose the feed that was delivered.',
+    bags: out ? 'Count the bags taken out.' : 'Count the bags that came in.',
+    where: out ? 'Which farm store, and when.' : 'Which farm received it, and when.',
+    extra: out ? 'Say why, for example spoiled or damaged (optional).' : 'Both are optional.',
+    done: out ? 'The stock count has gone down.' : 'The stock count has gone up.',
   }[step];
 
   return (
@@ -124,7 +133,7 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave }: FeedInFlo
       error={error}
       onSubmit={step === 'pick' || step === 'done' ? undefined : next}
       footer={step === 'pick' || step === 'done' ? null : (
-        <FlowFooter onBack={at === 0 ? undefined : back} label={step === 'extra' ? (saving ? 'Saving…' : 'Save feed') : 'Next'} busy={saving} />
+        <FlowFooter onBack={at === 0 ? undefined : back} label={step === 'extra' ? (saving ? 'Saving…' : out ? 'Save' : 'Save feed') : 'Next'} busy={saving} />
       )}
     >
       {step === 'pick' && (
@@ -167,16 +176,16 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave }: FeedInFlo
 
       {step === 'extra' && (
         <>
-          <Question label="Invoice number (optional)"><Input aria-label="Invoice number" value={ref} onChange={e => setRef(e.target.value)} className="h-14 text-lg" /></Question>
-          <Question label="Note (optional)"><Input aria-label="Note" value={notes} onChange={e => setNotes(e.target.value)} className="h-14 text-lg" /></Question>
+          {!out && <Question label="Invoice number (optional)"><Input aria-label="Invoice number" value={ref} onChange={e => setRef(e.target.value)} className="h-14 text-lg" /></Question>}
+          <Question label={out ? 'Reason (optional)' : 'Note (optional)'}><Input aria-label="Note" value={notes} onChange={e => setNotes(e.target.value)} className="h-14 text-lg" /></Question>
         </>
       )}
 
       {step === 'done' && received && (
         <FlowDone
-          message={<><span className="font-semibold">{received.bags} {received.bags === 1 ? 'bag' : 'bags'}</span> of <span className="font-semibold">{received.name}</span> added</>}
+          message={<><span className="font-semibold">{received.bags} {received.bags === 1 ? 'bag' : 'bags'}</span> of <span className="font-semibold">{received.name}</span> {out ? 'taken out' : 'added'}</>}
           detail={`${received.kg.toLocaleString()} kg`}
-          again="Add more feed"
+          again={out ? 'Take out more' : 'Add more feed'}
           onAgain={another}
           onClose={onClose}
         />

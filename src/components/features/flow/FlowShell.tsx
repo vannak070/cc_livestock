@@ -41,11 +41,11 @@ export function Question({ label, hint, children }: { label: string; hint?: stri
   );
 }
 
-const MAX_BUTTONS = 4;
-const SEARCH_FROM = 7;
+const MAX_BUTTONS = 6;
+const SEARCH_FROM = 9;
 
 /**
- * Choose one of many. A few options show as big buttons; a longer list (many
+ * Choose one of many. Up to six options show as big buttons; a longer list (many
  * farms or breeds) becomes full-width rows that never clip a long name, with a
  * search box once it is long enough to need one.
  */

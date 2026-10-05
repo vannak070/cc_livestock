@@ -33,8 +33,8 @@ import SidebarLayout, { ActiveTabType, RecordAction } from './layout/SidebarLayo
 import TodayTab from './TodayTab';
 import DashboardHome from './DashboardHome';
 import BatchTab from './BatchTab';
-import FeedInventoryTab from './FeedInventoryTab';
-import HealthTab from './HealthTab';
+import FeedPage from './features/feed/FeedPage';
+import HealthPage from './features/health/HealthPage';
 import WeightsPage from './features/weight/WeightsPage';
 import FinanceTab from './FinanceTab';
 import AnalyticsTab from './AnalyticsTab';
@@ -483,7 +483,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       )}
 
       {activeTab === 'feed-inventory' && (
-        <FeedInventoryTab
+        <FeedPage
           data={dbData}
           onSaveProduct={async (product) => {
             await saveFeedProductMutation.mutateAsync(product);
@@ -501,12 +501,9 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       )}
 
       {activeTab === 'health-tracking' && (
-        <HealthTab
+        <HealthPage
           data={dbData}
-          onAddHealthLog={async (log) => {
-            await addHealthLogMutation.mutateAsync(log);
-          }}
-          onOpenTreat={() => handleOpenQuickEntry('treat')}
+          onOpenTreat={cowId => handleOpenQuickEntry('treat', cowId ?? null)}
           onDeleteHealthLog={async (logId) => {
             await deleteHealthLogMutation.mutateAsync(logId);
           }}

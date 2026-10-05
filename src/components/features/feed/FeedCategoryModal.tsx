@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Plus, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Tag, Check, AlertCircle } from 'lucide-react';
 import { updateSettingsAction } from '@/app/actions';
-import { MasterSetup } from '@/lib/types';
+import type { MasterSetup } from '@/lib/types';
 import { getErrorMessage } from '@/lib/utils';
 
 interface FeedCategoryModalProps {
@@ -17,157 +16,73 @@ interface FeedCategoryModalProps {
   onSettingsUpdated?: () => void;
 }
 
-export const FeedCategoryModal: React.FC<FeedCategoryModalProps> = ({
-  isOpen,
-  onClose,
-  settings,
-  onSettingsUpdated
-}) => {
-  const currentFeedTypes = settings?.feedTypes || ['Concentrate Feed', 'Silage', 'Fresh Grass', 'Hay Mix', 'Supplement', 'Medicine'];
-  const [categories, setCategories] = useState<string[]>(currentFeedTypes);
-  const [newCatName, setNewCatName] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
+const DEFAULT_KINDS = ['Concentrate Feed', 'Silage', 'Fresh Grass', 'Hay Mix', 'Supplement', 'Medicine'];
 
-  // Sync state when modal opens
-  React.useEffect(() => {
-    if (isOpen) {
-      setCategories(settings?.feedTypes || ['Concentrate Feed', 'Silage', 'Fresh Grass', 'Hay Mix', 'Supplement', 'Medicine']);
-      setNewCatName('');
-      setErrorMsg('');
-    }
-  }, [isOpen, settings]);
+export const FeedCategoryModal: React.FC<FeedCategoryModalProps> = (props) => (
+  // Remount on every open so the list starts from what is saved.
+  <Dialog open={props.isOpen} onOpenChange={open => { if (!open) props.onClose(); }}>
+    {props.isOpen && <KindsBody {...props} />}
+  </Dialog>
+);
 
-  const handleAddCategory = () => {
-    const trimmed = newCatName.trim();
-    if (!trimmed) return;
-    if (categories.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
-      setErrorMsg(`"${trimmed}" category already exists.`);
-      return;
-    }
-    setCategories([...categories, trimmed]);
-    setNewCatName('');
-    setErrorMsg('');
+function KindsBody({ onClose, settings, onSettingsUpdated }: FeedCategoryModalProps) {
+  const [kinds, setKinds] = useState<string[]>(settings?.feedTypes || DEFAULT_KINDS);
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const add = () => {
+    const n = name.trim();
+    if (!n) return;
+    if (kinds.some(k => k.toLowerCase() === n.toLowerCase())) { setError(`"${n}" is already in the list.`); return; }
+    setKinds([...kinds, n]);
+    setName('');
+    setError('');
   };
 
-  const handleRemoveCategory = (catToRemove: string) => {
-    if (categories.length <= 1) {
-      setErrorMsg('You must have at least one feed product category.');
-      return;
-    }
-    setCategories(categories.filter(c => c !== catToRemove));
-    setErrorMsg('');
+  const remove = (k: string) => {
+    if (kinds.length <= 1) { setError('Keep at least one kind of feed.'); return; }
+    setKinds(kinds.filter(x => x !== k));
+    setError('');
   };
 
-  const handleSave = async () => {
+  const save = async () => {
     if (!settings) return;
-    setIsSaving(true);
-    setErrorMsg('');
+    setSaving(true);
+    setError('');
     try {
-      const updatedSettings: MasterSetup = {
-        ...settings,
-        feedTypes: categories
-      };
-      const res = await updateSettingsAction(updatedSettings);
-      if (res.success) {
-        if (onSettingsUpdated) onSettingsUpdated();
-        onClose();
-      } else {
-        setErrorMsg(res.error || 'Failed to save categories.');
-      }
-    } catch (err) {
-      setErrorMsg(getErrorMessage(err, 'Error updating settings.'));
+      const res = await updateSettingsAction({ ...settings, feedTypes: kinds });
+      if (res.success) { onSettingsUpdated?.(); onClose(); } else setError(res.error || 'Could not save the list.');
+    } catch (e) {
+      setError(getErrorMessage(e, 'Could not save the list.'));
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-white p-6 rounded-2xl border border-slate-100 shadow-xl">
-        <DialogHeader className="text-left pb-3 border-b border-slate-100">
-          <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Tag className="h-4 w-4 text-emerald-600" />
-            Manage Feed Product Categories
-          </DialogTitle>
-          <DialogDescription className="text-xs text-slate-500">
-            Add or remove feed product classifications used across inventory catalog and filters.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 pt-3 text-left">
-          {errorMsg && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs p-2.5 rounded-xl flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
-          {/* Add New Category Bar */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-slate-700">Add New Category</Label>
-            <div className="flex gap-2">
-              <Input
-                value={newCatName}
-                onChange={e => setNewCatName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCategory(); } }}
-                placeholder="e.g. Mineral Block, Protein Feed..."
-                className="text-xs font-semibold h-9 rounded-xl border-slate-200"
-              />
-              <Button
-                type="button"
-                onClick={handleAddCategory}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-9 px-3 rounded-xl shrink-0 cursor-pointer"
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add
-              </Button>
-            </div>
-          </div>
-
-          {/* Category List */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-bold text-slate-700">Active Categories ({categories.length})</Label>
-            <div className="max-h-56 overflow-y-auto space-y-1.5 border border-slate-150 p-2 rounded-xl bg-slate-50/50">
-              {categories.map(cat => (
-                <div key={cat} className="flex items-center justify-between bg-white border border-slate-200/80 px-3 py-1.5 rounded-lg">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                    {cat}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveCategory(cat)}
-                    className="text-slate-400 hover:text-rose-600 transition-colors p-1 rounded-md cursor-pointer"
-                    title="Remove category"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Dialog Action Buttons */}
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-            <Button
-              type="button"
-              onClick={onClose}
-              variant="outline"
-              className="rounded-xl text-xs py-1.5 px-4 font-bold border-slate-200 text-slate-650 hover:bg-slate-50 cursor-pointer"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaving}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs py-1.5 px-4 font-bold cursor-pointer"
-            >
-              {isSaving ? 'Saving...' : 'Save Categories'}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <DialogContent className="max-w-md">
+      <DialogHeader className="text-left">
+        <DialogTitle className="text-2xl font-semibold text-ink">Kinds of feed</DialogTitle>
+        <DialogDescription className="text-base text-ink-muted">Used to group your feeds, for example Silage or Medicine.</DialogDescription>
+      </DialogHeader>
+      <form onSubmit={e => { e.preventDefault(); add(); }} className="flex gap-2">
+        <Input aria-label="New kind of feed" value={name} onChange={e => { setName(e.target.value); setError(''); }} placeholder="Add a kind, for example Mineral block" className="h-14 text-lg" />
+        <Button type="submit" size="lg" aria-label="Add kind"><Plus /></Button>
+      </form>
+      <ul className="max-h-[40vh] space-y-2 overflow-y-auto">
+        {kinds.map(k => (
+          <li key={k} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
+            <span className="break-words text-lg font-medium text-ink">{k}</span>
+            <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${k}`} onClick={() => remove(k)}><Trash2 className="text-rose-700" /></Button>
+          </li>
+        ))}
+      </ul>
+      {error && <p role="alert" className="text-base font-medium text-rose-700">{error}</p>}
+      <div className="flex gap-3">
+        <Button type="button" variant="secondary" size="lg" onClick={onClose}>Cancel</Button>
+        <Button type="button" size="lg" className="flex-1" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+      </div>
+    </DialogContent>
   );
-};
+}
