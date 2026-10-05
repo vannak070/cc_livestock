@@ -1,16 +1,24 @@
 export const en = {
   // Navigation & Header
   nav: {
-    dashboard: 'Dashboard',
-    cattleRegistry: 'Cattle Registry',
-    batchManagement: 'Batch Management',
-    feedStock: 'Cattle Feed Stock',
-    healthVaccines: 'Medical & Vaccines',
-    financeLedger: 'Sales & Revenue',
-    analytics: 'Growth & Profit Analytics',
-    proposalPlan: 'Fattening Proposal Tool',
-    farmsBranches: 'Farms & Stall Branches',
-    masterSettings: 'ERP Master Setup',
+    dashboard: 'Summary',
+    today: 'Today',
+    summary: 'Summary',
+    weights: 'Weights',
+    dailyWork: 'Daily work',
+    office: 'Office',
+    record: 'Record',
+    recordTitle: 'What do you want to record?',
+    more: 'More',
+    cattleRegistry: 'Cattle',
+    batchManagement: 'Batches',
+    feedStock: 'Feed',
+    healthVaccines: 'Health',
+    financeLedger: 'Sales',
+    analytics: 'Reports',
+    proposalPlan: 'Planning',
+    farmsBranches: 'Farms',
+    masterSettings: 'Settings',
     systemTitle: 'CC Livestock',
     systemSubtitle: 'Fattening Livestock Management System',
     role: 'Role',
@@ -205,7 +213,35 @@ export const en = {
     assetValue: 'Asset Value',
     monthlySales: 'Monthly Revenue',
     recentActivity: 'Recent Farm Activities'
+  },
+
+  // Install as an app (PWA)
+  pwa: {
+    install: 'Install app',
+    installTitle: 'Install CC Livestock',
+    installIntro: 'Add CC Livestock to this device so it opens like a normal app, with its own icon.',
+    iosStep1: 'Tap the Share button (the square with an arrow pointing up). On newer iOS, tap ••• first.',
+    iosStep2: 'Scroll down and tap "Add to Home Screen".',
+    iosStep3: 'Tap "Add". The CC Livestock icon appears on your Home Screen.',
+    macStep1: 'In the menu bar, click File (or the Share button in the toolbar).',
+    macStep2: 'Choose "Add to Dock".',
+    macStep3: 'Click "Add". CC Livestock now opens from the Dock like any other app.',
+    signInAgain: 'You will need to sign in once more inside the installed app.',
+    share: 'Share app',
+    shareTitle: 'Share CC Livestock',
+    shareIntro: 'Scan this QR code with a phone camera, or send the link. They will need an account to sign in.',
+    shareText: 'Open CC Livestock and tap "Install app" to add it to your phone.',
+    shareVia: 'Share…',
+    copyLink: 'Copy link',
+    copied: 'Link copied',
+    downloadQr: 'Download QR code'
   }
 };
 
 export type TranslationKeys = typeof en;
+
+/**
+ * Another language may lag behind English: any key it lacks falls back to the
+ * English text (see `t()` in src/context/LanguageContext.tsx).
+ */
+export type PartialTranslations = { [S in keyof TranslationKeys]?: Partial<TranslationKeys[S]> };

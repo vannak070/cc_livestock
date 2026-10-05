@@ -13,21 +13,25 @@
 import { ERPLivestockData, FeedStockTransaction, FeedProductItem } from './types';
 import { feedRepository } from '../repositories/feed.repository';
 import { batchService } from '../services/batch.service';
+import { stockService } from '../services/stock.service';
+import { activeCattleIds, activeHeadcount, matchIngredientProduct } from './feed-math';
 
 const MAX_CATCH_UP_DAYS = 60;
 
 /** Loads what the ration job needs and applies any missing daily deductions. Safe to call repeatedly and from several processes. */
 export async function runDailyFeedStockOuts(): Promise<number> {
-  const [batches, feedProducts, feedTransactions] = await Promise.all([
+  const [stock, batches, feedProducts, feedTransactions] = await Promise.all([
+    stockService.getAllStock(),
     batchService.getAllBatches(),
     feedRepository.getProducts(),
     feedRepository.getTransactions()
   ]);
-  return processDailyFeedStockOuts({ batches, feedProducts, feedTransactions } as ERPLivestockData);
+  return processDailyFeedStockOuts({ stock, batches, feedProducts, feedTransactions } as ERPLivestockData);
 }
 
 export async function processDailyFeedStockOuts(data: ERPLivestockData): Promise<number> {
   const activeBatches = (data.batches || []).filter(b => b.status === 'Active');
+  const activeIds = activeCattleIds(data.stock || []);
   const products = data.feedProducts || [];
   const existingTransactions = data.feedTransactions || [];
 
@@ -46,7 +50,9 @@ export async function processDailyFeedStockOuts(data: ERPLivestockData): Promise
 
   for (const batch of activeBatches) {
     if (!batch.feedingProgram || batch.feedingProgram.status !== 'Active') continue;
-    const headcount = batch.cowIds ? batch.cowIds.length : 0;
+    // Only cattle still on the farm eat: sold or dead cattle can stay listed
+    // on a batch for its history.
+    const headcount = activeHeadcount(batch, activeIds);
     if (headcount <= 0) continue;
 
     const farmLocation = batch.farmLocation || 'Farm';
@@ -67,12 +73,8 @@ export async function processDailyFeedStockOuts(data: ERPLivestockData): Promise
         if (portionKg <= 0) continue;
 
         // Match ingredient to feed product catalog
-        const ingNameLower = ing.name.toLowerCase();
-        const matchedProd = products.find(p =>
-          p.name.toLowerCase().includes(ingNameLower) ||
-          ingNameLower.includes(p.name.toLowerCase()) ||
-          p.id.toLowerCase() === ingNameLower
-        ) || products[0];
+        const matchedProd = matchIngredientProduct(ing.name, products);
+        if (!matchedProd) continue;
 
         const refNo = `AUTO-RATION-${batch.id}-${dateStr}-${idx}`;
 

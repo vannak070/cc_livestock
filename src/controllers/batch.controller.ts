@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { farmGuard } from '../lib/farm-guard';
 import type { AuthedRequest } from '../middleware/auth.middleware';
 import { scopeFor } from '../lib/farm-scope';
 import { batchService } from '../services/batch.service';
@@ -15,6 +16,7 @@ export class BatchController {
 
   async getById(req: Request, res: Response): Promise<void> {
     const id = String(req.params.id);
+    await farmGuard.batch((req as AuthedRequest).actor!, id);
     const batch = await batchService.getBatchById(id);
     if (!batch) {
       res.status(404).json({
@@ -32,6 +34,7 @@ export class BatchController {
   }
 
   async create(req: Request, res: Response): Promise<void> {
+    farmGuard.requireLocation((req as AuthedRequest).actor!, req.body?.farmLocation);
     const newBatch = await batchService.createBatch(req.body);
     res.status(201).json({
       success: true,
@@ -42,6 +45,9 @@ export class BatchController {
 
   async update(req: Request, res: Response): Promise<void> {
     const id = String(req.params.id);
+    await farmGuard.batch((req as AuthedRequest).actor!, id);
+    farmGuard.location((req as AuthedRequest).actor!, req.body?.farmLocation);
+    if (Array.isArray(req.body?.cowIds)) await farmGuard.cows((req as AuthedRequest).actor!, req.body.cowIds);
     const updated = await batchService.updateBatch(id, req.body);
     res.status(200).json({
       success: true,
@@ -52,7 +58,9 @@ export class BatchController {
 
   async assignCows(req: Request, res: Response): Promise<void> {
     const id = String(req.params.id);
+    await farmGuard.batch((req as AuthedRequest).actor!, id);
     const { cowIds } = req.body;
+    await farmGuard.cows((req as AuthedRequest).actor!, cowIds || []);
     const updated = await batchService.assignCowsToBatch(id, cowIds || []);
     res.status(200).json({
       success: true,
@@ -63,7 +71,9 @@ export class BatchController {
 
   async removeCow(req: Request, res: Response): Promise<void> {
     const id = String(req.params.id);
+    await farmGuard.batch((req as AuthedRequest).actor!, id);
     const cowId = String(req.params.cowId);
+    await farmGuard.cows((req as AuthedRequest).actor!, [cowId]);
     const updated = await batchService.removeCowFromBatch(id, cowId);
     res.status(200).json({
       success: true,
@@ -74,6 +84,7 @@ export class BatchController {
 
   async recordBatchWeights(req: Request, res: Response): Promise<void> {
     const { records } = req.body;
+    await farmGuard.cows((req as AuthedRequest).actor!, Array.isArray(records) ? records.map((r: { cowId?: string }) => r.cowId) : []);
     await batchService.recordBatchWeights(records || []);
     res.status(200).json({
       success: true,
@@ -84,6 +95,7 @@ export class BatchController {
 
   async recordBatchHealthLog(req: Request, res: Response): Promise<void> {
     const id = String(req.params.id);
+    await farmGuard.batch((req as AuthedRequest).actor!, id);
     const logs = await batchService.recordBatchHealthLog(id, req.body);
     res.status(200).json({
       success: true,
@@ -94,6 +106,7 @@ export class BatchController {
 
   async delete(req: Request, res: Response): Promise<void> {
     const id = String(req.params.id);
+    await farmGuard.batch((req as AuthedRequest).actor!, id);
     await batchService.deleteBatch(id);
     res.status(200).json({
       success: true,

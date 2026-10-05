@@ -4,6 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Eye, EyeOff, Info } from 'lucide-react';
 import { loginAction } from '@/app/actions';
+import InstallAppButton from './InstallAppButton';
 
 // Rendered by src/app/page.tsx whenever there is no valid session. It never
 // receives any farm data: the page only loads data once the server has
@@ -129,6 +130,10 @@ export default function LoginScreen() {
           <div className="mt-6 flex gap-3 items-start p-4 rounded-xl bg-white sm:bg-slate-50 border border-slate-200">
             <Info className="h-5 w-5 flex-shrink-0 mt-0.5 text-ink-muted" aria-hidden="true" />
             <p className="text-sm text-ink-muted">Forgot your password? Ask your farm manager to reset it for you.</p>
+          </div>
+
+          <div className="mt-4">
+            <InstallAppButton variant="full" />
           </div>
         </div>
       </div>

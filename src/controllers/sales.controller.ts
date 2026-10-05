@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { farmGuard } from '../lib/farm-guard';
 import type { AuthedRequest } from '../middleware/auth.middleware';
 import { scopeFor } from '../lib/farm-scope';
 import { salesService } from '../services/sales.service';
@@ -15,6 +16,7 @@ export class SalesController {
 
   async create(req: Request, res: Response): Promise<void> {
     const { cowId, unitPrice, saleType, salesDate, buyer } = req.body;
+    await farmGuard.cows((req as AuthedRequest).actor!, [cowId]);
     if (!cowId || unitPrice === undefined || !saleType) {
       res.status(400).json({
         success: false,
@@ -34,6 +36,7 @@ export class SalesController {
 
   async recordBatchSale(req: Request, res: Response): Promise<void> {
     const { batchId, unitPrice, saleType, salesDate } = req.body;
+    await farmGuard.batch((req as AuthedRequest).actor!, String(batchId));
     if (!batchId || unitPrice === undefined || !saleType) {
       res.status(400).json({
         success: false,
@@ -53,6 +56,7 @@ export class SalesController {
 
   async update(req: Request, res: Response): Promise<void> {
     const cowId = String(req.params.cowId);
+    await farmGuard.cows((req as AuthedRequest).actor!, [cowId]);
     const updated = await salesService.updateSalesRecord(cowId, req.body);
     res.status(200).json({
       success: true,
@@ -63,6 +67,7 @@ export class SalesController {
 
   async delete(req: Request, res: Response): Promise<void> {
     const cowId = String(req.params.cowId);
+    await farmGuard.cows((req as AuthedRequest).actor!, [cowId]);
     await salesService.deleteSalesRecord(cowId);
     res.status(200).json({
       success: true,

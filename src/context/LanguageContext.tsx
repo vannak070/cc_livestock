@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { en, TranslationKeys } from '../locales/en';
+import { en, PartialTranslations } from '../locales/en';
 import { km } from '../locales/km';
 
 export type Language = 'en' | 'km';
@@ -10,10 +10,10 @@ interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: (path: string, fallback?: string) => string;
-  dictionary: TranslationKeys;
+  dictionary: PartialTranslations;
 }
 
-const dictionaries: Record<Language, TranslationKeys> = { en, km };
+const dictionaries: Record<Language, PartialTranslations> = { en, km };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 

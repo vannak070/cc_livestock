@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { farmGuard } from '../lib/farm-guard';
 import type { AuthedRequest } from '../middleware/auth.middleware';
 import { scopeFor } from '../lib/farm-scope';
 import { stockService } from '../services/stock.service';
@@ -15,6 +16,7 @@ export class StockController {
 
   async getById(req: Request, res: Response): Promise<void> {
     const id = String(req.params.id);
+    await farmGuard.cows((req as AuthedRequest).actor!, [id]);
     const stock = await stockService.getStockById(id);
     if (!stock) {
       res.status(404).json({
@@ -32,6 +34,7 @@ export class StockController {
   }
 
   async create(req: Request, res: Response): Promise<void> {
+    farmGuard.requireLocation((req as AuthedRequest).actor!, req.body?.location);
     const newItem = await stockService.createStock(req.body);
     res.status(201).json({
       success: true,
@@ -42,6 +45,8 @@ export class StockController {
 
   async update(req: Request, res: Response): Promise<void> {
     const id = String(req.params.id);
+    await farmGuard.cows((req as AuthedRequest).actor!, [id]);
+    farmGuard.location((req as AuthedRequest).actor!, req.body?.location);
     const updated = await stockService.updateStock(id, req.body);
     res.status(200).json({
       success: true,
@@ -52,6 +57,7 @@ export class StockController {
 
   async delete(req: Request, res: Response): Promise<void> {
     const id = String(req.params.id);
+    await farmGuard.cows((req as AuthedRequest).actor!, [id]);
     const deleted = await stockService.deleteStock(id);
     if (!deleted) {
       res.status(404).json({

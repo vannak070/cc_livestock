@@ -16,8 +16,9 @@ const batch = (over: Record<string, unknown> = {}) => ({
   feedingProgram: { status: 'Active', ingredients: [{ name: 'Concentrate', portionPerHead: 3 }] },
   ...over
 });
-const run = (batches: unknown[], transactions: unknown[] = [], products: unknown[] = [product]) =>
-  processDailyFeedStockOuts({ batches, feedProducts: products, feedTransactions: transactions } as unknown as ERPLivestockData);
+const herd = [{ id: 'C1', status: 'Active' }, { id: 'C2', status: 'Active' }, { id: 'C3', status: 'Sold' }];
+const run = (batches: unknown[], transactions: unknown[] = [], products: unknown[] = [product], stock: unknown[] = herd) =>
+  processDailyFeedStockOuts({ stock, batches, feedProducts: products, feedTransactions: transactions } as unknown as ERPLivestockData);
 
 describe('processDailyFeedStockOuts', () => {
   beforeEach(() => {
@@ -34,6 +35,16 @@ describe('processDailyFeedStockOuts', () => {
       'AUTO-RATION-B1-2026-10-03-0', 'AUTO-RATION-B1-2026-10-04-0', 'AUTO-RATION-B1-2026-10-05-0'
     ]);
     expect(calls[0]).toMatchObject({ type: 'STOCK_OUT', productId: 'FP-1', quantityKg: 6, quantityBags: 0.2, totalCost: 600 });
+  });
+
+  it('feeds only cattle still on the farm, not sold ones still listed on the batch', async () => {
+    expect(await run([batch({ cowIds: ['C1', 'C2', 'C3'] })])).toBe(3);
+    const first = vi.mocked(feedRepository.addTransactionIfNew).mock.calls[0][0];
+    expect(first.quantityKg).toBe(6); // 3 kg x 2 active head, not 3 head
+  });
+
+  it('records nothing for a batch whose cattle have all been sold', async () => {
+    expect(await run([batch({ cowIds: ['C3'] })])).toBe(0);
   });
 
   it('skips days that already have a deduction', async () => {

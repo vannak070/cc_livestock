@@ -1,52 +1,58 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Database, 
-  DollarSign, 
-  Scale, 
-  LogOut, 
-  Calendar, 
-  Activity, 
-  TrendingUp, 
-  Heart, 
-  Settings, 
-  PieChart, 
+import {
+  LogOut,
+  Calendar,
+  Settings,
+  PieChart,
   LayoutDashboard,
-  Menu,
   X,
   Building,
   ChevronRight,
   Beef,
   Syringe,
   Package,
-  Calculator
+  Calculator,
+  Home,
+  Scale,
+  Layers,
+  DollarSign,
+  PlusCircle,
+  MoreHorizontal
 } from 'lucide-react';
-import { StockItem } from '@/lib/xlsx-parser';
 import { UserRoleItem } from '@/lib/types';
-import { hasPermission, format2Decimals, format2DecimalsWithCommas } from '@/lib/utils';
+import { hasPermission } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
 import LanguageSwitcher from '../LanguageSwitcher';
 
-export type ActiveTabType = 
-  | 'dashboard' 
-  | 'cow-inventory' 
-  | 'batch-management' 
+export type ActiveTabType =
+  | 'today'
+  | 'dashboard'
+  | 'cow-inventory'
+  | 'batch-management'
   | 'feed-inventory'
-  | 'health-tracking' 
-  | 'weight-tracking' 
-  | 'sales-finance' 
-  | 'analytics' 
+  | 'health-tracking'
+  | 'weight-tracking'
+  | 'sales-finance'
+  | 'analytics'
   | 'proposal-plan'
   | 'settings'
   | 'farms';
 
+/** Something a person can record from Today or the phone's Record button. */
+export interface RecordAction {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+}
+
 interface SidebarLayoutProps {
   children: React.ReactNode;
-  stock: StockItem[];
   activeTab: ActiveTabType;
   setActiveTab: (tab: ActiveTabType) => void;
-  onOpenQuickEntry: () => void;
+  recordActions: RecordAction[];
   healthAlertsCount: number;
   vaccineAlertsCount: number;
   currentUser?: UserRoleItem | null;
@@ -64,9 +70,9 @@ interface NavItemProps {
 
 function NavItem({ icon, label, isActive, onClick, badge, badgeColor = 'amber' }: NavItemProps) {
   const badgeColors = {
-    amber: 'bg-amber-500',
-    rose: 'bg-rose-500',
-    emerald: 'bg-emerald-500'
+    amber: 'bg-amber-600',
+    rose: 'bg-rose-700',
+    emerald: 'bg-emerald-600'
   };
 
   return (
@@ -111,10 +117,9 @@ function NavSection({ label, children }: { label: string; children: React.ReactN
 
 export default function SidebarLayout({
   children,
-  stock,
   activeTab,
   setActiveTab,
-  onOpenQuickEntry,
+  recordActions,
   healthAlertsCount,
   vaccineAlertsCount,
   currentUser,
@@ -122,25 +127,42 @@ export default function SidebarLayout({
 }: SidebarLayoutProps) {
   const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [recordSheetOpen, setRecordSheetOpen] = useState(false);
 
-  const activeStock = stock.filter(item => item.status.toLowerCase() === 'active');
-  const totalHead = activeStock.length;
-  const totalWeight = activeStock.reduce((sum, item) => sum + (item.weight || 0), 0);
-  const averageWeight = totalHead > 0 ? format2Decimals(totalWeight / totalHead) : '0.00';
-  const inventoryValue = activeStock.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
   const totalAlerts = healthAlertsCount + vaccineAlertsCount;
+  const can = (key: Parameters<typeof hasPermission>[1]) => hasPermission(currentUser, key);
 
   const handleTabChange = (tab: ActiveTabType) => {
     setActiveTab(tab);
     setMobileMenuOpen(false);
+    setRecordSheetOpen(false);
   };
 
-  // Get user initials for avatar
+  // Page names shown in the header (one source for the menu and the header).
+  const tabLabels: Record<ActiveTabType, string> = {
+    'today': t('nav.today', 'Today'),
+    'dashboard': t('nav.summary', 'Summary'),
+    'cow-inventory': t('nav.cattleRegistry'),
+    'weight-tracking': t('nav.weights', 'Weights'),
+    'health-tracking': t('nav.healthVaccines'),
+    'feed-inventory': t('nav.feedStock'),
+    'batch-management': t('nav.batchManagement'),
+    'sales-finance': t('nav.financeLedger'),
+    'analytics': t('nav.analytics'),
+    'proposal-plan': t('nav.proposalPlan'),
+    'farms': t('nav.farmsBranches'),
+    'settings': t('nav.masterSettings')
+  };
+
+  // "Office" pages are for people who look at money and reports; farm staff
+  // and vets (who have none of these permissions) see only daily work.
+  const showSummary = can('dashboard_view') && (can('sales_view') || can('analytics_view'));
+  const hasOffice = showSummary || can('sales_view') || can('analytics_view') || can('farms_manage') || can('settings_manage');
+
   const userInitials = currentUser?.name
     ? currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
     : 'US';
 
-  // Role color badge
   const roleColors: Record<string, string> = {
     'Super Admin': 'bg-rose-50 text-rose-800 border-rose-200',
     'Admin': 'bg-emerald-50 text-emerald-800 border-emerald-200',
@@ -174,110 +196,55 @@ export default function SidebarLayout({
         </button>
       </div>
 
-
-
-
       {/* ─── Navigation Links ─── */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
-
-        {/* Core */}
-        <NavSection label="Overview">
-          <NavItem
-            icon={<LayoutDashboard className="h-5 w-5" />}
-            label={t('nav.dashboard')}
-            isActive={activeTab === 'dashboard'}
-            onClick={() => handleTabChange('dashboard')}
-          />
+      <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+        <NavSection label={t('nav.dailyWork', 'Daily work')}>
+          {can('dashboard_view') && (
+            <NavItem icon={<Home className="h-5 w-5" />} label={tabLabels['today']} isActive={activeTab === 'today'} onClick={() => handleTabChange('today')} />
+          )}
+          {can('stock_view') && (
+            <NavItem icon={<Beef className="h-5 w-5" />} label={tabLabels['cow-inventory']} isActive={activeTab === 'cow-inventory'} onClick={() => handleTabChange('cow-inventory')} />
+          )}
+          {can('weight_view') && (
+            <NavItem icon={<Scale className="h-5 w-5" />} label={tabLabels['weight-tracking']} isActive={activeTab === 'weight-tracking'} onClick={() => handleTabChange('weight-tracking')} />
+          )}
+          {can('health_view') && (
+            <NavItem
+              icon={<Syringe className="h-5 w-5" />}
+              label={tabLabels['health-tracking']}
+              isActive={activeTab === 'health-tracking'}
+              onClick={() => handleTabChange('health-tracking')}
+              badge={totalAlerts > 0 ? totalAlerts : null}
+              badgeColor="rose"
+            />
+          )}
+          {can('feed_view') && (
+            <NavItem icon={<Package className="h-5 w-5" />} label={tabLabels['feed-inventory']} isActive={activeTab === 'feed-inventory'} onClick={() => handleTabChange('feed-inventory')} />
+          )}
+          {can('batch_view') && (
+            <NavItem icon={<Layers className="h-5 w-5" />} label={tabLabels['batch-management']} isActive={activeTab === 'batch-management'} onClick={() => handleTabChange('batch-management')} />
+          )}
         </NavSection>
 
-        {/* Livestock ERP */}
-        {(hasPermission(currentUser, 'stock_view') ||
-          hasPermission(currentUser, 'batch_view') ||
-          hasPermission(currentUser, 'health_view')) && (
-          <NavSection label="Livestock ERP">
-            {hasPermission(currentUser, 'stock_view') && (
-              <NavItem
-                icon={<Beef className="h-5 w-5" />}
-                label={t('nav.cattleRegistry')}
-                isActive={activeTab === 'cow-inventory'}
-                onClick={() => handleTabChange('cow-inventory')}
-              />
+        {hasOffice && (
+          <NavSection label={t('nav.office', 'Office')}>
+            {showSummary && (
+              <NavItem icon={<LayoutDashboard className="h-5 w-5" />} label={tabLabels['dashboard']} isActive={activeTab === 'dashboard'} onClick={() => handleTabChange('dashboard')} />
             )}
-            {hasPermission(currentUser, 'batch_view') && (
-              <NavItem
-                icon={<TrendingUp className="h-5 w-5" />}
-                label={t('nav.batchManagement')}
-                isActive={activeTab === 'batch-management'}
-                onClick={() => handleTabChange('batch-management')}
-              />
+            {can('sales_view') && (
+              <NavItem icon={<DollarSign className="h-5 w-5" />} label={tabLabels['sales-finance']} isActive={activeTab === 'sales-finance'} onClick={() => handleTabChange('sales-finance')} />
             )}
-            <NavItem
-              icon={<Package className="h-5 w-5" />}
-              label={t('nav.feedStock')}
-              isActive={activeTab === 'feed-inventory'}
-              onClick={() => handleTabChange('feed-inventory')}
-            />
-            {hasPermission(currentUser, 'health_view') && (
-              <NavItem
-                icon={<Syringe className="h-5 w-5" />}
-                label={t('nav.healthVaccines')}
-                isActive={activeTab === 'health-tracking'}
-                onClick={() => handleTabChange('health-tracking')}
-                badge={totalAlerts > 0 ? totalAlerts : null}
-                badgeColor="rose"
-              />
+            {can('analytics_view') && (
+              <>
+                <NavItem icon={<PieChart className="h-5 w-5" />} label={tabLabels['analytics']} isActive={activeTab === 'analytics'} onClick={() => handleTabChange('analytics')} />
+                <NavItem icon={<Calculator className="h-5 w-5" />} label={tabLabels['proposal-plan']} isActive={activeTab === 'proposal-plan'} onClick={() => handleTabChange('proposal-plan')} />
+              </>
             )}
-          </NavSection>
-        )}
-
-        {/* Financials */}
-        {hasPermission(currentUser, 'sales_view') && (
-          <NavSection label="Financials">
-            <NavItem
-              icon={<DollarSign className="h-5 w-5" />}
-              label={t('nav.financeLedger')}
-              isActive={activeTab === 'sales-finance'}
-              onClick={() => handleTabChange('sales-finance')}
-            />
-          </NavSection>
-        )}
-
-        {/* Analytics & Business Planning */}
-        {hasPermission(currentUser, 'analytics_view') && (
-          <NavSection label="Insights & Planning">
-            <NavItem
-              icon={<PieChart className="h-5 w-5" />}
-              label={t('nav.analytics')}
-              isActive={activeTab === 'analytics'}
-              onClick={() => handleTabChange('analytics')}
-            />
-            <NavItem
-              icon={<Calculator className="h-5 w-5" />}
-              label={t('nav.proposalPlan')}
-              isActive={activeTab === 'proposal-plan'}
-              onClick={() => handleTabChange('proposal-plan')}
-            />
-          </NavSection>
-        )}
-
-        {/* Administration */}
-        {(hasPermission(currentUser, 'settings_manage') || hasPermission(currentUser, 'farms_manage')) && (
-          <NavSection label="Administration">
-            {hasPermission(currentUser, 'farms_manage') && (
-              <NavItem
-                icon={<Building className="h-5 w-5" />}
-                label={t('nav.farmsBranches')}
-                isActive={activeTab === 'farms'}
-                onClick={() => handleTabChange('farms')}
-              />
+            {can('farms_manage') && (
+              <NavItem icon={<Building className="h-5 w-5" />} label={tabLabels['farms']} isActive={activeTab === 'farms'} onClick={() => handleTabChange('farms')} />
             )}
-            {hasPermission(currentUser, 'settings_manage') && (
-              <NavItem
-                icon={<Settings className="h-5 w-5" />}
-                label={t('nav.masterSettings')}
-                isActive={activeTab === 'settings'}
-                onClick={() => handleTabChange('settings')}
-              />
+            {can('settings_manage') && (
+              <NavItem icon={<Settings className="h-5 w-5" />} label={tabLabels['settings']} isActive={activeTab === 'settings'} onClick={() => handleTabChange('settings')} />
             )}
           </NavSection>
         )}
@@ -287,7 +254,6 @@ export default function SidebarLayout({
       {currentUser && (
         <div className="flex-shrink-0 mx-3 mb-3 mt-1 border-t border-slate-200 pt-3">
           <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-3 py-2.5">
-            {/* Avatar */}
             <div className="h-10 w-10 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-sm text-white flex-shrink-0">
               {userInitials}
             </div>
@@ -313,6 +279,19 @@ export default function SidebarLayout({
     </div>
   );
 
+  const bottomTab = (label: string, icon: React.ReactNode, onClick: () => void, isActive: boolean) => (
+    <button
+      key={label}
+      type="button"
+      onClick={onClick}
+      aria-current={isActive ? 'page' : undefined}
+      className={`flex flex-col items-center justify-center gap-1 min-h-16 text-sm cursor-pointer ${isActive ? 'text-emerald-700 font-bold' : 'text-ink-muted font-medium'}`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+
   return (
     <div className="flex min-h-screen bg-canvas text-ink font-sans">
 
@@ -321,122 +300,75 @@ export default function SidebarLayout({
         {navContent}
       </aside>
 
-      {/* Mobile Backdrop & Drawer */}
+      {/* Mobile menu drawer ("More") */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex">
-          <div
-            className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <div className="relative w-72 max-w-[82vw] h-full shadow-2xl z-10 flex flex-col">
+          <div className="fixed inset-0 bg-slate-900/60" onClick={() => setMobileMenuOpen(false)} />
+          <div className="relative w-80 max-w-[85vw] h-full shadow-2xl z-10 flex flex-col">
             {navContent}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile "Record" sheet */}
+      {recordSheetOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex flex-col justify-end" role="dialog" aria-modal="true" aria-label={t('nav.record', 'Record')}>
+          <div className="fixed inset-0 bg-slate-900/60" onClick={() => setRecordSheetOpen(false)} />
+          <div className="relative z-10 bg-white rounded-t-3xl px-4 pt-4 pb-8 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-ink">{t('nav.recordTitle', 'What do you want to record?')}</h2>
+              <button type="button" onClick={() => setRecordSheetOpen(false)} aria-label="Close" className="h-11 w-11 flex items-center justify-center rounded-xl hover:bg-slate-100 text-ink-muted">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {recordActions.map(a => (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => { setRecordSheetOpen(false); a.onClick(); }}
+                  className="min-h-20 rounded-2xl border border-slate-200 bg-white flex flex-col items-center justify-center gap-2 text-base font-semibold text-ink hover:bg-emerald-50 cursor-pointer"
+                >
+                  <span className="text-emerald-700">{a.icon}</span>
+                  {a.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col bg-canvas min-w-0 overflow-y-auto">
-
-        {/* Top Header Bar (Hidden when activeTab === 'proposal-plan') */}
-        {activeTab !== 'proposal-plan' ? (
-          <header className="border-b border-slate-200/70 bg-white/95 backdrop-blur-md px-4 sm:px-6 py-4 sticky top-0 z-20">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <div className="flex items-center gap-3">
-                {/* Mobile Hamburger */}
-                <button
-                  onClick={() => setMobileMenuOpen(true)}
-                  className="md:hidden h-12 w-12 flex items-center justify-center rounded-xl bg-slate-100 text-ink hover:bg-slate-200 transition-colors"
-                  aria-label="Open menu"
-                >
-                  <Menu className="h-6 w-6" />
-                </button>
-                <div>
-                  <h2 className="text-base sm:text-xl font-bold tracking-tight text-slate-900 leading-tight">
-                    {t('nav.systemTitle')}
-                  </h2>
-                  <p className="text-xs sm:text-xs text-slate-400 font-semibold flex items-center gap-1.5 mt-0.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                    {t('nav.systemSubtitle')}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <LanguageSwitcher />
-                <div className="hidden lg:flex text-xs text-slate-500 font-semibold bg-slate-50 py-2 px-3.5 rounded-full border border-slate-200 items-center gap-2">
-                  <Calendar className="h-3.5 w-3.5 text-emerald-600" />
-                  {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </div>
-              </div>
-            </div>
-
-            {/* Responsive Stats Strip */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 ">{t('dashboard.totalHerd')}</p>
-                  <h3 className="text-xl font-bold text-slate-900 mt-0.5 leading-none">{totalHead}<span className="text-xs text-emerald-600 font-bold ml-1">head</span></h3>
-                </div>
-                <div className="h-9 w-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm flex-shrink-0">
-                  <Database className="h-4 w-4" />
-                </div>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 ">{t('dashboard.avgWeight')}</p>
-                  <h3 className="text-xl font-bold text-slate-900 mt-0.5 leading-none">{averageWeight}<span className="text-xs text-blue-600 font-bold ml-1">kg</span></h3>
-                </div>
-                <div className="h-9 w-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm flex-shrink-0">
-                  <Scale className="h-4 w-4" />
-                </div>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 ">{t('dashboard.assetValue')}</p>
-                  <h3 className="text-sm font-bold text-slate-900 mt-0.5 leading-none truncate">៛ {format2DecimalsWithCommas(inventoryValue)}</h3>
-                </div>
-                <div className="h-9 w-9 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-sm flex-shrink-0">
-                  <DollarSign className="h-4 w-4" />
-                </div>
-              </div>
-
-              <div className={`border rounded-xl p-3 flex items-center justify-between ${
- healthAlertsCount > 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-100'
-              }`}>
-                <div>
-                  <p className="text-xs font-bold text-slate-400 ">Health Status</p>
-                  <h3 className={`text-sm font-bold mt-0.5 leading-none ${healthAlertsCount > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
-                    {healthAlertsCount > 0 ? `${healthAlertsCount} Alerts` : '✓ All Stable'}
-                  </h3>
-                </div>
-                <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 text-white ${
- healthAlertsCount > 0 ? 'bg-rose-500' : 'bg-emerald-600'
-                }`}>
-                  <Activity className="h-4 w-4" />
-                </div>
-              </div>
-            </div>
-          </header>
-        ) : (
-          /* Sleek minimal header for mobile navigation when viewing Proposal Plan */
-          <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200 sticky top-0 z-20">
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
-              aria-label="Open Navigation Menu"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <LanguageSwitcher />
+        <header className="border-b border-slate-200 bg-white px-4 sm:px-6 h-16 md:h-20 flex items-center justify-between gap-4 sticky top-0 z-20">
+          <div className="flex items-center gap-3 min-w-0">
+            <img src="/logo.png" alt="" className="md:hidden h-10 w-10 object-contain flex-shrink-0" />
+            <h1 className="text-xl md:text-2xl font-bold text-ink truncate">{tabLabels[activeTab]}</h1>
           </div>
-        )}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <LanguageSwitcher />
+            <div className="hidden lg:flex text-sm text-ink-muted bg-slate-50 py-2 px-3.5 rounded-full border border-slate-200 items-center gap-2">
+              <Calendar className="h-4 w-4 text-emerald-700" />
+              {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </div>
+          </div>
+        </header>
 
-        {/* Page Content */}
-        <div className="p-4 sm:p-6 flex-1 min-w-0">
+        {/* Page Content (extra space at the bottom on phones for the bottom bar) */}
+        <div className="p-4 sm:p-6 pb-28 md:pb-6 flex-1 min-w-0">
           {children}
         </div>
       </main>
+
+      {/* Phone bottom bar: Today · Cattle · Record · More */}
+      <nav aria-label="Quick" className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 grid grid-cols-4 pb-[env(safe-area-inset-bottom)]">
+        {bottomTab(tabLabels['today'], <Home className="h-6 w-6" />, () => handleTabChange(can('dashboard_view') ? 'today' : 'dashboard'), activeTab === 'today')}
+        {bottomTab(tabLabels['cow-inventory'], <Beef className="h-6 w-6" />, () => handleTabChange('cow-inventory'), activeTab === 'cow-inventory')}
+        {recordActions.length > 0
+          ? bottomTab(t('nav.record', 'Record'), <PlusCircle className="h-6 w-6" />, () => { setMobileMenuOpen(false); setRecordSheetOpen(true); }, recordSheetOpen)
+          : bottomTab(tabLabels['dashboard'], <LayoutDashboard className="h-6 w-6" />, () => handleTabChange('dashboard'), activeTab === 'dashboard')}
+        {bottomTab(t('nav.more', 'More'), <MoreHorizontal className="h-6 w-6" />, () => { setRecordSheetOpen(false); setMobileMenuOpen(true); }, mobileMenuOpen)}
+      </nav>
     </div>
   );
 }

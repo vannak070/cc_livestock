@@ -40,6 +40,7 @@ import { TablePagination } from './common/TablePagination';
 import { exportToExcel } from '@/lib/excel-export';
 import { DateRangeFilterBar } from './common/DateRangeFilterBar';
 import { useOnChange } from '@/hooks/useOnChange';
+import { activeCattleIds, activeHeadcount as countActiveHead } from '@/lib/feed-math';
 
 interface FeedInventoryTabProps {
   data: ERPLivestockData;
@@ -116,14 +117,16 @@ export default function FeedInventoryTab({
   // Calculate Daily Feed Ration usage for active fattening batches
   const batchRationUsage = useMemo(() => {
     const activeBatches = (data.batches || []).filter(b => b.status === 'Active');
-    
+    const activeIds = activeCattleIds(data.stock);
+
     let totalDailyRationKg = 0;
     let activeHeadcount = 0;
 
     activeBatches.forEach(b => {
       if (effectiveFarm && b.farmLocation && b.farmLocation !== effectiveFarm) return;
       
-      const cattleCount = b.cowIds ? b.cowIds.length : 0;
+      // Only cattle still on the farm are fed (sold ones stay listed on the batch).
+      const cattleCount = countActiveHead(b, activeIds);
       activeHeadcount += cattleCount;
 
       if (b.feedingProgram && b.feedingProgram.status === 'Active') {
@@ -146,7 +149,7 @@ export default function FeedInventoryTab({
       totalDailyRationKg,
       totalDailyRationBags
     };
-  }, [data.batches, effectiveFarm]);
+  }, [data.batches, data.stock, effectiveFarm]);
 
   // Helper to extract clean farm location name
   const resolveRealFarmName = (farmStr?: string): string | null => {

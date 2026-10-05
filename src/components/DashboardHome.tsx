@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/
 import { Activity, ShieldAlert, Calendar, DollarSign, Scale, Beef, TrendingUp, ArrowRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, BarChart, Bar } from 'recharts';
 import type { ActiveTabType } from './layout/SidebarLayout';
+import { batchesNearSelling } from '@/lib/attention';
 
 interface DashboardHomeProps {
   data: ERPLivestockData;
@@ -26,17 +27,11 @@ export default function DashboardHome({ data, onNavigateToTab }: DashboardHomePr
   // next 10 days, so admins get advance notice to prepare for the sale.
   // Overdue targets (negative days remaining) are included too, flagged
   // distinctly, since a missed target date needs attention just as much.
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const sellingPrepAlerts = activeBatches
-    .filter(b => !!b.sellingTargetDate)
-    .map(b => {
-      const target = new Date(b.sellingTargetDate as string);
-      const daysRemaining = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      return { ...b, daysRemaining };
-    })
-    .filter(b => b.daysRemaining <= 10)
-    .sort((a, b) => a.daysRemaining - b.daysRemaining);
+  // Same rule as the Today screen (src/lib/attention.ts).
+  const sellingPrepAlerts = batchesNearSelling(data).map(alert => ({
+    ...activeBatches.find(b => b.id === alert.batchId)!,
+    daysRemaining: alert.daysRemaining
+  }));
 
   // Total revenue from fattening sales
   const totalRevenue = data.salesTracking.reduce((sum, s) => sum + (s.totalPrice || 0), 0);

@@ -14,6 +14,7 @@ import FarmFilterBar from './FarmFilterBar';
 import { exportToExcel } from '@/lib/excel-export';
 import { DateRangeFilterBar } from './common/DateRangeFilterBar';
 import type { WeightRecord } from '@/lib/xlsx-parser';
+import { weighSchedules } from '@/lib/attention';
 
 interface WeightTabProps {
   data: ERPLivestockData;
@@ -122,36 +123,11 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
     ? activeCows
     : activeCows.filter(c => getCowCohort(c.id)?.id === selectedCohortId);
   
-  const weighInSchedules = filteredActiveCows.map(cow => {
-    // Find the latest weight log for this cow
-    const logs = data.weightTracking
-      .filter(w => w.cowId === cow.id && w.trackingDate)
-      .sort((a, b) => new Date(b.trackingDate!).getTime() - new Date(a.trackingDate!).getTime());
-
-    const lastWeighDate = logs.length > 0 && logs[0].trackingDate ? new Date(logs[0].trackingDate) : null;
-    let daysElapsed = 999; // Assume overdue if no logs
-    
-    if (lastWeighDate) {
-      const diffTime = Math.abs(new Date().getTime() - lastWeighDate.getTime());
-      daysElapsed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    }
-
-    let status: 'weighed' | 'duesoon' | 'overdue' = 'overdue';
-    if (daysElapsed < intervalDays - 2) {
-      status = 'weighed';
-    } else if (daysElapsed >= intervalDays - 2 && daysElapsed <= intervalDays) {
-      status = 'duesoon';
-    }
-
-    return {
-      cowId: cow.id,
-      breed: cow.breed,
-      currentWeight: cow.weight,
-      lastWeighDate,
-      daysElapsed,
-      status
-    };
-  }).sort((a, b) => b.daysElapsed - a.daysElapsed); // Overdue first
+  // Same rule as the Today screen (src/lib/attention.ts); this page adds the
+  // cohort filter and the breed and weight for display.
+  const cowById = new Map(filteredActiveCows.map(c => [c.id, c]));
+  const weighInSchedules = weighSchedules({ stock: filteredActiveCows, weightTracking: data.weightTracking }, intervalDays)
+    .map(s => ({ ...s, breed: cowById.get(s.cowId)?.breed ?? '', currentWeight: cowById.get(s.cowId)?.weight ?? 0 }));
 
   const overdueCount = weighInSchedules.filter(s => s.status === 'overdue').length;
   const duesoonCount = weighInSchedules.filter(s => s.status === 'duesoon').length;

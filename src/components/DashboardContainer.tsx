@@ -31,7 +31,8 @@ import {
   logoutAction
 } from '@/app/actions';
 import { useRouter } from 'next/navigation';
-import SidebarLayout, { ActiveTabType } from './layout/SidebarLayout';
+import SidebarLayout, { ActiveTabType, RecordAction } from './layout/SidebarLayout';
+import TodayTab from './TodayTab';
 import DashboardHome from './DashboardHome';
 import InventoryTable from './InventoryTable';
 import BatchTab from './BatchTab';
@@ -50,6 +51,8 @@ import { ProposalPlanParams } from '@/types';
 import { SalesRecord } from '@/lib/xlsx-parser';
 import { hasPermission } from '@/lib/utils';
 import { PermissionKey } from '@/types/settings.types';
+import { sickCattle, cattleWithDiseaseHistory } from '@/lib/attention';
+import { Scale, Syringe, PlusCircle, DollarSign, Package } from 'lucide-react';
 
 interface DashboardContainerProps {
   initialData: ERPLivestockData;
@@ -60,7 +63,9 @@ interface DashboardContainerProps {
 export default function DashboardContainer({ initialData, currentUser }: DashboardContainerProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<ActiveTabType>('dashboard');
+  // Management is read-only oversight: it starts on the Summary. Everyone else
+  // starts on Today, the list of what needs doing.
+  const [activeTab, setActiveTab] = useState<ActiveTabType>(currentUser.role === 'Management' ? 'dashboard' : 'today');
 
   // Modal States
   const [isQuickEntryOpen, setIsQuickEntryOpen] = useState(false);
@@ -344,12 +349,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
 
   // Active cows list & health alert counters (strictly scoped to current user's farm)
   const activeCows = dbData.stock.filter(c => c.status.toLowerCase() === 'active');
-  const healthAlertsCount = activeCows.filter(c =>
-    ['poor', 'sick', 'critical', 'quarantine'].includes(c.healthStatus?.toLowerCase() || '')
-  ).length;
-  const vaccineAlertsCount = activeCows.filter(c =>
-    dbData.healthLogs.some(l => l.cowId === c.id && (l.type === 'Disease' || l.notes?.toLowerCase().includes('sick')))
-  ).length;
+  const healthAlertsCount = sickCattle(dbData.stock).length;
+  const vaccineAlertsCount = cattleWithDiseaseHistory(dbData).length;
 
   // Trigger Action panel
   const handleOpenQuickEntry = (tabType: 'add' | 'weight' | 'sale' = 'add', cowId: string | null = null) => {
@@ -357,6 +358,16 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     setPreselectedCowId(cowId);
     setIsQuickEntryOpen(true);
   };
+
+  // What this person may record, shown on Today and behind the phone's Record
+  // button. Treat and Feed in open their pages until phase 3 adds guided forms.
+  const recordActions: RecordAction[] = ([
+    hasPermission(currentUser, 'weight_record') && { key: 'weigh', label: 'Weigh', icon: <Scale className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('weight') },
+    hasPermission(currentUser, 'health_record') && { key: 'treat', label: 'Treat', icon: <Syringe className="h-7 w-7" />, onClick: () => setActiveTab('health-tracking') },
+    hasPermission(currentUser, 'stock_create') && { key: 'add', label: 'Add cattle', icon: <PlusCircle className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('add') },
+    hasPermission(currentUser, 'sales_record') && { key: 'sell', label: 'Sell', icon: <DollarSign className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('sale') },
+    hasPermission(currentUser, 'feed_manage') && { key: 'feed', label: 'Feed in', icon: <Package className="h-7 w-7" />, onClick: () => setActiveTab('feed-inventory') }
+  ] as (RecordAction | false)[]).filter((a): a is RecordAction => !!a);
 
   const handleViewDetails = (cowId: string) => {
     setSelectedCowDetailsId(cowId);
@@ -371,10 +382,10 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
 
   React.useEffect(() => {
     if (!currentUser) return;
-    if (activeTab === 'dashboard') return;
 
     let permissionKey: PermissionKey | null = null;
-    if (activeTab === 'cow-inventory') permissionKey = 'stock_view';
+    if (activeTab === 'today' || activeTab === 'dashboard') permissionKey = 'dashboard_view';
+    else if (activeTab === 'cow-inventory') permissionKey = 'stock_view';
     else if (activeTab === 'batch-management') permissionKey = 'batch_view';
     else if (activeTab === 'health-tracking') permissionKey = 'health_view';
     else if (activeTab === 'weight-tracking') permissionKey = 'weight_view';
@@ -382,24 +393,34 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     else if (activeTab === 'analytics') permissionKey = 'analytics_view';
     else if (activeTab === 'settings') permissionKey = 'settings_manage';
     else if (activeTab === 'farms') permissionKey = 'farms_manage';
+    else if (activeTab === 'feed-inventory') permissionKey = 'feed_view';
+    else if (activeTab === 'proposal-plan') permissionKey = 'analytics_view';
 
-    if (permissionKey && !hasPermission(currentUser, permissionKey)) {
-      setActiveTab('dashboard');
+    if (permissionKey && !hasPermission(currentUser, permissionKey) && activeTab !== 'today') {
+      setActiveTab('today');
     }
   }, [activeTab, currentUser]);
 
   return (
     <SidebarLayout
-      stock={dbData.stock}
       activeTab={activeTab}
       setActiveTab={setActiveTab}
-      onOpenQuickEntry={() => handleOpenQuickEntry('add')}
+      recordActions={recordActions}
       healthAlertsCount={healthAlertsCount}
       vaccineAlertsCount={vaccineAlertsCount}
       currentUser={currentUser}
       onLogout={handleLogout}
     >
       {/* Dynamic Tab Rendering */}
+      {activeTab === 'today' && (
+        <TodayTab
+          data={dbData}
+          currentUser={currentUser}
+          recordActions={recordActions}
+          onNavigate={setActiveTab}
+        />
+      )}
+
       {activeTab === 'dashboard' && (
         <DashboardHome
           data={dbData}

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { farmGuard } from '../lib/farm-guard';
 import type { AuthedRequest } from '../middleware/auth.middleware';
 import { scopeFor } from '../lib/farm-scope';
 import { weightService } from '../services/weight.service';
@@ -15,6 +16,7 @@ export class WeightController {
 
   async getByCowId(req: Request, res: Response): Promise<void> {
     const cowId = String(req.params.cowId);
+    await farmGuard.cows((req as AuthedRequest).actor!, [cowId]);
     const records = await weightService.getWeightRecordsByCowId(cowId);
     res.status(200).json({
       success: true,
@@ -25,6 +27,7 @@ export class WeightController {
 
   async create(req: Request, res: Response): Promise<void> {
     const { cowId, currentWeight, healthStatus, trackingDate } = req.body;
+    await farmGuard.cows((req as AuthedRequest).actor!, [cowId]);
     if (!cowId || currentWeight === undefined || !healthStatus) {
       res.status(400).json({
         success: false,
@@ -44,6 +47,7 @@ export class WeightController {
 
   async update(req: Request, res: Response): Promise<void> {
     const cowId = String(req.params.cowId);
+    await farmGuard.cows((req as AuthedRequest).actor!, [cowId]);
     const { trackingDate, currentWeight, healthStatus } = req.body;
 
     const updated = await weightService.updateWeightRecord(cowId, trackingDate, Number(currentWeight), healthStatus);
@@ -56,6 +60,7 @@ export class WeightController {
 
   async delete(req: Request, res: Response): Promise<void> {
     const cowId = String(req.params.cowId);
+    await farmGuard.cows((req as AuthedRequest).actor!, [cowId]);
     const trackingDate = String(req.query.trackingDate || '');
 
     await weightService.deleteWeightRecord(cowId, trackingDate);

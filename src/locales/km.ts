@@ -1,6 +1,6 @@
-import { TranslationKeys } from './en';
+import { PartialTranslations } from './en';
 
-export const km: TranslationKeys = {
+export const km: PartialTranslations = {
   // Navigation & Header
   nav: {
     dashboard: 'ផ្ទាំងគ្រប់គ្រង',
@@ -207,5 +207,27 @@ export const km: TranslationKeys = {
     assetValue: 'តម្លៃទ្រព្យសកម្ម',
     monthlySales: 'ចំណូលប្រចាំខែ',
     recentActivity: 'សកម្មភាពកសិដ្ឋានថ្មីៗ'
+  },
+
+  // Install as an app (PWA)
+  pwa: {
+    install: 'ដំឡើងកម្មវិធី',
+    installTitle: 'ដំឡើង CC Livestock',
+    installIntro: 'បន្ថែម CC Livestock ទៅក្នុងឧបករណ៍នេះ ដើម្បីបើកដូចកម្មវិធីធម្មតា ដែលមានរូបតំណាងផ្ទាល់ខ្លួន។',
+    iosStep1: 'ចុចប៊ូតុង Share (ការ៉េដែលមានព្រួញចង្អុលឡើងលើ)។ នៅលើ iOS ថ្មី សូមចុច ••• ជាមុនសិន។',
+    iosStep2: 'រំកិលចុះក្រោម ហើយចុច "Add to Home Screen"។',
+    iosStep3: 'ចុច "Add"។ រូបតំណាង CC Livestock នឹងបង្ហាញនៅលើអេក្រង់ដើម។',
+    macStep1: 'នៅលើរបារម៉ឺនុយ ចុច File (ឬប៊ូតុង Share នៅលើរបារឧបករណ៍)។',
+    macStep2: 'ជ្រើសរើស "Add to Dock"។',
+    macStep3: 'ចុច "Add"។ CC Livestock នឹងបើកពី Dock ដូចកម្មវិធីផ្សេងទៀត។',
+    signInAgain: 'អ្នកត្រូវចូលគណនីម្តងទៀតនៅក្នុងកម្មវិធីដែលបានដំឡើង។',
+    share: 'ចែករំលែកកម្មវិធី',
+    shareTitle: 'ចែករំលែក CC Livestock',
+    shareIntro: 'ស្កេនកូដ QR នេះដោយកាមេរ៉ាទូរស័ព្ទ ឬផ្ញើតំណភ្ជាប់។ អ្នកទទួលត្រូវមានគណនីដើម្បីចូលប្រើ។',
+    shareText: 'បើក CC Livestock ហើយចុច "ដំឡើងកម្មវិធី" ដើម្បីបន្ថែមទៅទូរស័ព្ទរបស់អ្នក។',
+    shareVia: 'ចែករំលែក…',
+    copyLink: 'ចម្លងតំណភ្ជាប់',
+    copied: 'បានចម្លងតំណភ្ជាប់',
+    downloadQr: 'ទាញយកកូដ QR'
   }
 };

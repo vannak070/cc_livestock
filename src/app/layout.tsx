@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Kantumruy_Pro, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ReactQueryProvider from "@/components/providers/ReactQueryProvider";
@@ -22,6 +22,16 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
+  // Opens full screen (no Safari bars) when added to an iPhone/iPad home screen.
+  appleWebApp: {
+    capable: true,
+    title: "CC Livestock",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0E7A38",
 };
 
 export default function RootLayout({
