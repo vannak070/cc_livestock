@@ -158,6 +158,11 @@ export class BatchRepository {
     const res = await this.executeQuery('DELETE FROM batches WHERE id = $1 RETURNING id', [id], client);
     return res.rows.length > 0;
   }
+
+  /** Points every batch of a renamed farm at the new name. */
+  async updateFarmLocation(oldLocation: string, newLocation: string, client?: PoolClient): Promise<void> {
+    await this.executeQuery('UPDATE batches SET farm_location = $1 WHERE farm_location = $2', [newLocation, oldLocation], client);
+  }
 }
 
 export const batchRepository = new BatchRepository();

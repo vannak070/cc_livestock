@@ -1,5 +1,6 @@
 import { stockRepository } from '../repositories/stock.repository';
 import { weightRepository } from '../repositories/weight.repository';
+import { batchRepository } from '../repositories/batch.repository';
 import { withTransaction } from '../config/database';
 import { StockItem, WeightRecord } from '../lib/xlsx-parser';
 import type { FarmScope } from '../lib/farm-scope';
@@ -78,9 +79,11 @@ export class StockService {
     });
   }
 
+  /** A renamed farm: its cattle and its batches both move to the new name, or neither does. */
   async updateStockLocation(oldLocation: string, newLocation: string): Promise<void> {
     return withTransaction(async (client) => {
       await stockRepository.updateLocation(oldLocation, newLocation, client);
+      await batchRepository.updateFarmLocation(oldLocation, newLocation, client);
     });
   }
 }

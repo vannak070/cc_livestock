@@ -39,7 +39,7 @@ import SalesPage from './features/sales/SalesPage';
 import ReportsPage from './features/reports/ReportsPage';
 import ProposalPlanTab from './ProposalPlanTab';
 import SettingsTab from './SettingsTab';
-import FarmsTab from './FarmsTab';
+import FarmsPage from './features/farms/FarmsPage';
 import { useOnChange } from '@/hooks/useOnChange';
 import CattleList from './features/cattle/CattleList';
 import CattleDetailPage from './features/cattle/CattleDetailPage';
@@ -564,7 +564,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       )}
 
       {activeTab === 'farms' && (
-        <FarmsTab
+        <FarmsPage
           settings={dbData.settings}
           currentUser={currentUser}
           stock={dbData.stock}
