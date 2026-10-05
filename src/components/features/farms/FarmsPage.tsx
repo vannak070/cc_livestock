@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Crown, MapPin, Pencil, Plus, Trash2, UserPlus, Users } from 'lucide-react';
+import { ArrowLeft, Crown, MapPin, Pencil, Plus, Trash2, UserPlus, Users, Wheat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { createUserAction, deleteFarmAction, saveFarmAction, setFarmOwnerAction } from '@/app/actions';
@@ -19,6 +19,8 @@ interface FarmsPageProps {
   currentUser: UserRoleItem | null;
   stock: StockItem[];
   batches: BatchItem[];
+  /** Opens the day's feed record for a farm (the office recording for the farm); only for people who may record feed. */
+  onRecordFeed?: (farmName: string) => void;
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
@@ -37,7 +39,7 @@ async function ok<T>(res: { success: true; data: T } | { success: false; error: 
 
 type Add = { farm: FarmItem; kind: 'owner' | 'staff' };
 
-export default function FarmsPage({ settings, currentUser, stock, batches }: FarmsPageProps) {
+export default function FarmsPage({ settings, currentUser, stock, batches, onRecordFeed }: FarmsPageProps) {
   const queryClient = useQueryClient();
   const [flow, setFlow] = useState<null | { farm: FarmItem | null }>(null);
   // The farm whose people page is open; looked up by id so a rename shows straight away.
@@ -192,6 +194,7 @@ export default function FarmsPage({ settings, currentUser, stock, batches }: Far
                   )}
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => setPeopleOfId(farm.id)}><Users /> People ({people.length})</Button>
+                    {onRecordFeed && farmBatches > 0 && <Button variant="outline" size="sm" onClick={() => onRecordFeed(farm.name)}><Wheat /> Record feed</Button>}
                     {owners.length === 0 && <Button size="sm" onClick={() => setAdd({ farm, kind: 'owner' })}><UserPlus /> Add the owner</Button>}
                   </div>
                 </div>

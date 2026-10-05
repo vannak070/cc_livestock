@@ -145,7 +145,7 @@ export function feedStockLevels(
     if (b.status !== 'Active' || b.feedingProgram?.status !== 'Active') continue;
     const head = activeHeadcount(b, activeIds);
     for (const ing of b.feedingProgram.ingredients || []) {
-      const prod = matchIngredientProduct(ing.name, products);
+      const prod = matchIngredientProduct(ing, products);
       if (!prod || !(ing.portionPerHead > 0)) continue;
       dailyUse.set(prod.id, (dailyUse.get(prod.id) || 0) + ing.portionPerHead * head);
     }

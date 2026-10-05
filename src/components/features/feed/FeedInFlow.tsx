@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { FarmItem, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
+import { feedUnit, kgPerUnit, unitWord } from '@/lib/daily-feed';
 import { FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, RowButton, money, today } from '../flow/FlowShell';
 
 interface FeedInFlowProps {
@@ -48,14 +49,16 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in'
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [received, setReceived] = useState<{ name: string; bags: number; kg: number } | null>(null);
+  const [received, setReceived] = useState<{ name: string; bags: number; kg: number; unit: string } | null>(null);
 
   const steps: Step[] = single ? ['bags', 'where', 'extra'] : ['pick', 'bags', 'where', 'extra'];
   const at = steps.indexOf(step);
 
   const product = active.find(p => p.id === productId);
   const count = Number(bags);
-  const perBag = product?.weightPerUnit || 30;
+  const perBag = kgPerUnit(product);
+  const unit = feedUnit(product);
+  const packs = unitWord(unit, 2);
   const kg = count * perBag;
   const cost = kg * (product?.unitCost || 0);
 
@@ -81,7 +84,7 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in'
         recordedBy: currentUser?.name || 'Admin User',
         notes: notes.trim(),
       });
-      setReceived({ name: product.name, bags: count, kg });
+      setReceived({ name: product.name, bags: count, kg, unit });
       setStep('done');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save. Please try again.');
@@ -91,7 +94,7 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in'
   };
 
   const next = () => {
-    if (step === 'bags' && !(count > 0)) { setError('Type how many bags arrived.'); return; }
+    if (step === 'bags' && !(count > 0)) { setError(out ? `Type how many ${packs} were used.` : `Type how many ${packs} arrived.`); return; }
     if (step === 'where' && !farm) { setError('Choose which farm received it.'); return; }
     if (step === 'extra') { save(); return; }
     setError('');
@@ -105,7 +108,7 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in'
   };
 
   const summary = product && (step === 'where' || step === 'extra')
-    ? [product.name, `${count} ${count === 1 ? 'bag' : 'bags'}`, step === 'extra' ? farm : ''].filter(Boolean).join(' · ')
+    ? [product.name, `${count} ${unitWord(unit, count)}`, step === 'extra' ? farm : ''].filter(Boolean).join(' · ')
     : '';
 
   const title = {
@@ -117,7 +120,7 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in'
   }[step];
   const subtitle = {
     pick: out ? 'Choose the feed that was taken out of store.' : 'Choose the feed that was delivered.',
-    bags: out ? 'Count the bags taken out.' : 'Count the bags that came in.',
+    bags: unit === 'kg' ? (out ? 'Weigh how much was taken out.' : 'Weigh how much came in.') : out ? `Count the ${packs} taken out.` : `Count the ${packs} that came in.`,
     where: out ? 'Which farm store, and when.' : 'Which farm received it, and when.',
     extra: out ? 'Say why, for example spoiled or damaged (optional).' : 'Both are optional.',
     done: out ? 'The stock count has gone down.' : 'The stock count has gone up.',
@@ -143,7 +146,7 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in'
               <RowButton onClick={() => { setProductId(p.id); setError(''); setStep('bags'); }}>
                 <span>
                   <span className="block text-xl font-semibold text-ink">{p.name}</span>
-                  <span className="block text-base text-ink-muted">{[p.category, `${p.weightPerUnit} kg per ${p.unit}`].filter(Boolean).join(' · ')}</span>
+                  <span className="block text-base text-ink-muted">{[p.category, feedUnit(p) === 'kg' ? 'counted in kg' : `${p.weightPerUnit} kg per ${feedUnit(p)}`].filter(Boolean).join(' · ')}</span>
                 </span>
               </RowButton>
             </li>
@@ -153,10 +156,10 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in'
       )}
 
       {step === 'bags' && (
-        <Question label="Number of bags">
-          <Input aria-label="Number of bags" type="number" inputMode="numeric" autoFocus value={bags} onChange={e => { setBags(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
+        <Question label={unit === 'kg' ? 'Kg' : `Number of ${packs}`}>
+          <Input aria-label={unit === 'kg' ? 'Kg' : `Number of ${packs}`} type="number" step="any" inputMode="decimal" autoFocus value={bags} onChange={e => { setBags(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
           <p className="mt-3 text-lg text-ink-muted">
-            {count > 0 ? <>{kg.toLocaleString()} kg ({perBag} kg per bag) · worth {money(cost)}</> : `${perBag} kg per bag`}
+            {unit === 'kg' ? (count > 0 ? <>worth {money(cost)}</> : null) : count > 0 ? <>{kg.toLocaleString()} kg ({perBag} kg per {unit}) · worth {money(cost)}</> : `${perBag} kg per ${unit}`}
           </p>
         </Question>
       )}
@@ -183,8 +186,8 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave, mode = 'in'
 
       {step === 'done' && received && (
         <FlowDone
-          message={<><span className="font-semibold">{received.bags} {received.bags === 1 ? 'bag' : 'bags'}</span> of <span className="font-semibold">{received.name}</span> {out ? 'taken out' : 'added'}</>}
-          detail={`${received.kg.toLocaleString()} kg`}
+          message={<><span className="font-semibold">{received.bags} {unitWord(received.unit, received.bags)}</span> of <span className="font-semibold">{received.name}</span> {out ? 'taken out' : 'added'}</>}
+          detail={received.unit === 'kg' ? undefined : `${received.kg.toLocaleString()} kg`}
           again={out ? 'Take out more' : 'Add more feed'}
           onAgain={another}
           onClose={onClose}

@@ -20,15 +20,28 @@ export function activeHeadcount(batch: Pick<BatchItem, 'cowIds'>, activeIds: Set
 }
 
 /**
- * The feed product a ration ingredient draws from: a name match either way
- * round, or the product id. Falls back to the first product, as the ration
- * job always has (an open question with the owner: see the roadmap notes).
+ * The feed product a ration ingredient draws from: the product it is linked
+ * to, else the product with the same name or id, else the only product whose
+ * name contains the ingredient's (or the other way round). Nothing when there
+ * is no clear match: the screens then ask which feed it is, and no stock is
+ * taken from a guessed feed. Used by the daily job, the Feed page, Today and
+ * the batch screens, so they always agree.
  */
-export function matchIngredientProduct(ingredientName: string, products: FeedProductItem[]): FeedProductItem | undefined {
-  const ing = ingredientName.toLowerCase();
-  return products.find(p =>
-    p.name.toLowerCase().includes(ing) ||
-    ing.includes(p.name.toLowerCase()) ||
-    p.id.toLowerCase() === ing
-  ) || products[0];
+export function matchIngredientProduct(
+  ingredient: { name: string; productId?: string },
+  products: FeedProductItem[]
+): FeedProductItem | undefined {
+  if (ingredient.productId) {
+    const linked = products.find(p => p.id === ingredient.productId);
+    if (linked) return linked;
+  }
+  const n = ingredient.name.toLowerCase().trim();
+  if (!n) return undefined;
+  const exact = products.find(p => p.name.toLowerCase().trim() === n || p.id.toLowerCase() === n);
+  if (exact) return exact;
+  const partial = products.filter(p => {
+    const name = p.name.toLowerCase().trim();
+    return !!name && (name.includes(n) || n.includes(name));
+  });
+  return partial.length === 1 ? partial[0] : undefined;
 }

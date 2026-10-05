@@ -145,6 +145,19 @@ export class FeedRepository {
     return this.insertTransaction(tx, true, client);
   }
 
+  /**
+   * Replaces what is stored for one batch on one day: removes that day's
+   * estimate and any earlier record, then writes the new record rows.
+   */
+  async replaceDailyFeed(autoPrefix: string, dailyPrefix: string, rows: FeedStockTransaction[], client: PoolClient): Promise<void> {
+    await this.executeQuery(
+      'DELETE FROM feed_transactions WHERE left(reference_no, length($1)) = $1 OR left(reference_no, length($2)) = $2',
+      [autoPrefix, dailyPrefix],
+      client
+    );
+    for (const row of rows) await this.insertTransaction(row, false, client);
+  }
+
   private async insertTransaction(tx: FeedStockTransaction, skipIfExists: boolean, client?: PoolClient): Promise<boolean> {
     await this.ensureSchema();
     const sql = `

@@ -11,6 +11,7 @@ import { batchCattle, batchSummary, feedLines } from '@/lib/batch-stats';
 import { growth, weighPoints } from '@/lib/cattle-stats';
 import { exportToExcel } from '@/lib/excel-export';
 import IngredientFlow, { type IngredientChoice } from './IngredientFlow';
+import { amountText, kgPerUnit } from '@/lib/daily-feed';
 
 interface BatchDetailPageProps {
   batch: BatchItem;
@@ -227,13 +228,16 @@ export default function BatchDetailPage({ batch, stock, weightTracking, feedProd
                 <li key={l.name} className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="min-w-0">
                     <p className="text-xl font-semibold text-ink">{l.name}</p>
-                    <p className="text-base text-ink">{r1(l.kgPerHead)} kg for each animal each day</p>
+                    <p className="text-base text-ink">
+                      {l.product && summary.head > 0 ? <><span className="font-semibold">{amountText(l.product, (l.kgPerHead * summary.head) / kgPerUnit(l.product))}</span> a day for the batch · </> : null}
+                      {r1(l.kgPerHead)} kg for each animal
+                    </p>
                     <p className="text-base text-ink-muted">{riel(l.costPerHead)} each · {riel(l.costPerHead * summary.head)} for the group</p>
-                    {!l.inCatalogue && <p className="mt-1 text-base font-medium text-amber-800">Not in your feed list, so its stock is not counted. Tap the pencil and choose the feed it should be.</p>}
+                    {!l.inCatalogue && <p className="mt-1 text-base font-medium text-amber-800">Not in your feed list, so it is not taken from stock or recorded. Tap the pencil and choose the feed it should be.</p>}
                   </div>
                   {isActive && canEdit && (
                     <div className="flex shrink-0">
-                      <Button variant="ghost" size="icon" aria-label={`Change ${l.name}`} onClick={() => setIngredientDialog({ existing: { name: l.name, portionPerHead: l.kgPerHead, unitCost: l.unitCost } })}><Pencil /></Button>
+                      <Button variant="ghost" size="icon" aria-label={`Change ${l.name}`} onClick={() => setIngredientDialog({ existing: { name: l.name, productId: l.productId, portionPerHead: l.kgPerHead, unitCost: l.unitCost } })}><Pencil /></Button>
                       <Button variant="ghost" size="icon" aria-label={`Remove ${l.name}`} onClick={() => askRemoveIngredient(l.name)}><Trash2 className="text-rose-700" /></Button>
                     </div>
                   )}

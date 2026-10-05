@@ -10,12 +10,14 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { ERPLivestockData, FeedStockTransaction, FeedProductItem } from './types';
+import { ERPLivestockData, FeedStockTransaction } from './types';
 import { feedRepository } from '../repositories/feed.repository';
 import { batchService } from '../services/batch.service';
 import { stockService } from '../services/stock.service';
 import { activeCattleIds, activeHeadcount, matchIngredientProduct } from './feed-math';
+import { addDays, autoRefPrefix, farmToday, kgPerUnit, parseFeedRef } from './daily-feed';
 
+/** How far back the job fills in days it missed (for example while the server was off). */
 const MAX_CATCH_UP_DAYS = 60;
 
 /** Loads what the ration job needs and applies any missing daily deductions. Safe to call repeatedly and from several processes. */
@@ -29,98 +31,92 @@ export async function runDailyFeedStockOuts(): Promise<number> {
   return processDailyFeedStockOuts({ stock, batches, feedProducts, feedTransactions } as ERPLivestockData);
 }
 
-export async function processDailyFeedStockOuts(data: ERPLivestockData): Promise<number> {
+/**
+ * Writes the planned feed as an estimate for each day a batch was fed but
+ * nobody recorded what it ate. Rules:
+ * - a day the farm recorded (a DAILY- record) is never estimated;
+ * - it starts the day after the batch's last record or estimate, or today for
+ *   a batch that has none, so adding a feed to a plan never charges past days;
+ * - a plan feed that is not clearly one product in the feed list is skipped
+ *   (the screens ask which feed it is) instead of using a guessed feed;
+ * - days are Phnom Penh calendar days.
+ */
+export async function processDailyFeedStockOuts(data: ERPLivestockData, now: Date = new Date()): Promise<number> {
   const activeBatches = (data.batches || []).filter(b => b.status === 'Active');
   const activeIds = activeCattleIds(data.stock || []);
   const products = data.feedProducts || [];
-  const existingTransactions = data.feedTransactions || [];
+  const existing = data.feedTransactions || [];
+  if (activeBatches.length === 0 || products.length === 0) return 0;
 
-  if (activeBatches.length === 0 || products.length === 0) {
-    return 0;
+  const today = farmToday(now);
+  const earliest = addDays(today, -MAX_CATCH_UP_DAYS);
+  // Per batch: the last day that has a record or an estimate, and the days the farm recorded.
+  const lastDay = new Map<string, string>();
+  const recordedDays = new Set<string>();
+  const existingRefs = new Set<string>();
+  for (const t of existing) {
+    if (t.referenceNo) existingRefs.add(t.referenceNo);
+    const ref = parseFeedRef(t.referenceNo);
+    if (!ref) continue;
+    if (ref.day > (lastDay.get(ref.batchId) ?? '')) lastDay.set(ref.batchId, ref.day);
+    if (ref.kind === 'recorded') recordedDays.add(`${ref.batchId}|${ref.day}`);
   }
 
-  const existingRefNos = new Set(
-    existingTransactions
-      .map(t => t.referenceNo)
-      .filter(Boolean) as string[]
-  );
-
   let newTxCount = 0;
-  const today = new Date();
-
   for (const batch of activeBatches) {
     if (!batch.feedingProgram || batch.feedingProgram.status !== 'Active') continue;
-    // Only cattle still on the farm eat: sold or dead cattle can stay listed
-    // on a batch for its history.
+    // Only cattle still on the farm eat: sold or dead cattle can stay listed on a batch for its history.
     const headcount = activeHeadcount(batch, activeIds);
     if (headcount <= 0) continue;
 
-    const farmLocation = batch.farmLocation || 'Farm';
-    const earliest = new Date(today.getTime() - MAX_CATCH_UP_DAYS * 86400000);
-    const requested = batch.startDate ? new Date(batch.startDate) : new Date(today.getTime() - 7 * 86400000);
-    const startDate = requested < earliest ? earliest : requested;
+    const last = lastDay.get(batch.id);
+    let day = last ? addDays(last, 1) : today;
+    if (day < earliest) day = earliest;
+    const startDay = (batch.startDate || '').slice(0, 10);
+    if (startDay && day < startDay) day = startDay;
 
-    // Generate daily stock out records from start date up to today (max 60 days catch-up)
-    const curDate = new Date(startDate);
-
-    while (curDate <= today) {
-      const dateStr = curDate.toISOString().split('T')[0];
-      const ingredients = batch.feedingProgram.ingredients || [];
-
-      for (let idx = 0; idx < ingredients.length; idx++) {
-        const ing = ingredients[idx];
+    for (; day <= today; day = addDays(day, 1)) {
+      if (recordedDays.has(`${batch.id}|${day}`)) continue;
+      for (const ing of batch.feedingProgram.ingredients || []) {
         const portionKg = ing.portionPerHead || 0;
         if (portionKg <= 0) continue;
+        const product = matchIngredientProduct(ing, products);
+        if (!product) continue;
 
-        // Match ingredient to feed product catalog
-        const matchedProd = matchIngredientProduct(ing.name, products);
-        if (!matchedProd) continue;
-
-        const refNo = `AUTO-RATION-${batch.id}-${dateStr}-${idx}`;
-
-        if (!existingRefNos.has(refNo)) {
-          const totalKg = portionKg * headcount;
-          const weightPerUnit = matchedProd.weightPerUnit || 30;
-          const totalBags = parseFloat((totalKg / weightPerUnit).toFixed(2));
-          const unitCost = matchedProd.unitCost || 0;
-          const totalCost = parseFloat((totalKg * unitCost).toFixed(2));
-
-          const autoTx: FeedStockTransaction = {
-            id: `TX-AUTO-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            date: dateStr,
-            productId: matchedProd.id,
-            productName: matchedProd.name,
-            type: 'STOCK_OUT',
-            quantityBags: totalBags,
-            quantityKg: totalKg,
-            unitCost,
-            totalCost,
-            sourceFarm: farmLocation,
-            targetFarm: `Daily Feed Ration (${batch.name})`,
-            referenceNo: refNo,
-            recordedBy: 'Daily Automated Feed Cron',
-            notes: `Automated daily feed ration deduction (${portionKg} kg/head/day x ${headcount} head) for ${batch.name}`,
-            createdAt: new Date().toISOString()
-          };
-
-          try {
-            // false = another run already wrote this day's row (unique index).
-            if (await feedRepository.addTransactionIfNew(autoTx)) newTxCount++;
-            existingRefNos.add(refNo);
-          } catch (err) {
-            console.error('[processDailyFeedStockOuts] Failed to record auto tx:', err);
-          }
+        const refNo = `${autoRefPrefix(batch.id, day)}${product.id}`;
+        if (existingRefs.has(refNo)) continue;
+        const totalKg = portionKg * headcount;
+        const unitCost = product.unitCost || 0;
+        const autoTx: FeedStockTransaction = {
+          id: `TX-AUTO-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+          date: day,
+          productId: product.id,
+          productName: product.name,
+          type: 'STOCK_OUT',
+          quantityBags: parseFloat((totalKg / kgPerUnit(product)).toFixed(2)),
+          quantityKg: totalKg,
+          unitCost,
+          totalCost: parseFloat((totalKg * unitCost).toFixed(2)),
+          sourceFarm: batch.farmLocation || 'Farm',
+          targetFarm: `Daily Feed Ration (${batch.name})`,
+          referenceNo: refNo,
+          recordedBy: 'Daily Automated Feed Cron',
+          notes: `Estimated from the feeding plan (${portionKg} kg/head/day x ${headcount} head) for ${batch.name}; nobody recorded this day`,
+          createdAt: new Date().toISOString()
+        };
+        try {
+          // false = another run already wrote this row (unique index).
+          if (await feedRepository.addTransactionIfNew(autoTx)) newTxCount++;
+          existingRefs.add(refNo);
+        } catch (err) {
+          console.error('[processDailyFeedStockOuts] Failed to record auto tx:', err);
         }
       }
-
-      // Increment 1 day
-      curDate.setDate(curDate.getDate() + 1);
     }
   }
 
   if (newTxCount > 0) {
-    console.log(`[Daily Feed Cron] Successfully generated ${newTxCount} automated daily feed STOCK_OUT transactions.`);
+    console.log(`[Daily Feed Cron] Wrote ${newTxCount} estimated daily feed STOCK_OUT transactions.`);
   }
-
   return newTxCount;
 }

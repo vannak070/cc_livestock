@@ -1,13 +1,15 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { ArrowDownToLine, Download, Pencil, Plus, Search, Settings, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { ArrowDownToLine, Download, Pencil, Plus, Search, Settings, SlidersHorizontal, Trash2, Wheat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import type { ERPLivestockData, FarmItem, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import { format2DecimalsWithCommas, getErrorMessage, hasPermission } from '@/lib/utils';
 import { feedStockLevels } from '@/lib/attention';
+import { addDays, amountText, dailyFeedReport, farmToday, feedUnit, round1, unitWord, type FeedDayStatus } from '@/lib/daily-feed';
+import { dayLabel } from './DailyFeedFlow';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import FeedProductFlow from './FeedProductFlow';
@@ -21,11 +23,13 @@ interface FeedPageProps {
   onAddTransaction: (tx: FeedStockTransaction) => Promise<void>;
   /** Opens the guided Feed in dialog. */
   onOpenFeedIn: () => void;
+  /** Opens the day's feed record, optionally for a farm and day; only for people who may record feed. */
+  onRecordDay?: (farm?: string, day?: string) => void;
   currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 
-type Tab = 'stock' | 'moves' | 'products';
+type Tab = 'daily' | 'stock' | 'moves' | 'products';
 type Move = 'ALL' | 'STOCK_IN' | 'STOCK_OUT';
 
 const PAGE = 15;
@@ -35,6 +39,14 @@ const riel = (n: number) => `${Math.round(n).toLocaleString()} ៛`;
 const num = (n: number) => (Math.round(n * 10) / 10).toLocaleString();
 const day = (d: string | null | undefined) => (d ? d.slice(0, 10) : '—');
 const isPlace = (s?: string) => !!s && !s.startsWith('Daily Feed') && s !== 'Supplier' && s !== 'Central Warehouse';
+
+const STATUS_TEXT: Record<FeedDayStatus, string> = { recorded: 'Recorded', partly: 'Partly recorded', estimated: 'Estimated', missing: 'Not recorded' };
+const STATUS_STYLE: Record<FeedDayStatus, string> = {
+  recorded: 'bg-emerald-100 text-emerald-800',
+  partly: 'bg-amber-100 text-amber-900',
+  estimated: 'bg-amber-100 text-amber-900',
+  missing: 'bg-rose-100 text-rose-800',
+};
 
 function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'warn' | 'bad' }) {
   const style = tone === 'bad' ? 'border-rose-300 bg-rose-50' : tone === 'warn' ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-white';
@@ -47,8 +59,9 @@ function Tile({ label, value, sub, tone }: { label: string; value: string; sub?:
   );
 }
 
-export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTransaction, onOpenFeedIn, currentUser, farms = [] }: FeedPageProps) {
+export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTransaction, onOpenFeedIn, onRecordDay, currentUser, farms = [] }: FeedPageProps) {
   const [tab, setTab] = useState<Tab>('stock');
+  const [days, setDays] = useState<7 | 30>(7);
   const [showFilters, setShowFilters] = useState(false);
   const [farm, setFarm] = useState('');
   const [category, setCategory] = useState('');
@@ -62,7 +75,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
   const [useOpen, setUseOpen] = useState(false);
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger'; confirmText: string; onConfirm?: () => void }>(null);
 
-  useOnChange(JSON.stringify([tab, farm, category, move, query, startDate, endDate]), () => setVisible(PAGE));
+  useOnChange(JSON.stringify([tab, farm, category, move, query, startDate, endDate, days]), () => setVisible(PAGE));
 
   const canManage = hasPermission(currentUser, 'feed_manage');
   const showFarmFilter = !currentUser?.farmLocation && farms.length > 0;
@@ -102,6 +115,8 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
   const moves = useMemo(() => {
     const q = norm(query);
     return scopedTx
+      // A day recorded as "nothing fed" is stored as a 0 row; it says nothing in the list.
+      .filter(t => (t.quantityBags || 0) !== 0 || (t.quantityKg || 0) !== 0)
       .filter(t => move === 'ALL' || t.type === move)
       .filter(t => !category || productById.get(t.productId)?.category === category)
       .filter(t => !q || norm(t.productName).includes(q) || norm(t.referenceNo).includes(q) || norm(t.notes).includes(q))
@@ -111,6 +126,34 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
       })
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? '') || (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
   }, [scopedTx, move, category, query, startDate, endDate, productById]);
+
+  // One row per farm per day: recorded by the farm, estimated from the plan, or missing.
+  const todayDay = farmToday();
+  const report = useMemo(
+    () => dailyFeedReport({ batches: data.batches || [], stock: data.stock || [], feedProducts: products, feedTransactions: transactions, healthLogs: data.healthLogs || [] }, addDays(todayDay, -(days - 1)), todayDay, effectiveFarm || undefined),
+    [data.batches, data.stock, data.healthLogs, products, transactions, days, todayDay, effectiveFarm]
+  );
+  const reportRecorded = report.filter(r => r.status === 'recorded').length;
+  const reportCost = report.reduce((s, r) => s + r.cost, 0);
+
+  const exportReport = () => exportToExcel({
+    filename: `CC_Livestock_Daily_Feed_${todayDay}.xlsx`,
+    sheetName: 'Daily Feed',
+    data: report.map(r => ({ ...r, feed: r.items.map(i => `${amountText({ unit: i.unit }, i.units)} ${i.productName}`).join('; '), statusText: STATUS_TEXT[r.status] })),
+    columns: [
+      { header: 'Day', key: 'day' },
+      { header: 'Farm', key: 'farm' },
+      { header: 'Status', key: 'statusText' },
+      { header: 'Recorded by', key: 'recordedBy' },
+      { header: 'Head now', key: 'head' },
+      { header: 'Bulls', key: 'bulls' },
+      { header: 'Cows', key: 'cows' },
+      { header: 'Feed', key: 'feed' },
+      { header: 'Kg', key: 'kg', formatter: (v) => String(round1(Number(v) || 0)) },
+      { header: 'Cost (៛)', key: 'cost', formatter: (v) => format2DecimalsWithCommas(v) },
+      { header: 'Treatments', key: 'treatments' },
+    ],
+  });
 
   const productRows = useMemo(() => {
     const q = norm(query);
@@ -154,6 +197,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'stock', label: 'Stock' },
+    { key: 'daily', label: 'Daily' },
     { key: 'moves', label: 'Movements' },
     { key: 'products', label: 'Products' },
   ];
@@ -165,9 +209,10 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
           <h2 className="text-2xl font-semibold text-ink">Feed</h2>
           <p className="text-base text-ink-muted">What is in store and how long it will last.</p>
         </div>
-        {canManage && (
+        {(canManage || onRecordDay) && (
           <div className="flex flex-wrap gap-2">
-            <Button size="lg" onClick={onOpenFeedIn}><ArrowDownToLine /> Feed in</Button>
+            {onRecordDay && <Button size="lg" onClick={() => onRecordDay()}><Wheat /> Record today&apos;s feed</Button>}
+            {canManage && <Button size="lg" variant={onRecordDay ? 'outline' : 'default'} onClick={onOpenFeedIn}><ArrowDownToLine /> Feed in</Button>}
           </div>
         )}
       </div>
@@ -187,7 +232,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4">
           <p className="text-lg text-ink">
             <span className="font-semibold">Running low: </span>
-            {lowItems.slice(0, 3).map(l => `${l.productName} (${num(l.bags)} bags)`).join(', ')}{lowItems.length > 3 ? ` and ${lowItems.length - 3} more` : ''}
+            {lowItems.slice(0, 3).map(l => `${l.productName} (${amountText(productById.get(l.productId), l.bags)})`).join(', ')}{lowItems.length > 3 ? ` and ${lowItems.length - 3} more` : ''}
           </p>
           {canManage && <Button onClick={onOpenFeedIn}><ArrowDownToLine /> Feed in</Button>}
         </div>
@@ -259,10 +304,60 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
         </div>
       )}
 
-      {tab !== 'stock' && (
+      {(tab === 'moves' || tab === 'products') && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
           <Input value={query} onChange={e => setQuery(e.target.value)} placeholder={tab === 'moves' ? 'Search feed, invoice or note' : 'Search feed'} aria-label="Search" className="h-14 pl-11 text-lg" />
+        </div>
+      )}
+
+      {tab === 'daily' && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div role="tablist" aria-label="Days" className="flex rounded-xl bg-slate-100 p-1">
+              {([7, 30] as const).map(n => (
+                <button key={n} role="tab" type="button" aria-selected={days === n} onClick={() => setDays(n)} className={`min-h-11 rounded-lg px-4 text-base font-medium ${days === n ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>Last {n} days</button>
+              ))}
+            </div>
+            <Button variant="outline" className="ml-auto" onClick={exportReport} disabled={report.length === 0}><Download /> Download Excel</Button>
+          </div>
+          {report.length === 0 ? (
+            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No batch is being fed{effectiveFarm ? ` on ${effectiveFarm}` : ''}. Turn feeding on in a batch&apos;s Feeding tab.</p>
+          ) : (
+            <>
+              <p className="text-base text-ink-muted">{reportRecorded} of {report.length} farm days written down · feed cost {riel(reportCost)}</p>
+              <ul className="space-y-3">
+                {report.slice(0, visible).map(r => (
+                  <li key={`${r.farm}|${r.day}`} className={`rounded-2xl border-2 bg-white p-4 ${r.status === 'missing' ? 'border-rose-200' : r.status === 'recorded' ? 'border-slate-200' : 'border-amber-200'}`}>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xl font-semibold text-ink">{dayLabel(r.day)}{r.day === todayDay ? ' (today)' : ''}</p>
+                        <p className="text-base text-ink-muted">{r.farm} · {r.head} head now{r.bulls || r.cows ? ` (${r.bulls} bulls, ${r.cows} cows)` : ''}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${STATUS_STYLE[r.status]}`}>{STATUS_TEXT[r.status]}</span>
+                    </div>
+                    {r.items.length > 0 ? (
+                      <p className="mt-2 text-lg text-ink">{r.items.map(i => `${amountText({ unit: i.unit }, i.units)} ${i.productName}`).join(' · ')}</p>
+                    ) : (
+                      <p className="mt-2 text-lg text-ink-muted">{r.status === 'missing' ? 'Nothing written down for this day.' : 'Nothing fed.'}</p>
+                    )}
+                    <p className="text-base text-ink-muted">
+                      {[r.cost > 0 ? `Cost ${riel(r.cost)}` : '', r.recordedBy && r.status !== 'estimated' ? `by ${r.recordedBy}` : '', r.treatments > 0 ? `${r.treatments} ${r.treatments === 1 ? 'treatment' : 'treatments'}` : ''].filter(Boolean).join(' · ')}
+                    </p>
+                    {onRecordDay && (
+                      <div className="mt-3">
+                        <Button size="sm" variant={r.status === 'recorded' ? 'ghost' : 'default'} onClick={() => onRecordDay(r.farm, r.day)}>
+                          <Wheat /> {r.status === 'recorded' ? 'Change' : 'Record this day'}
+                        </Button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {report.length > visible && <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>Show more ({report.length - visible} left)</Button></div>}
+              <p className="text-base text-ink-muted">Estimated days use the feeding plan because nobody wrote them down. Head counts are today&apos;s numbers.</p>
+            </>
+          )}
         </div>
       )}
 
@@ -282,8 +377,8 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
                     </div>
                     <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${l.isLow ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-800'}`}>{l.isLow ? 'Running low' : 'Enough'}</span>
                   </div>
-                  <p className="mt-3 text-3xl font-semibold text-ink">{num(l.bags)} <span className="text-lg font-medium text-ink-muted">bags</span></p>
-                  <p className="text-base text-ink-muted">{num(l.kg)} kg · worth {riel(l.kg * (p?.unitCost ?? 0))}</p>
+                  <p className="mt-3 text-3xl font-semibold text-ink">{num(l.bags)} <span className="text-lg font-medium text-ink-muted">{unitWord(feedUnit(p), round1(l.bags))}</span></p>
+                  <p className="text-base text-ink-muted">{feedUnit(p) === 'kg' ? '' : `${num(l.kg)} kg · `}worth {riel(l.kg * (p?.unitCost ?? 0))}</p>
                   <p className="mt-2 border-t border-slate-100 pt-2 text-base text-ink">
                     {l.daysLeft !== null ? `Lasts about ${l.daysLeft} days (${num(l.dailyUseKg)} kg a day)` : 'Not used by any feeding program'}
                   </p>
@@ -313,8 +408,8 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
                       {t.notes && <p className="mt-1 text-base text-ink">{t.notes}</p>}
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className={`text-lg font-semibold ${incoming ? 'text-emerald-700' : 'text-ink'}`}>{incoming ? '+' : '−'}{num(t.quantityBags)} bags</p>
-                      <p className="text-base text-ink-muted">{num(t.quantityKg)} kg</p>
+                      <p className={`text-lg font-semibold ${incoming ? 'text-emerald-700' : 'text-ink'}`}>{incoming ? '+' : '−'}{amountText(productById.get(t.productId), t.quantityBags)}</p>
+                      {feedUnit(productById.get(t.productId)) !== 'kg' && <p className="text-base text-ink-muted">{num(t.quantityKg)} kg</p>}
                     </div>
                   </li>
                 );
@@ -344,9 +439,9 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
                 <li key={p.id} className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="min-w-0">
                     <p className="text-xl font-semibold text-ink">{p.name}</p>
-                    <p className="text-base text-ink-muted">{[p.category, `${p.weightPerUnit} kg per ${p.unit}`].filter(Boolean).join(' · ')}</p>
-                    <p className="text-base text-ink">{riel(p.costPerBag || p.unitCost * p.weightPerUnit)} a bag · {riel(p.unitCost)} a kg</p>
-                    <p className="text-base text-ink-muted">Warn below {p.minThresholdBags || 50} bags{p.supplier ? ` · ${p.supplier}` : ''}</p>
+                    <p className="text-base text-ink-muted">{[p.category, feedUnit(p) === 'kg' ? 'counted in kg' : `${p.weightPerUnit} kg per ${feedUnit(p)}`].filter(Boolean).join(' · ')}</p>
+                    <p className="text-base text-ink">{feedUnit(p) === 'kg' ? `${riel(p.unitCost)} a kg` : `${riel(p.costPerBag || p.unitCost * p.weightPerUnit)} a ${feedUnit(p)} · ${riel(p.unitCost)} a kg`}</p>
+                    <p className="text-base text-ink-muted">Warn below {amountText(p, p.minThresholdBags || 50)}{p.supplier ? ` · ${p.supplier}` : ''}</p>
                   </div>
                   {canManage && (
                     <div className="flex shrink-0">

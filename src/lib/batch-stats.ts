@@ -1,6 +1,7 @@
 import type { BatchItem, FeedProductItem, FeedingProgramConfig } from './types';
 import type { StockItem, WeightRecord } from './xlsx-parser';
 import { growth, weighPoints } from './cattle-stats';
+import { matchIngredientProduct } from './feed-math';
 
 /**
  * Numbers for the batch (feeding group) screens, kept pure so the screens only
@@ -52,13 +53,7 @@ export function estimateFromSamples(cattle: Pick<StockItem, 'id' | 'weight'>[], 
 
 /** The catalogue feed an ingredient refers to: by id, then by name either way round. No fallback. */
 export function matchFeedProduct(name: string, products: FeedProductItem[], productId?: string): FeedProductItem | null {
-  if (productId) {
-    const byId = products.find(p => p.id === productId);
-    if (byId) return byId;
-  }
-  const n = name.toLowerCase().trim();
-  if (!n) return null;
-  return products.find(p => p.id.toLowerCase() === n || p.name.toLowerCase() === n || p.name.toLowerCase().includes(n) || n.includes(p.name.toLowerCase())) ?? null;
+  return matchIngredientProduct({ name, productId }, products) ?? null;
 }
 
 export interface FeedLine {
@@ -69,14 +64,17 @@ export interface FeedLine {
   costPerHead: number;
   /** False when the ingredient is not in the feed list, so stock cannot be deducted for it. */
   inCatalogue: boolean;
+  /** The feed list entry it is taken from, when there is one. */
+  product?: FeedProductItem;
+  productId?: string;
 }
 
 export function feedLines(program: FeedingProgramConfig | undefined, products: FeedProductItem[]): FeedLine[] {
   return (program?.ingredients ?? []).map(ing => {
-    const p = matchFeedProduct(ing.name, products);
+    const p = matchFeedProduct(ing.name, products, ing.productId);
     const unitCost = p ? p.unitCost : ing.unitCost || 0;
     const kgPerHead = ing.portionPerHead || 0;
-    return { name: ing.name, kgPerHead, unitCost, costPerHead: kgPerHead * unitCost, inCatalogue: !!p };
+    return { name: ing.name, kgPerHead, unitCost, costPerHead: kgPerHead * unitCost, inCatalogue: !!p, product: p ?? undefined, productId: ing.productId };
   });
 }
 

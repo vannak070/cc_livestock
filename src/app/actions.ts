@@ -43,6 +43,8 @@ import { StockItem, WeightRecord, SalesRecord } from '@/lib/xlsx-parser';
 import { MasterSetup, BatchItem, HealthLogItem, FeedProductItem, FeedStockTransaction, ProposalPlanParams } from '@/lib/types';
 import { runAction } from '@/lib/run-action';
 import { authService } from '@/services/auth.service';
+import { dailyFeedService } from '@/services/daily-feed.service';
+import type { DailyFeedInput } from '@/lib/daily-feed';
 import { startSession, endSession } from '@/lib/session';
 import { scopeDataForActor } from '@/lib/data-scope';
 import { scopeFor } from '@/lib/farm-scope';
@@ -235,6 +237,11 @@ export async function deleteFeedProductAction(productId: string) {
 
 export async function addFeedTransactionAction(tx: FeedStockTransaction) {
   return runAction('Failed to add feed transaction', ['feed_manage'], () => addFeedTransaction(tx));
+}
+
+// A farm account records its own farm; the office can record any farm for them.
+export async function recordDailyFeedAction(input: DailyFeedInput) {
+  return runAction('Failed to save the day\'s feed', ['feed_record'], actor => dailyFeedService.record(actor, input));
 }
 
 // ─── Settings & planning ────────────────────────────────────────────────────

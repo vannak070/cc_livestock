@@ -21,7 +21,7 @@ describe.skipIf(!enabled)('schema migrations (PostgreSQL)', () => {
     const cols = (await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'")).rows.map(r => r.column_name);
     expect(cols).toEqual(expect.arrayContaining(['farm_location', 'permissions', 'pin_hash']));
     const ledger = (await pool.query('SELECT version FROM schema_migrations ORDER BY version')).rows.map(r => r.version);
-    expect(ledger).toEqual(['001', '002', '003', '004', '005']);
+    expect(ledger).toEqual(['001', '002', '003', '004', '005', '006']);
   });
 
   it('is idempotent: a second run applies nothing', async () => {
@@ -40,6 +40,24 @@ describe.skipIf(!enabled)('schema migrations (PostgreSQL)', () => {
     expect('locations' in after).toBe(false);
     expect(after.breeds).toEqual(['B']);
     await pool.query("DELETE FROM stock WHERE id = 'C-005'");
+  });
+
+  it('006 gives feed_record to feed managers, farm owners and farm staff, and to those stored roles', async () => {
+    await pool.query("DELETE FROM users");
+    await pool.query(`INSERT INTO users (id, name, email, role, status, password, permissions) VALUES
+      ('o', 'O', 'o@x', 'Farm Owner', 'Active', 'x', '["feed_view"]'),
+      ('s', 'S', 's@x', 'Farm Staff', 'Active', 'x', '["feed_view"]'),
+      ('m', 'M', 'm@x', 'Management', 'Active', 'x', '["feed_view"]'),
+      ('c', 'C', 'c@x', 'Company Admin', 'Active', 'x', '["feed_manage"]'),
+      ('e', 'E', 'e@x', 'Farm Staff', 'Active', 'x', '[]')`);
+    const roles = [{ id: 'R1', name: 'Farm Staff', permissions: ['feed_view'] }, { id: 'R2', name: 'Management', permissions: ['feed_view'] }, { id: 'R3', name: 'Company Admin', permissions: ['feed_manage'] }];
+    await pool.query("INSERT INTO master_settings (key, data) VALUES ('master_setup', $1) ON CONFLICT (key) DO UPDATE SET data = $1", [JSON.stringify({ roles })]);
+    await pool.query(fs.readFileSync(path.join(__dirname, 'migrations/sql/006_feed_record_permission.sql'), 'utf8'));
+    const perms = Object.fromEntries((await pool.query('SELECT id, permissions FROM users')).rows.map(r => [r.id, r.permissions]));
+    expect(perms).toEqual({ o: ['feed_view', 'feed_record'], s: ['feed_view', 'feed_record'], m: ['feed_view'], c: ['feed_manage', 'feed_record'], e: [] });
+    const after = (await pool.query("SELECT data FROM master_settings WHERE key = 'master_setup'")).rows[0].data;
+    expect(after.roles.map((r: { permissions: string[] }) => r.permissions)).toEqual([['feed_view', 'feed_record'], ['feed_view'], ['feed_manage', 'feed_record']]);
+    await pool.query("DELETE FROM users");
   });
 
   it('enforces one automatic ration deduction per reference number', async () => {

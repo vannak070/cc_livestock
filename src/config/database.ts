@@ -73,7 +73,8 @@ export async function connectWithRetry(maxRetries = 10, initialDelayMs = 1000): 
  */
 export function isConnectFailure(error: unknown): boolean {
   const e = error as { message?: string; code?: string } | null;
-  return !!e && (e.code === 'ECONNREFUSED' || /timeout exceeded when trying to connect/i.test(e.message ?? ''));
+  // pg words a slow connect two ways, depending on whether the socket opened before the time ran out.
+  return !!e && (e.code === 'ECONNREFUSED' || /timeout exceeded when trying to connect|connection terminated due to connection timeout/i.test(e.message ?? ''));
 }
 
 const RETRY_DELAY_MS = 500;

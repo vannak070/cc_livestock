@@ -24,6 +24,7 @@ import {
   saveFeedProductAction,
   deleteFeedProductAction,
   addFeedTransactionAction,
+  recordDailyFeedAction,
   saveProposalPlanAction,
   deleteProposalPlanAction,
   logoutAction
@@ -45,6 +46,8 @@ import { useOnChange } from '@/hooks/useOnChange';
 import CattleList from './features/cattle/CattleList';
 import CattleDetailPage from './features/cattle/CattleDetailPage';
 import FeedInFlow from './features/feed/FeedInFlow';
+import DailyFeedFlow from './features/feed/DailyFeedFlow';
+import type { DailyFeedInput } from '@/lib/daily-feed';
 import TreatFlow from './features/health/TreatFlow';
 import SellFlow from './features/sales/SellFlow';
 import WeighFlow from './features/weigh/WeighFlow';
@@ -56,7 +59,7 @@ import { hasPermission } from '@/lib/utils';
 import { canOpenPeople } from '@/lib/user-admin';
 import { PermissionKey } from '@/types/settings.types';
 import { sickCattle, cattleWithDiseaseHistory } from '@/lib/attention';
-import { Scale, Syringe, PlusCircle, DollarSign, Package } from 'lucide-react';
+import { Scale, Syringe, PlusCircle, DollarSign, Package, Wheat } from 'lucide-react';
 
 interface DashboardContainerProps {
   initialData: ERPLivestockData;
@@ -75,6 +78,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   const [isQuickEntryOpen, setIsQuickEntryOpen] = useState(false);
   const [quickEntryTab, setQuickEntryTab] = useState<'add' | 'weight' | 'sale' | 'treat' | 'feed'>('add');
   const [preselectedCowId, setPreselectedCowId] = useState<string | null>(null);
+  // The day's feed dialog: optionally for one farm (the office helping a farm) and/or a missed day.
+  const [dailyFeed, setDailyFeed] = useState<null | { farm?: string; day?: string }>(null);
   // Several animals chosen up front for Treat, for example a whole batch.
   const [treatCowIds, setTreatCowIds] = useState<string[] | undefined>(undefined);
 
@@ -343,6 +348,17 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     }
   });
 
+  const recordDailyFeedMutation = useMutation({
+    mutationFn: async (input: DailyFeedInput) => {
+      const res = await recordDailyFeedAction(input);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+    }
+  });
+
   // Active cows list & health alert counters (strictly scoped to current user's farm)
   const activeCows = dbData.stock.filter(c => c.status.toLowerCase() === 'active');
   const healthAlertsCount = sickCattle(dbData.stock).length;
@@ -359,6 +375,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   // What this person may record, shown on Today and behind the phone's Record
   // button. Each opens a guided dialog.
   const recordActions: RecordAction[] = ([
+    hasPermission(currentUser, 'feed_record') && { key: 'feed-day', label: 'Feed today', icon: <Wheat className="h-7 w-7" />, onClick: () => setDailyFeed({}) },
     hasPermission(currentUser, 'weight_record') && { key: 'weigh', label: 'Weigh', icon: <Scale className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('weight') },
     hasPermission(currentUser, 'health_record') && { key: 'treat', label: 'Treat', icon: <Syringe className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('treat') },
     hasPermission(currentUser, 'stock_create') && { key: 'add', label: 'Add cattle', icon: <PlusCircle className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('add') },
@@ -415,6 +432,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           currentUser={currentUser}
           recordActions={recordActions}
           onNavigate={setActiveTab}
+          onRecordFeed={hasPermission(currentUser, 'feed_record') ? farm => setDailyFeed({ farm }) : undefined}
         />
       )}
 
@@ -503,6 +521,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
             await addFeedTransactionMutation.mutateAsync(tx);
           }}
           onOpenFeedIn={() => handleOpenQuickEntry('feed')}
+          onRecordDay={hasPermission(currentUser, 'feed_record') ? (farm, day) => setDailyFeed({ farm, day }) : undefined}
           currentUser={currentUser}
           farms={dbData.settings?.farms ?? []}
         />
@@ -587,6 +606,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           currentUser={currentUser}
           stock={dbData.stock}
           batches={dbData.batches}
+          onRecordFeed={hasPermission(currentUser, 'feed_record') ? farm => setDailyFeed({ farm }) : undefined}
         />
       )}
 
@@ -621,6 +641,20 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         currentUser={currentUser}
         onSave={async tx => {
           await addFeedTransactionMutation.mutateAsync(tx);
+        }}
+      />
+      <DailyFeedFlow
+        isOpen={!!dailyFeed}
+        onClose={() => setDailyFeed(null)}
+        batches={dbData.batches}
+        stock={dbData.stock}
+        products={dbData.feedProducts || []}
+        transactions={dbData.feedTransactions || []}
+        currentUser={currentUser}
+        presetFarm={dailyFeed?.farm}
+        presetDay={dailyFeed?.day}
+        onSave={async input => {
+          await recordDailyFeedMutation.mutateAsync(input);
         }}
       />
       <TreatFlow

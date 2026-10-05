@@ -4,9 +4,11 @@ import React, { useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { FeedProductItem } from '@/lib/types';
+import { matchIngredientProduct } from '@/lib/feed-math';
+import { feedUnit, kgPerUnit, round1, unitWord } from '@/lib/daily-feed';
 import { FlowFooter, FlowShell, NUM, Question, RowButton, money } from '../flow/FlowShell';
 
-export interface IngredientChoice { name: string; portionPerHead: number; unitCost: number }
+export interface IngredientChoice { name: string; productId?: string; portionPerHead: number; unitCost: number }
 
 interface IngredientFlowProps {
   isOpen: boolean;
@@ -16,7 +18,7 @@ interface IngredientFlowProps {
   /** Feeds the batch already uses, hidden from the list when adding. */
   usedNames?: string[];
   /** The ingredient being changed; leave empty to add one. */
-  existing?: { name: string; portionPerHead: number; unitCost: number } | null;
+  existing?: IngredientChoice | null;
   /** False when the ingredient being changed is not in the feed list; the person then picks a feed to replace it. */
   existingInCatalogue?: boolean;
   headCount: number;
@@ -39,22 +41,30 @@ function IngredientBody({ onClose, products, usedNames = [], existing, existingI
   const used = new Set(usedNames.map(n => n.toLowerCase()));
   const options = products.filter(p => p.status !== 'Inactive' && !used.has(p.name.toLowerCase()));
   const [step, setStep] = useState<Step>(keepName ? 'amount' : 'pick');
+  // The feed an existing plan line is linked to (or clearly matches by name).
+  const linked = keepName ? matchIngredientProduct(existing!, products) ?? null : null;
   const [product, setProduct] = useState<FeedProductItem | null>(null);
-  const [kg, setKg] = useState(existing ? String(existing.portionPerHead) : '');
+  const chosen = keepName ? linked : product;
+  // The plan is entered the way farms count it: bags (or kg of grass) a day for the whole batch.
+  const perBatch = headCount > 0;
+  const toUnits = (kgPerHead: number, p: FeedProductItem | null) => round1((kgPerHead * headCount) / kgPerUnit(p));
+  const [amount, setAmount] = useState(existing ? String(perBatch ? toUnits(existing.portionPerHead, linked) : existing.portionPerHead) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const name = keepName ? existing!.name : product?.name ?? '';
-  const unitCost = keepName ? existing!.unitCost : product?.unitCost ?? 0;
-  const kgNum = Number(kg);
+  const unitCost = chosen ? chosen.unitCost : existing?.unitCost ?? 0;
+  const unit = feedUnit(chosen);
+  const amountNum = Number(amount);
+  const kgNum = perBatch ? (amountNum * kgPerUnit(chosen)) / headCount : amountNum;
   const steps: Step[] = keepName ? ['amount'] : ['pick', 'amount'];
 
   const save = async () => {
-    if (!(kgNum > 0)) { setError('Type how many kg each animal gets in a day.'); return; }
+    if (!(amountNum > 0)) { setError(perBatch ? `Type how many ${unitWord(unit, 2)} the batch gets in a day.` : 'Type how many kg each animal gets in a day.'); return; }
     setSaving(true);
     setError('');
     try {
-      await onSave({ name, portionPerHead: kgNum, unitCost });
+      await onSave({ name, productId: chosen?.id, portionPerHead: Math.round(kgNum * 1000) / 1000, unitCost });
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save. Please try again.');
@@ -68,7 +78,7 @@ function IngredientBody({ onClose, products, usedNames = [], existing, existingI
       steps={steps}
       step={step}
       title={step === 'pick' ? 'Which feed?' : name || 'How much?'}
-      subtitle={step === 'pick' ? (existing && !keepName ? `${existing.name} is not in your feed list. Choose the feed it should be.` : 'Choose from your feed list.') : 'How much one animal eats in a day.'}
+      subtitle={step === 'pick' ? (existing && !keepName ? `${existing.name} is not in your feed list. Choose the feed it should be.` : 'Choose from your feed list.') : perBatch ? `How much the whole batch (${headCount} head) eats in a day.` : 'How much one animal eats in a day.'}
       summary={step === 'amount' && !keepName ? name : ''}
       error={error}
       onSubmit={step === 'amount' ? save : undefined}
@@ -91,11 +101,13 @@ function IngredientBody({ onClose, products, usedNames = [], existing, existingI
       )}
 
       {step === 'amount' && (
-        <Question label="Kg for each animal each day">
-          <Input aria-label="Kg for each animal each day" type="number" inputMode="decimal" autoFocus value={kg} onChange={e => { setKg(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
-          {kgNum > 0 && (
+        <Question label={perBatch ? `${unit === 'kg' ? 'Kg' : unitWord(unit, 2)[0].toUpperCase() + unitWord(unit, 2).slice(1)} a day for the batch` : 'Kg for each animal each day'}>
+          <Input aria-label={perBatch ? `${unitWord(unit, 2)} a day for the batch` : 'Kg for each animal each day'} type="number" step="any" inputMode="decimal" autoFocus value={amount} onChange={e => { setAmount(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
+          {amountNum > 0 && (
             <p className="mt-3 rounded-xl bg-slate-50 p-3 text-lg text-ink">
-              {headCount} animals eat <span className="font-semibold">{Math.round(kgNum * headCount * 10) / 10} kg</span> a day · {money(kgNum * unitCost * headCount)} a day
+              {perBatch
+                ? <>{unit !== 'kg' && <>{round1(amountNum * kgPerUnit(chosen)).toLocaleString()} kg · </>}about <span className="font-semibold">{round1(kgNum)} kg</span> for each animal · {money(amountNum * kgPerUnit(chosen) * unitCost)} a day</>
+                : <>{headCount} animals eat <span className="font-semibold">{round1(kgNum * headCount)} kg</span> a day · {money(kgNum * unitCost * headCount)} a day</>}
             </p>
           )}
         </Question>

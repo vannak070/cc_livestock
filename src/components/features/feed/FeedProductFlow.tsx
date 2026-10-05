@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { feedUnit, unitWord } from '@/lib/daily-feed';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { FeedProductItem } from '@/lib/types';
@@ -41,7 +42,11 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
   const [step, setStep] = useState<Step>('name');
   const [name, setName] = useState(initialProduct?.name ?? '');
   const [category, setCategory] = useState(initialProduct?.category ?? (kinds.length === 1 ? kinds[0] : ''));
-  const [weight, setWeight] = useState(String(initialProduct?.weightPerUnit ?? 30));
+  // How the feed is counted: in packs (bags, bales) of a set size, or loose in kg (grass).
+  const [unit, setUnit] = useState(feedUnit(initialProduct ?? { unit: 'bag' }));
+  const unitChoices = [...new Set(['bag', 'bale', 'kg', unit])];
+  const loose = unit === 'kg';
+  const [weight, setWeight] = useState(String(initialProduct && feedUnit(initialProduct) !== 'kg' ? initialProduct.weightPerUnit : 30));
   const [warnBags, setWarnBags] = useState(String(initialProduct?.minThresholdBags ?? 50));
   const [perBag, setPerBag] = useState(initialProduct?.costType !== 'per_kg');
   const [price, setPrice] = useState(() => {
@@ -55,17 +60,19 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const kg = Number(weight);
+  const kg = loose ? 1 : Number(weight);
   const priceNum = Number(price);
-  const perBagCost = perBag ? priceNum : priceNum * kg;
-  const perKgCost = perBag ? (kg > 0 ? priceNum / kg : 0) : priceNum;
+  const byPack = perBag && !loose;
+  const perBagCost = byPack ? priceNum : priceNum * kg;
+  const perKgCost = byPack ? (kg > 0 ? priceNum / kg : 0) : priceNum;
+  const packs = unitWord(unit, 2);
   const at = STEPS.indexOf(step);
 
   const fail = (msg: string) => { setError(msg); return false; };
   const valid: Partial<Record<Step, () => boolean>> = {
     name: () => (!name.trim() ? fail('Type the name of the feed.') : !category ? fail('Choose the kind of feed.') : true),
-    size: () => (!(kg > 0) ? fail('Type how many kg are in one bag.') : !(Number(warnBags) >= 0) || warnBags === '' ? fail('Type the number of bags to warn at.') : true),
-    price: () => (!(priceNum > 0) ? fail(perBag ? 'Type the price of one bag.' : 'Type the price of one kg.') : true),
+    size: () => (!(kg > 0) ? fail(`Type how many kg are in one ${unit}.`) : !(Number(warnBags) >= 0) || warnBags === '' ? fail(`Type the number of ${packs} to warn at.`) : true),
+    price: () => (!(priceNum > 0) ? fail(byPack ? `Type the price of one ${unit}.` : 'Type the price of one kg.') : true),
   };
 
   const save = async () => {
@@ -77,10 +84,10 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
         id: initialProduct?.id ?? newCode(),
         name: name.trim(),
         category,
-        unit: initialProduct?.unit || 'bag',
+        unit,
         weightPerUnit: kg,
         unitCost: perKgCost,
-        costType: perBag ? 'per_bag' : 'per_kg',
+        costType: byPack ? 'per_bag' : 'per_kg',
         costPerBag: perBagCost,
         minThresholdBags: bags,
         minThresholdKg: bags * kg,
@@ -106,12 +113,12 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
 
   const heading: Record<Step, { title: string; sub: string }> = {
     name: { title: edit ? 'Edit feed' : 'Add a feed', sub: 'What it is called, and what kind it is.' },
-    size: { title: 'Bag size', sub: 'How big one bag is, and when to warn.' },
+    size: { title: 'How it is counted', sub: loose ? 'Loose feed such as grass is counted in kg.' : `How big one ${unit} is, and when to warn.` },
     price: { title: 'Price', sub: 'Choose how you know the price.' },
     extra: { title: 'A few more details', sub: 'All optional.' },
   };
 
-  const summary = step === 'name' ? '' : [name.trim(), step === 'price' || step === 'extra' ? `${kg} kg a bag` : '', step === 'extra' && perBagCost > 0 ? `${money(perBagCost)} a bag` : ''].filter(Boolean).join(' · ');
+  const summary = step === 'name' ? '' : [name.trim(), step === 'price' || step === 'extra' ? (loose ? 'counted in kg' : `${kg} kg a ${unit}`) : '', step === 'extra' && perBagCost > 0 ? `${money(perBagCost)} a ${unit}` : ''].filter(Boolean).join(' · ');
 
   return (
     <FlowShell
@@ -140,28 +147,37 @@ function FeedProductBody({ onClose, onSubmit, initialProduct, categories, onMana
 
       {step === 'size' && (
         <>
-          <Question label="Kg in one bag">
-            <Input aria-label="Kg in one bag" type="number" inputMode="decimal" autoFocus value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+          <Question label="Counted in">
+            <div className="grid grid-cols-3 gap-3">
+              {unitChoices.map(u => <Choice key={u} selected={unit === u} onClick={() => { setUnit(u); setError(''); }}>{u === 'kg' ? 'Kg' : unitWord(u, 2)[0].toUpperCase() + unitWord(u, 2).slice(1)}</Choice>)}
+            </div>
           </Question>
-          <Question label="Warn me when fewer bags than" hint={Number(warnBags) > 0 && kg > 0 ? `That is ${(Number(warnBags) * kg).toLocaleString()} kg.` : undefined}>
-            <Input aria-label="Warn at this many bags" type="number" inputMode="numeric" value={warnBags} onChange={e => { setWarnBags(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+          {!loose && (
+            <Question label={`Kg in one ${unit}`}>
+              <Input aria-label={`Kg in one ${unit}`} type="number" step="any" inputMode="decimal" value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+            </Question>
+          )}
+          <Question label={loose ? 'Warn me when less than (kg)' : `Warn me when fewer ${packs} than`} hint={!loose && Number(warnBags) > 0 && kg > 0 ? `That is ${(Number(warnBags) * kg).toLocaleString()} kg.` : undefined}>
+            <Input aria-label={`Warn at this many ${packs}`} type="number" step="any" inputMode="numeric" value={warnBags} onChange={e => { setWarnBags(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
           </Question>
         </>
       )}
 
       {step === 'price' && (
         <>
-          <Question label="I know the price of">
-            <div className="grid grid-cols-2 gap-3">
-              <Choice selected={perBag} onClick={() => { setPerBag(true); setError(''); }}>One bag</Choice>
-              <Choice selected={!perBag} onClick={() => { setPerBag(false); setError(''); }}>One kg</Choice>
-            </div>
-          </Question>
-          <Question label={perBag ? 'Price of one bag (៛)' : 'Price of one kg (៛)'}>
-            <Input aria-label="Price" type="number" inputMode="numeric" autoFocus value={price} onChange={e => { setPrice(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
-            {priceNum > 0 && kg > 0 && (
+          {!loose && (
+            <Question label="I know the price of">
+              <div className="grid grid-cols-2 gap-3">
+                <Choice selected={perBag} onClick={() => { setPerBag(true); setError(''); }}>One {unit}</Choice>
+                <Choice selected={!perBag} onClick={() => { setPerBag(false); setError(''); }}>One kg</Choice>
+              </div>
+            </Question>
+          )}
+          <Question label={byPack ? `Price of one ${unit} (៛)` : 'Price of one kg (៛)'}>
+            <Input aria-label="Price" type="number" step="any" inputMode="numeric" autoFocus value={price} onChange={e => { setPrice(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+            {priceNum > 0 && kg > 0 && !loose && (
               <p className="mt-3 rounded-xl bg-slate-50 p-3 text-lg text-ink">
-                {money(perBagCost)} a bag · {money(perKgCost)} a kg
+                {money(perBagCost)} a {unit} · {money(perKgCost)} a kg
               </p>
             )}
           </Question>

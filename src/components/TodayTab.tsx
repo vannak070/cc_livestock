@@ -14,6 +14,7 @@ import {
   WEIGH_INTERVAL_DAYS,
   SELL_WARNING_DAYS
 } from '@/lib/attention';
+import { farmRations, farmToday, farmsToRecord, feedDayStatus } from '@/lib/daily-feed';
 import type { ActiveTabType, RecordAction } from './layout/SidebarLayout';
 
 interface TodayTabProps {
@@ -21,6 +22,8 @@ interface TodayTabProps {
   currentUser: UserRoleItem;
   recordActions: RecordAction[];
   onNavigate: (tab: ActiveTabType) => void;
+  /** Opens today's feed record for a farm; only for people who may record feed. */
+  onRecordFeed?: (farm: string) => void;
 }
 
 type Severity = 'urgent' | 'attention';
@@ -46,13 +49,32 @@ function greeting(now: Date): string {
  * today, each with one clear button, then big buttons to record things.
  * Every rule lives in src/lib/attention.ts so the pages behind it agree.
  */
-export default function TodayTab({ data, currentUser, recordActions, onNavigate }: TodayTabProps) {
+export default function TodayTab({ data, currentUser, recordActions, onNavigate, onRecordFeed }: TodayTabProps) {
   const can = (key: Parameters<typeof hasPermission>[1]) => hasPermission(currentUser, key);
   const now = new Date();
   const onFarm = activeCattle(data.stock).length;
   const firstName = (currentUser.name || '').split(' ')[0];
 
   const items: AttentionItem[] = [];
+
+  // Each farm writes down what its batches ate today (the office can do it for them).
+  if (onRecordFeed) {
+    const today = farmToday(now);
+    const farms = currentUser.farmLocation ? [currentUser.farmLocation] : farmsToRecord(data.batches);
+    for (const farm of farms) {
+      const batchIds = farmRations(farm, data.batches, data.stock, data.feedProducts || []).map(r => r.batch.id);
+      if (batchIds.length === 0) continue;
+      if (feedDayStatus(data.feedTransactions || [], batchIds, today) === 'recorded') continue;
+      items.push({
+        key: `feed-day-${farm}`,
+        severity: 'attention',
+        title: farms.length > 1 ? `Today's feed is not written down at ${farm}` : 'Today\'s feed is not written down yet',
+        detail: 'Record the bags and grass the cattle ate today.',
+        actionLabel: 'Record feed',
+        onAction: () => onRecordFeed(farm)
+      });
+    }
+  }
 
   if (can('health_view')) {
     const sick = sickCattle(data.stock);

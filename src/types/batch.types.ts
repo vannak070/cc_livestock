@@ -1,5 +1,7 @@
 export interface FeedIngredientConfig {
   name: string;
+  /** The feed product this is taken from; older rations matched by name only. */
+  productId?: string;
   portionPerHead: number; // in kg/head/day
   unitCost: number; // in Riel/kg
 }
