@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ASSUMPTIONS, addMonths, defaultTerms, farmActuals, parseLoanAssumptions, parseLoanTerms, simulateLoan } from './farm-loan';
+import { DEFAULT_ASSUMPTIONS, addMonths, bankSchedule, defaultTerms, farmActuals, parseLoanAssumptions, parseLoanTerms, simulateLoan } from './farm-loan';
 import type { FarmLoanAssumptions, FarmLoanTerms } from './types';
 import type { SalesRecord, StockItem, WeightRecord } from './xlsx-parser';
 
@@ -120,5 +120,30 @@ describe('farmActuals', () => {
   it('leaves out what it cannot work out', () => {
     const { values } = farmActuals({ name: 'Empty' }, { stock, weightTracking: [], salesTracking: [], batches: [] });
     expect(values).toEqual({});
+  });
+});
+
+describe('bankSchedule', () => {
+  const plan = simulateLoan(terms, a);
+  const { rows, years } = bankSchedule(plan);
+
+  it('lists every month with interest, principal and the total paid to the bank', () => {
+    expect(rows).toHaveLength(24);
+    expect(rows[0]).toMatchObject({ openingKhr: 0, drawKhr: 75_000_000, interestKhr: 750_000, principalKhr: 0, totalKhr: 750_000, closingKhr: 75_000_000 });
+    expect(rows[1].openingKhr).toBe(rows[0].closingKhr);
+    for (const r of rows) expect(r.totalKhr).toBe(r.interestKhr + r.principalKhr);
+  });
+
+  it('splits month 12 between CC Livestock (from the buyback) and the farm', () => {
+    const m12 = rows[11];
+    expect(m12.paidByCcKhr).toBe(plan.months[11].paidFromBuybackKhr);
+    expect(m12.paidByCcKhr + m12.paidByFarmKhr).toBe(m12.totalKhr);
+    expect(rows[7].paidByCcKhr).toBe(0);
+  });
+
+  it('adds up each year: everything drawn is repaid', () => {
+    expect(years.map(y => y.year)).toEqual([1, 2]);
+    expect(years[0].principalKhr).toBe(years[0].drawKhr);
+    expect(years[0].totalKhr).toBe(years[0].interestKhr + years[0].principalKhr);
   });
 });

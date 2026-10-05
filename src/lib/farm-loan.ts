@@ -356,3 +356,63 @@ export function farmActuals(
   }
   return { values, basis };
 }
+
+// ─── The payment plan with the bank ─────────────────────────────────────────
+
+export interface BankPaymentRow {
+  index: number;
+  /** YYYY-MM */
+  month: string;
+  year: number;
+  monthInYear: number;
+  /** Owed at the start of the month, before this month's draws. */
+  openingKhr: number;
+  drawKhr: number;
+  interestKhr: number;
+  principalKhr: number;
+  /** interest + principal: what the bank receives this month. */
+  totalKhr: number;
+  /** Paid by CC Livestock straight from the month-12 buyback. */
+  paidByCcKhr: number;
+  /** Paid by the farm itself. */
+  paidByFarmKhr: number;
+  /** Owed at the end of the month. */
+  closingKhr: number;
+}
+
+export interface BankPaymentYear {
+  year: number;
+  drawKhr: number;
+  interestKhr: number;
+  principalKhr: number;
+  totalKhr: number;
+  paidByCcKhr: number;
+  paidByFarmKhr: number;
+}
+
+/** What the farm owes and pays the bank each month, and each year's totals. */
+export function bankSchedule(plan: LoanPlan): { rows: BankPaymentRow[]; years: BankPaymentYear[] } {
+  const rows = plan.months.map((m, i): BankPaymentRow => {
+    const total = m.interestKhr + m.principalKhr;
+    return {
+      index: m.index,
+      month: m.month,
+      year: m.year,
+      monthInYear: m.monthInYear,
+      openingKhr: i === 0 ? 0 : plan.months[i - 1].balanceKhr,
+      drawKhr: m.drawKhr,
+      interestKhr: m.interestKhr,
+      principalKhr: m.principalKhr,
+      totalKhr: total,
+      paidByCcKhr: m.paidFromBuybackKhr,
+      paidByFarmKhr: total - m.paidFromBuybackKhr,
+      closingKhr: m.balanceKhr,
+    };
+  });
+  const years = [...new Set(rows.map(r => r.year))].map(year => {
+    const ys = rows.filter(r => r.year === year);
+    const sum = (k: keyof BankPaymentRow) => ys.reduce((s, r) => s + (r[k] as number), 0);
+    return { year, drawKhr: sum('drawKhr'), interestKhr: sum('interestKhr'), principalKhr: sum('principalKhr'), totalKhr: sum('totalKhr'), paidByCcKhr: sum('paidByCcKhr'), paidByFarmKhr: sum('paidByFarmKhr') };
+  });
+  return { rows, years };
+}

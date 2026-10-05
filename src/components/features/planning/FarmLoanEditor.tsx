@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, Database, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Database, Download, Plus, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Input } from '@/components/ui/input';
 import type { ERPLivestockData, FarmItem, FarmLoanAssumptions, FarmLoanRecord, FarmLoanTerms, LoanRepayment } from '@/lib/types';
-import { DEFAULT_ASSUMPTIONS, defaultTerms, farmActuals, fatteningMonthsFor, simulateLoan } from '@/lib/farm-loan';
+import { DEFAULT_ASSUMPTIONS, bankSchedule, defaultTerms, farmActuals, fatteningMonthsFor, simulateLoan } from '@/lib/farm-loan';
+import { exportToExcel } from '@/lib/excel-export';
 import { getErrorMessage } from '@/lib/utils';
 import { NUM } from '../flow/FlowShell';
 
@@ -101,6 +102,29 @@ export default function FarmLoanEditor({ farm, loan, data, onBack, onSave, onDel
   };
 
   const repaymentRows = plan.months.filter(m => m.principalKhr > 0);
+  // What goes to the bank each month (interest every month, principal on the repayment months).
+  const payments = useMemo(() => bankSchedule(plan), [plan]);
+  const bankName = terms.bank || 'the bank';
+
+  const exportBankPlan = () => exportToExcel({
+    filename: `CC_Livestock_Bank_Payment_Plan_${farm.name.replace(/[^\p{L}\p{N}]+/gu, '_')}_${terms.startMonth}.xlsx`,
+    sheetName: 'Bank payments',
+    data: [
+      ...payments.rows.map(r => ({ ...r, label: `${monthLabel(r.month)} (year ${r.year}, month ${r.monthInYear})` })),
+      ...payments.years.map(y => ({ label: `Year ${y.year} total`, openingKhr: '', drawKhr: y.drawKhr, interestKhr: y.interestKhr, principalKhr: y.principalKhr, totalKhr: y.totalKhr, paidByCcKhr: y.paidByCcKhr, paidByFarmKhr: y.paidByFarmKhr, closingKhr: '' })),
+    ],
+    columns: [
+      { header: 'Month', key: 'label' },
+      { header: 'Owed at start (៛)', key: 'openingKhr' },
+      { header: 'Drawn (៛)', key: 'drawKhr' },
+      { header: 'Interest (៛)', key: 'interestKhr' },
+      { header: 'Principal (៛)', key: 'principalKhr' },
+      { header: 'Total to the bank (៛)', key: 'totalKhr' },
+      { header: 'Paid by CC Livestock (៛)', key: 'paidByCcKhr' },
+      { header: 'Paid by the farm (៛)', key: 'paidByFarmKhr' },
+      { header: 'Owed at end (៛)', key: 'closingKhr' },
+    ],
+  });
   const year1 = plan.years[0];
   const year2 = plan.years[1];
 
@@ -157,6 +181,80 @@ export default function FarmLoanEditor({ farm, loan, data, onBack, onSave, onDel
           </ul>
         )}
         {plan.endBalanceKhr > 0 && <p className="mt-2 rounded-xl bg-amber-50 p-3 text-base text-amber-900">The repayments add up to {totalPct}%, so {riel(plan.endBalanceKhr)} is still owed at the end.</p>}
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-ink">Payment plan with the bank</h3>
+            <p className="text-base text-ink-muted">What {farm.name} pays {bankName} each month: interest every month, principal in the repayment months. In month 12 CC Livestock pays the bank first from the buyback.</p>
+          </div>
+          <Button variant="outline" onClick={exportBankPlan}><Download /> Download Excel</Button>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {payments.years.map(y => (
+            <div key={y.year} className="rounded-xl bg-slate-50 p-3 text-base text-ink">
+              <p className="font-semibold">Year {y.year}: {riel(y.totalKhr)} to the bank</p>
+              <p className="text-ink-muted">Interest {riel(y.interestKhr)} · principal {riel(y.principalKhr)} (drawn {riel(y.drawKhr)})</p>
+              <p className="text-ink-muted">Farm pays {riel(y.paidByFarmKhr)}{y.paidByCcKhr > 0 ? ` · CC Livestock pays ${riel(y.paidByCcKhr)} from the buyback` : ''}</p>
+            </div>
+          ))}
+        </div>
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full min-w-[52rem] text-right text-base">
+            <thead className="bg-slate-50 text-sm text-ink-muted">
+              <tr>
+                <th scope="col" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium">Month</th>
+                <th scope="col" className="px-3 py-2 font-medium">Owed at start</th>
+                <th scope="col" className="px-3 py-2 font-medium">Drawn</th>
+                <th scope="col" className="px-3 py-2 font-medium">Interest</th>
+                <th scope="col" className="px-3 py-2 font-medium">Principal</th>
+                <th scope="col" className="px-3 py-2 font-medium">Total to the bank</th>
+                <th scope="col" className="px-3 py-2 font-medium">Paid by</th>
+                <th scope="col" className="px-3 py-2 font-medium">Owed at end</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.rows.map(r => (
+                <tr key={r.index} className={`border-t ${r.monthInYear === 1 && r.index > 1 ? 'border-t-2 border-slate-300' : 'border-slate-100'} ${r.principalKhr > 0 ? 'bg-amber-50' : ''}`}>
+                  <th scope="row" className={`sticky left-0 px-3 py-2 text-left font-medium text-ink ${r.principalKhr > 0 ? 'bg-amber-50' : 'bg-white'}`}>
+                    {monthLabel(r.month)}
+                    <span className="block text-sm font-normal text-ink-muted">Y{r.year} · M{r.monthInYear}</span>
+                  </th>
+                  <td className="px-3 py-2 text-ink">{riel(r.openingKhr)}</td>
+                  <td className="px-3 py-2 text-ink">{r.drawKhr ? riel(r.drawKhr) : '—'}</td>
+                  <td className="px-3 py-2 text-ink">{r.interestKhr ? riel(r.interestKhr) : '—'}</td>
+                  <td className="px-3 py-2 font-medium text-ink">{r.principalKhr ? riel(r.principalKhr) : '—'}</td>
+                  <td className="px-3 py-2 font-semibold text-ink">{r.totalKhr ? riel(r.totalKhr) : '—'}</td>
+                  <td className="px-3 py-2 text-left text-sm text-ink">
+                    {r.totalKhr === 0 ? '—' : (
+                      <>
+                        {r.paidByFarmKhr > 0 && <span className="block">Farm {riel(r.paidByFarmKhr)}</span>}
+                        {r.paidByCcKhr > 0 && <span className="block text-emerald-800">CC Livestock {riel(r.paidByCcKhr)}</span>}
+                      </>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-ink">{riel(r.closingKhr)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="bg-slate-50 text-ink">
+              {payments.years.map(y => (
+                <tr key={y.year} className="border-t border-slate-200">
+                  <th scope="row" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-semibold">Year {y.year}</th>
+                  <td className="px-3 py-2" />
+                  <td className="px-3 py-2">{riel(y.drawKhr)}</td>
+                  <td className="px-3 py-2">{riel(y.interestKhr)}</td>
+                  <td className="px-3 py-2">{riel(y.principalKhr)}</td>
+                  <td className="px-3 py-2 font-semibold">{riel(y.totalKhr)}</td>
+                  <td className="px-3 py-2 text-left text-sm">Farm {riel(y.paidByFarmKhr)}{y.paidByCcKhr > 0 && <span className="block text-emerald-800">CC Livestock {riel(y.paidByCcKhr)}</span>}</td>
+                  <td className="px-3 py-2" />
+                </tr>
+              ))}
+            </tfoot>
+          </table>
+        </div>
+        <p className="text-sm text-ink-muted">Highlighted rows are principal repayment months. Interest is {terms.annualRatePct}% a year, charged each month on what is owed after that month&apos;s draws. Change the terms under &quot;The loan and the cattle&quot;.</p>
       </section>
 
       <details open={!loan} className="group rounded-2xl border border-slate-200 bg-white">
