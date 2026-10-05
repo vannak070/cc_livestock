@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ALL_PERMISSIONS, type MasterSetup, type PermissionKey, type UserRoleItem } from '@/types/settings.types';
 import { FARM_ROLES, MIN_PASSWORD_LENGTH, assignableRoles, effectivePermissions, grantable, isFarmOwner, rolesOf, validatePerson, type PersonErrors, type PersonInput } from '@/lib/user-admin';
-import { MIN_PIN_LENGTH } from '@/lib/pin';
 import { FlowFooter, FlowShell, PickList, Question, RowButton } from '../flow/FlowShell';
 import PermissionPicker from './PermissionPicker';
 
@@ -61,8 +60,6 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
   const [farm, setFarm] = useState(person?.farmLocation ?? lockedFarm ?? (farmNames.length === 1 ? farmNames[0] : ''));
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [pin, setPin] = useState('');
-  const [clearPin, setClearPin] = useState(false);
   const [permissions, setPermissions] = useState<PermissionKey[]>(() => (person ? effectivePermissions(person, roles) : soleRole ? effectivePermissions({ role: soleRole }, roles) : isFarmOwner(actor) ? effectivePermissions({ role: 'Farm Staff' }, roles) : []));
   const [fineTune, setFineTune] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -82,8 +79,9 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
   const at = steps.indexOf(step);
   const last = steps[steps.length - 1];
 
-  const input = (): PersonInput => ({ name, email, role, farmLocation: lockedFarm || farm, password, pin, clearPin, permissions });
-  const stepFields: Record<Step, (keyof PersonErrors)[]> = { who: ['name', 'email'], role: ['role'], farm: ['farmLocation'], signin: ['password', 'pin'], access: ['permissions'], done: [] };
+  // There is no PIN on the web (it was for the removed mobile app); an existing PIN is left as it is.
+  const input = (): PersonInput => ({ name, email, role, farmLocation: lockedFarm || farm, password, pin: '', clearPin: false, permissions });
+  const stepFields: Record<Step, (keyof PersonErrors)[]> = { who: ['name', 'email'], role: ['role'], farm: ['farmLocation'], signin: ['password'], access: ['permissions'], done: [] };
   const problem = (s: Step): string | null => {
     if (s === 'role' && !role) return 'Choose a role.';
     const errors = validatePerson(settings, input(), person ?? null, actor);
@@ -178,22 +176,12 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
       {step === 'farm' && <PickList options={farmNames} value={farm} onChange={v => { setFarm(v); setError(''); }} />}
 
       {step === 'signin' && (
-        <>
-          <Question label={edit ? 'New password (optional)' : 'Password (optional)'} hint={edit ? 'Leave empty to keep the current password.' : `Leave empty and we will make a temporary one to give them. At least ${MIN_PASSWORD_LENGTH} characters if you type one.`}>
-            <div className="flex gap-2">
-              <Input aria-label="Password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={password} onChange={e => { setPassword(e.target.value); setError(''); }} className="h-14 text-lg" />
-              <button type="button" onClick={() => setShowPassword(v => !v)} className="min-h-14 shrink-0 rounded-xl border-2 border-slate-200 px-4 text-base font-medium text-ink hover:border-emerald-600">{showPassword ? 'Hide' : 'Show'}</button>
-            </div>
-          </Question>
-          <Question label="PIN (optional)" hint={person?.hasPin ? 'A PIN is already set. Leave empty to keep it.' : `${MIN_PIN_LENGTH} or more digits, for signing in on the mobile app.`}>
-            <Input aria-label="PIN" inputMode="numeric" autoComplete="off" value={pin} disabled={clearPin} onChange={e => { setPin(e.target.value.replace(/[^0-9]/g, '')); setClearPin(false); setError(''); }} className="h-14 text-lg" />
-            {person?.hasPin && (
-              <label className="mt-2 flex min-h-11 items-center gap-2 text-base font-medium text-rose-700">
-                <input type="checkbox" checked={clearPin} onChange={e => { setClearPin(e.target.checked); if (e.target.checked) setPin(''); }} className="h-5 w-5" /> Remove their PIN
-              </label>
-            )}
-          </Question>
-        </>
+        <Question label={edit ? 'New password (optional)' : 'Password (optional)'} hint={edit ? 'Leave empty to keep the current password.' : `Leave empty and we will make a temporary one to give them. At least ${MIN_PASSWORD_LENGTH} characters if you type one.`}>
+          <div className="flex gap-2">
+            <Input aria-label="Password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={password} onChange={e => { setPassword(e.target.value); setError(''); }} className="h-14 text-lg" />
+            <button type="button" onClick={() => setShowPassword(v => !v)} className="min-h-14 shrink-0 rounded-xl border-2 border-slate-200 px-4 text-base font-medium text-ink hover:border-emerald-600">{showPassword ? 'Hide' : 'Show'}</button>
+          </div>
+        </Question>
       )}
 
       {step === 'access' && (

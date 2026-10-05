@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Copy, KeyRound, Lock, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Building, Copy, KeyRound, Lock, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { MasterSetup, UserRoleItem } from '@/types/settings.types';
-import { canChangeUser, rolesOf, visibleUsers, type PersonInput } from '@/lib/user-admin';
+import { FARM_ROLES, canChangeUser, isFarmOwner, isOfficePerson, officeRoleNames, rolesOf, visibleUsers, type PersonInput } from '@/lib/user-admin';
 import { createUserAction, deleteUserAction, resetUserPasswordAction, setUserStatusAction, updateUserAction } from '@/app/actions';
 import { getErrorMessage } from '@/lib/utils';
 import PersonFlow from './PersonFlow';
@@ -17,8 +17,12 @@ interface PeoplePanelProps {
   actor: UserRoleItem;
   /** Called after a change has been saved, so the lists reload. */
   onChanged: () => void;
-  /** Start with the list limited to one farm. */
-  initialFarm?: string;
+  /** Show only the people of this farm (the Farms page). Without it, Settings shows the office accounts. */
+  farm?: string;
+  /** Extra buttons on a person's card, such as Make owner. */
+  extraActions?: (u: UserRoleItem) => React.ReactNode;
+  /** Opens the Farms page, where farm people are managed; given only to people who may open it. */
+  onOpenFarms?: () => void;
 }
 
 /** Each change is one request for one person, so another admin's changes are never overwritten. */
@@ -30,18 +34,33 @@ async function ok<T>(res: { success: true; data: T } | { success: false; error: 
 const SELECT = 'h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-base text-ink focus:border-emerald-600 focus:outline-none';
 const norm = (s?: string) => (s ?? '').trim().toLowerCase();
 
-export default function PeoplePanel({ settings, actor, onChanged, initialFarm = '' }: PeoplePanelProps) {
+export default function PeoplePanel({ settings, actor, onChanged, farm, extraActions, onOpenFarms }: PeoplePanelProps) {
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [farmFilter, setFarmFilter] = useState(initialFarm);
   const [status, setStatus] = useState<'All' | 'Active' | 'Inactive'>('All');
   const [flow, setFlow] = useState<null | { person: UserRoleItem | null }>(null);
   const [shown, setShown] = useState<null | { name: string; email: string; password: string }>(null);
   const [copied, setCopied] = useState(false);
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger' | 'warning'; confirmText: string; onConfirm?: () => void }>(null);
 
-  const all = useMemo(() => visibleUsers(settings.users || [], actor), [settings.users, actor]);
+  // A farm owner sees their own farm's staff; otherwise one farm (Farms page) or the office accounts (Settings).
+  const mode: 'owner' | 'farm' | 'office' = isFarmOwner(actor) ? 'owner' : farm ? 'farm' : 'office';
+  const farmNames = useMemo(() => (settings.farms || []).map(f => f.name), [settings.farms]);
+  const all = useMemo(() => {
+    const users = visibleUsers(settings.users || [], actor);
+    if (mode === 'farm') return users.filter(u => u.farmLocation === farm);
+    if (mode === 'office') return users.filter(u => isOfficePerson(u, farmNames));
+    return users;
+  }, [settings.users, actor, mode, farm, farmNames]);
   const roles = useMemo(() => rolesOf(settings), [settings]);
+  const roleChoices = useMemo(() => [...new Set(all.map(u => u.role))].sort(), [all]);
+  const office = useMemo(() => officeRoleNames(roles), [roles]);
+  // Which roles the add/edit steps offer, so a person never moves out of the list they were opened from.
+  const onlyRolesFor = (person: UserRoleItem | null): string[] | undefined => {
+    if (mode === 'farm') return FARM_ROLES;
+    if (mode === 'office') return person && FARM_ROLES.includes(person.role) ? undefined : office;
+    return undefined;
+  };
   const counts = { All: all.length, Active: all.filter(u => u.status === 'Active').length, Inactive: all.filter(u => u.status !== 'Active').length };
 
   const list = useMemo(() => {
@@ -49,10 +68,9 @@ export default function PeoplePanel({ settings, actor, onChanged, initialFarm = 
     return all
       .filter(u => (status === 'All' ? true : status === 'Active' ? u.status === 'Active' : u.status !== 'Active'))
       .filter(u => !roleFilter || u.role === roleFilter)
-      .filter(u => !farmFilter || u.farmLocation === farmFilter)
       .filter(u => !q || norm(u.name).includes(q) || norm(u.email).includes(q))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [all, query, roleFilter, farmFilter, status]);
+      .sort((a, b) => Number(b.role === 'Farm Owner') - Number(a.role === 'Farm Owner') || a.name.localeCompare(b.name));
+  }, [all, query, roleFilter, status]);
 
   const fail = (e: unknown) => setConfirm({ title: 'That did not work', description: getErrorMessage(e, 'The change could not be saved.'), type: 'danger', confirmText: 'OK' });
 
@@ -109,9 +127,18 @@ export default function PeoplePanel({ settings, actor, onChanged, initialFarm = 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-base text-ink-muted">{all.length} {all.length === 1 ? 'person' : 'people'} can sign in{actor.role === 'Farm Owner' ? ' to your farm' : ''}.</p>
+        <p className="text-base text-ink-muted">
+          {all.length} {all.length === 1 ? 'person' : 'people'} {mode === 'office' ? 'in the office' : mode === 'farm' ? 'on this farm' : 'can sign in to your farm'}.
+        </p>
         <Button size="lg" onClick={() => setFlow({ person: null })}><Plus /> Add a person</Button>
       </div>
+
+      {mode === 'office' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4">
+          <p className="text-base text-ink">Farm owners, staff and vets are looked after on the <span className="font-semibold">Farms</span> page, under each farm&apos;s People.</p>
+          {onOpenFarms && <Button variant="outline" onClick={onOpenFarms}><Building /> Go to Farms</Button>}
+        </div>
+      )}
 
       <div className="space-y-3">
         <div className="relative">
@@ -127,25 +154,17 @@ export default function PeoplePanel({ settings, actor, onChanged, initialFarm = 
               </button>
             ))}
           </div>
-          {actor.role !== 'Farm Owner' && (
-            <div className="ml-auto flex flex-wrap gap-2">
-              {(settings.farms || []).length > 0 && (
-                <select aria-label="Farm" value={farmFilter} onChange={e => setFarmFilter(e.target.value)} className={SELECT}>
-                  <option value="">All farms</option>
-                  {(settings.farms || []).map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
-                </select>
-              )}
-              <select aria-label="Role" value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className={SELECT}>
-                <option value="">All roles</option>
-                {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-              </select>
-            </div>
+          {roleChoices.length > 1 && (
+            <select aria-label="Role" value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className={`${SELECT} ml-auto`}>
+              <option value="">All roles</option>
+              {roleChoices.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
           )}
         </div>
       </div>
 
       {list.length === 0 ? (
-        <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{all.length === 0 ? 'No one yet. Add the first person.' : 'No one matches what you chose.'}</p>
+        <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{all.length === 0 ? (mode === 'farm' ? 'No one works on this farm yet. Add the owner first.' : 'No one yet. Add the first person.') : 'No one matches what you chose.'}</p>
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {list.map(u => {
@@ -162,10 +181,16 @@ export default function PeoplePanel({ settings, actor, onChanged, initialFarm = 
                   </div>
                   <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-ink'}`}>{active ? 'Active' : 'Turned off'}</span>
                 </div>
-                <p className="text-base text-ink">{[u.role, u.farmLocation].filter(Boolean).join(' · ')}</p>
+                <p className="text-base text-ink">{[u.role, mode === 'office' ? u.farmLocation : ''].filter(Boolean).join(' · ')}</p>
+                {mode === 'office' && FARM_ROLES.includes(u.role) && (
+                  <p className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">
+                    {u.farmLocation ? `${u.farmLocation} is not a farm any more.` : 'Not on any farm yet.'} Tap Edit to choose their farm; after that they are looked after on the Farms page.
+                  </p>
+                )}
                 {mayChange ? (
                   <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                     <Button variant="outline" size="sm" onClick={() => setFlow({ person: u })}><Pencil /> Edit</Button>
+                    {extraActions?.(u)}
                     <Button variant="outline" size="sm" onClick={() => askPassword(u)}><KeyRound /> New password</Button>
                     {!locked && !isMe && <Button variant="outline" size="sm" onClick={() => askStatus(u)}>{active ? 'Turn off' : 'Turn on'}</Button>}
                     {!locked && !isMe && <Button variant="ghost" size="sm" aria-label={`Remove ${u.name}`} onClick={() => askRemove(u)}><Trash2 className="text-rose-700" /></Button>}
@@ -180,7 +205,16 @@ export default function PeoplePanel({ settings, actor, onChanged, initialFarm = 
         </ul>
       )}
 
-      <PersonFlow isOpen={!!flow} onClose={() => setFlow(null)} person={flow?.person ?? null} settings={settings} actor={actor} onSave={savePersonFromFlow} />
+      <PersonFlow
+        isOpen={!!flow}
+        onClose={() => setFlow(null)}
+        person={flow?.person ?? null}
+        settings={settings}
+        actor={actor}
+        onSave={savePersonFromFlow}
+        onlyRoles={flow ? onlyRolesFor(flow.person) : undefined}
+        presetFarm={mode === 'farm' && !flow?.person ? farm : undefined}
+      />
 
       {shown && (
         <Dialog open onOpenChange={open => { if (!open) setShown(null); }}>

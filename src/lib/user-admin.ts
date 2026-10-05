@@ -41,6 +41,20 @@ export function isFarmOwner(actor: Pick<UserRoleItem, 'role'>): boolean {
   return actor.role === 'Farm Owner';
 }
 
+/**
+ * Settings → People lists the office accounts; farm owners, staff and vets are
+ * managed from their farm on the Farms page. A farm person whose farm is
+ * missing or gone also stays in Settings, so nobody is lost.
+ */
+export function isOfficePerson(u: Pick<UserRoleItem, 'role' | 'farmLocation'>, farmNames: string[]): boolean {
+  return !FARM_ROLES.includes(u.role) || !u.farmLocation || !farmNames.includes(u.farmLocation);
+}
+
+/** The roles given from Settings: everything except the farm roles. */
+export function officeRoleNames(roles: CustomRoleDefinition[]): string[] {
+  return roles.map(r => r.name).filter(n => !FARM_ROLES.includes(n));
+}
+
 /** Whether this person gets the People page: account managers, and a farm owner for their own farm. */
 export function canOpenPeople(user: Pick<UserRoleItem, 'role' | 'permissions' | 'farmLocation'> | undefined | null): boolean {
   if (!user) return false;

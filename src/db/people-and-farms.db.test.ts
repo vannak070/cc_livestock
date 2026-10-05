@@ -5,7 +5,8 @@ import { settingsRepository } from '../repositories/settings.repository';
 import { settingsService } from '../services/settings.service';
 import { userAdminService } from '../services/user-admin.service';
 import { farmService } from '../services/farm.service';
-import { verifyPassword } from '../lib/password';
+import { authService } from '../services/auth.service';
+import { hashPassword, verifyPassword } from '../lib/password';
 import { DEFAULT_ROLE_PERMISSIONS, type UserRoleItem } from '../lib/types';
 import type { PersonInput } from '../lib/user-admin';
 import type { FarmInput } from '../lib/farm-settings';
@@ -84,6 +85,18 @@ describe.skipIf(!enabled)('people and farms are changed one at a time', () => {
       await expect(userAdminService.deleteUser(admin, 'ad')).rejects.toThrow(/your own/);
       await expect(userAdminService.setStatus(superAdmin, 'sa', 'Inactive')).rejects.toThrow(/protected|your own/);
       await expect(userAdminService.deleteUser(admin, 'sa')).rejects.toThrow(/Super Admin/);
+    });
+    it('does not let you change your own role or access, so the Super Admin cannot demote themselves', async () => {
+      const me = { name: 'Super', email: 'sa@x.com', farmLocation: '', permissions: DEFAULT_ROLE_PERMISSIONS['Super Admin'] };
+      await expect(userAdminService.updateUser(superAdmin, 'sa', person({ ...me, role: 'Farm Staff', farmLocation: 'Farm A' }))).rejects.toThrow(/own role/);
+      await userAdminService.updateUser(superAdmin, 'sa', person({ ...me, name: 'Super Renamed', role: 'Super Admin' }));
+      expect(await userRow('sa@x.com')).toMatchObject({ name: 'Super Renamed', role: 'Super Admin' });
+    });
+    it('lets a signed-in person change their own password only with the current one', async () => {
+      await pool.query('UPDATE users SET password = $1 WHERE id = $2', [await hashPassword('old-password'), 'ad']);
+      await expect(authService.changeOwnPassword(admin, 'wrong-password', 'new-password')).rejects.toThrow(/current password/);
+      await authService.changeOwnPassword(admin, 'old-password', 'new-password');
+      expect(await verifyPassword('new-password', (await userRow('ad@x.com')).password)).toBe(true);
     });
     it('keeps the role limits: only Admins touch Admins, nobody hands out access they lack', async () => {
       const company = { id: 'co', name: 'Co', email: 'co@x.com', role: 'Company', status: 'Active' } as UserRoleItem;

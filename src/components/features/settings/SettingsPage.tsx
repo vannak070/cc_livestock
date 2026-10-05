@@ -12,8 +12,8 @@ import ListsPanel from './ListsPanel';
 interface SettingsPageProps {
   settings: MasterSetup;
   currentUser?: UserRoleItem;
-  /** Open with the people of this farm, when coming from the Farms page. */
-  initialFarm?: string;
+  /** Opens the Farms page, where farm people are looked after; only for people who may open it. */
+  onOpenFarms?: () => void;
 }
 
 type Tab = 'people' | 'roles' | 'lists';
@@ -23,7 +23,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'lists', label: 'Lists' },
 ];
 
-export default function SettingsPage({ settings, currentUser, initialFarm }: SettingsPageProps) {
+export default function SettingsPage({ settings, currentUser, onOpenFarms }: SettingsPageProps) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('people');
 
@@ -61,7 +61,7 @@ export default function SettingsPage({ settings, currentUser, initialFarm }: Set
         </div>
       )}
 
-      {(ownerOnly || tab === 'people') && <PeoplePanel settings={settings} actor={currentUser} onChanged={onChanged} initialFarm={initialFarm} />}
+      {(ownerOnly || tab === 'people') && <PeoplePanel settings={settings} actor={currentUser} onChanged={onChanged} onOpenFarms={onOpenFarms} />}
       {!ownerOnly && tab === 'roles' && <RolesPanel settings={settings} actor={currentUser} onSettings={onSettings} />}
       {!ownerOnly && tab === 'lists' && <ListsPanel settings={settings} onSettings={onSettings} />}
     </div>
