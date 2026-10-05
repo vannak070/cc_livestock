@@ -39,7 +39,7 @@ import WeightsPage from './features/weight/WeightsPage';
 import SalesPage from './features/sales/SalesPage';
 import ReportsPage from './features/reports/ReportsPage';
 import PlanningPage from './features/planning/PlanningPage';
-import SettingsTab from './SettingsTab';
+import SettingsPage from './features/settings/SettingsPage';
 import FarmsPage from './features/farms/FarmsPage';
 import { useOnChange } from '@/hooks/useOnChange';
 import CattleList from './features/cattle/CattleList';
@@ -572,7 +572,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       )}
 
       {activeTab === 'settings' && (
-        <SettingsTab
+        <SettingsPage
           settings={dbData.settings}
           currentUser={currentUser}
         />

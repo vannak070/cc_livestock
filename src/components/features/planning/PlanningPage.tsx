@@ -31,8 +31,9 @@ export default function PlanningPage({ plans, onSavePlan, onDeletePlan }: Planni
   const [error, setError] = useState('');
 
   const bySlot = useMemo(() => new Map(plans.map(p => [p.slot, p])), [plans]);
-  const slots = Array.from({ length: MAX_PLANS }, (_, i) => i + 1);
-  const firstEmpty = slots.find(s => !bySlot.has(s));
+  const saved = useMemo(() => [...plans].sort((a, b) => a.slot - b.slot), [plans]);
+  // A new plan takes the lowest free slot, and only shows in the list once it is saved.
+  const firstEmpty = Array.from({ length: MAX_PLANS }, (_, i) => i + 1).find(n => !bySlot.has(n));
 
   if (view.kind === 'edit') {
     const slot = view.slot;
@@ -92,40 +93,36 @@ export default function PlanningPage({ plans, onSavePlan, onDeletePlan }: Planni
       {error && <p role="alert" className="text-base font-medium text-rose-700">{error}</p>}
 
       {tab === 'plans' && (
-        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {slots.map(slot => {
-            const p = bySlot.get(slot);
-            if (!p) {
+        saved.length === 0 ? (
+          <div className="space-y-4 rounded-2xl bg-slate-50 p-8 text-center">
+            <p className="text-lg text-ink-muted">No plans yet. A plan appears here once you save it.</p>
+            {firstEmpty !== undefined && <Button size="lg" onClick={() => setView({ kind: 'edit', slot: firstEmpty })}><Plus /> New plan</Button>}
+          </div>
+        ) : (
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {saved.map(p => {
+              const r = calculatePlan(p.params);
               return (
-                <li key={slot}>
-                  <button type="button" onClick={() => setView({ kind: 'edit', slot })} className="flex min-h-32 w-full flex-col items-start justify-center gap-1 rounded-2xl border-2 border-dashed border-slate-300 bg-white/60 p-4 text-left hover:border-emerald-600">
-                    <span className="text-lg font-semibold text-ink-muted">Plan {slot}</span>
-                    <span className="flex items-center gap-1.5 text-base font-medium text-emerald-800"><Plus className="h-4 w-4" aria-hidden /> Start this plan</span>
+                <li key={p.slot} className="flex flex-col rounded-2xl border border-slate-200 bg-white">
+                  <button type="button" onClick={() => setView({ kind: 'edit', slot: p.slot })} className="flex flex-1 flex-col gap-2 rounded-t-2xl p-4 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
+                    <span className="text-sm text-ink-muted">Plan {p.slot}</span>
+                    <span className="break-words text-xl font-semibold text-ink">{p.name}</span>
+                    <span className={`text-2xl font-semibold ${r.annualProfitKhr < 0 ? 'text-rose-700' : 'text-emerald-800'}`}>{riel(r.annualProfitKhr)} <span className="text-base font-normal text-ink-muted">a year</span></span>
+                    <span className="text-base text-ink-muted">{Math.round(r.annualRoiPercent * 10) / 10}% return · {p.params.targetStockLevel.toLocaleString()} cattle · {p.params.fatteningPeriodDays} days</span>
+                    <span className="text-sm text-ink-muted">Saved {day(p.updatedAt)}{p.updatedBy ? ` by ${p.updatedBy}` : ''}</span>
                   </button>
+                  <div className="flex justify-end gap-1 border-t border-slate-100 px-2 py-1">
+                    <Button variant="ghost" onClick={() => duplicate(p)} disabled={firstEmpty === undefined} title={firstEmpty === undefined ? 'All ten plans are used' : undefined}><Copy /> Copy</Button>
+                    <Button variant="ghost" aria-label={`Delete plan ${p.slot}`} onClick={() => askDelete(p)}><Trash2 className="text-rose-700" /></Button>
+                  </div>
                 </li>
               );
-            }
-            const r = calculatePlan(p.params);
-            return (
-              <li key={slot} className="flex flex-col rounded-2xl border border-slate-200 bg-white">
-                <button type="button" onClick={() => setView({ kind: 'edit', slot })} className="flex flex-1 flex-col gap-2 rounded-t-2xl p-4 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
-                  <span className="text-sm text-ink-muted">Plan {slot}</span>
-                  <span className="break-words text-xl font-semibold text-ink">{p.name}</span>
-                  <span className={`text-2xl font-semibold ${r.annualProfitKhr < 0 ? 'text-rose-700' : 'text-emerald-800'}`}>{riel(r.annualProfitKhr)} <span className="text-base font-normal text-ink-muted">a year</span></span>
-                  <span className="text-base text-ink-muted">{Math.round(r.annualRoiPercent * 10) / 10}% return · {p.params.targetStockLevel.toLocaleString()} cattle · {p.params.fatteningPeriodDays} days</span>
-                  <span className="text-sm text-ink-muted">Saved {day(p.updatedAt)}{p.updatedBy ? ` by ${p.updatedBy}` : ''}</span>
-                </button>
-                <div className="flex justify-end gap-1 border-t border-slate-100 px-2 py-1">
-                  <Button variant="ghost" onClick={() => duplicate(p)} disabled={firstEmpty === undefined} title={firstEmpty === undefined ? 'All ten plans are used' : undefined}><Copy /> Copy</Button>
-                  <Button variant="ghost" aria-label={`Delete plan ${slot}`} onClick={() => askDelete(p)}><Trash2 className="text-rose-700" /></Button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+            })}
+          </ul>
+        )
       )}
 
-      {tab === 'compare' && <PlanComparison plans={[...plans].sort((a, b) => a.slot - b.slot)} />}
+      {tab === 'compare' && <PlanComparison plans={saved} />}
 
       {confirm && (
         <ConfirmModal isOpen onClose={() => setConfirm(null)} onConfirm={confirm.onConfirm} title={confirm.title} description={confirm.description} type={confirm.type} confirmText={confirm.confirmText} />
