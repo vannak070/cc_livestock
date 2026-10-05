@@ -35,7 +35,7 @@ import DashboardHome from './DashboardHome';
 import BatchTab from './BatchTab';
 import FeedInventoryTab from './FeedInventoryTab';
 import HealthTab from './HealthTab';
-import WeightTab from './WeightTab';
+import WeightsPage from './features/weight/WeightsPage';
 import FinanceTab from './FinanceTab';
 import AnalyticsTab from './AnalyticsTab';
 import ProposalPlanTab from './ProposalPlanTab';
@@ -519,7 +519,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       )}
 
       {activeTab === 'weight-tracking' && (
-        <WeightTab
+        <WeightsPage
           data={dbData}
           onOpenLogWeight={(cowId) => handleOpenQuickEntry('weight', cowId || null)}
           onDeleteWeightRecord={async (cowId, trackingDate) => {
