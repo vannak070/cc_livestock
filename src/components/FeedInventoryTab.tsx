@@ -47,6 +47,8 @@ interface FeedInventoryTabProps {
   onSaveProduct: (product: FeedProductItem) => Promise<void>;
   onDeleteProduct: (productId: string) => Promise<void>;
   onAddTransaction: (tx: FeedStockTransaction) => Promise<void>;
+  /** Opens the guided Feed in dialog; the modal here then only handles stock out. */
+  onOpenFeedIn?: () => void;
   currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
@@ -56,6 +58,7 @@ export default function FeedInventoryTab({
   onSaveProduct,
   onDeleteProduct,
   onAddTransaction,
+  onOpenFeedIn,
   currentUser,
   farms = []
 }: FeedInventoryTabProps) {
@@ -359,6 +362,7 @@ export default function FeedInventoryTab({
   const totalValuation = balances.reduce((sum, b) => sum + b.totalValuation, 0);
 
   const openTxModal = (type: 'STOCK_IN' | 'STOCK_OUT') => {
+    if (type === 'STOCK_IN' && onOpenFeedIn) { onOpenFeedIn(); return; }
     setTxType(type);
     setIsTransactionModalOpen(true);
   };

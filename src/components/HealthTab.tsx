@@ -19,13 +19,15 @@ import { useOnChange } from '@/hooks/useOnChange';
 interface HealthTabProps {
   data: ERPLivestockData;
   onAddHealthLog: (log: Omit<HealthLogItem, 'id'>) => Promise<void>;
+  /** Opens the guided Treat dialog; the inline form below then only edits records. */
+  onOpenTreat?: () => void;
   onDeleteHealthLog?: (logId: string) => Promise<void>;
   onUpdateHealthLog?: (logId: string, updates: Partial<HealthLogItem>) => Promise<void>;
   currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 
-export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onUpdateHealthLog, currentUser, farms = [] }: HealthTabProps) {
+export default function HealthTab({ data, onAddHealthLog, onOpenTreat, onDeleteHealthLog, onUpdateHealthLog, currentUser, farms = [] }: HealthTabProps) {
   const { t } = useLanguage();
   const [isLogging, setIsLogging] = useState(false);
   const [selectedCohortId, setSelectedCohortId] = useState<string>('all');
@@ -190,6 +192,7 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
         {hasPermission(currentUser, 'health_record') && (
           <Button 
             onClick={() => {
+              if (!isLogging && onOpenTreat) { onOpenTreat(); return; }
               if (isLogging) {
                 setEditingLogId(null);
                 setCowId('');

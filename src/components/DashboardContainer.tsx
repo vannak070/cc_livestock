@@ -8,7 +8,6 @@ import {
   updateStockItemAction,
   addWeightRecordAction, 
   recordSaleAction, 
-  recordBatchSaleAction, 
   createBatchAction, 
   assignCowsToBatchAction, 
   addHealthLogAction, 
@@ -45,7 +44,9 @@ import ProposalPlanTab from './ProposalPlanTab';
 import SettingsTab from './SettingsTab';
 import FarmsTab from './FarmsTab';
 import CowDetails from './CowDetails';
-import QuickEntryModal from './QuickEntryModal';
+import FeedInFlow from './features/feed/FeedInFlow';
+import TreatFlow from './features/health/TreatFlow';
+import SellFlow from './features/sales/SellFlow';
 import WeighFlow from './features/weigh/WeighFlow';
 import AddCattleFlow from './features/stock/AddCattleFlow';
 import { ERPLivestockData, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
@@ -71,7 +72,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
 
   // Modal States
   const [isQuickEntryOpen, setIsQuickEntryOpen] = useState(false);
-  const [quickEntryTab, setQuickEntryTab] = useState<'add' | 'weight' | 'sale'>('add');
+  const [quickEntryTab, setQuickEntryTab] = useState<'add' | 'weight' | 'sale' | 'treat' | 'feed'>('add');
   const [preselectedCowId, setPreselectedCowId] = useState<string | null>(null);
 
   const [selectedCowDetailsId, setSelectedCowDetailsId] = useState<string | null>(null);
@@ -121,17 +122,6 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   const recordSaleMutation = useMutation({
     mutationFn: async ({ cowId, unitPrice, saleType, date, buyer }: { cowId: string; unitPrice: number; saleType: 'Weight' | 'Lumpsum'; date?: string; buyer?: string }) => {
       const res = await recordSaleAction(cowId, unitPrice, saleType, date, buyer);
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
-    }
-  });
-
-  const recordBatchSaleMutation = useMutation({
-    mutationFn: async ({ batchId, unitPrice, saleType, date }: { batchId: string; unitPrice: number; saleType: 'Weight' | 'Lumpsum'; date?: string }) => {
-      const res = await recordBatchSaleAction(batchId, unitPrice, saleType, date);
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
@@ -355,20 +345,20 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   const vaccineAlertsCount = cattleWithDiseaseHistory(dbData).length;
 
   // Trigger Action panel
-  const handleOpenQuickEntry = (tabType: 'add' | 'weight' | 'sale' = 'add', cowId: string | null = null) => {
+  const handleOpenQuickEntry = (tabType: 'add' | 'weight' | 'sale' | 'treat' | 'feed' = 'add', cowId: string | null = null) => {
     setQuickEntryTab(tabType);
     setPreselectedCowId(cowId);
     setIsQuickEntryOpen(true);
   };
 
   // What this person may record, shown on Today and behind the phone's Record
-  // button. Treat and Feed in open their pages until phase 3 adds guided forms.
+  // button. Each opens a guided dialog.
   const recordActions: RecordAction[] = ([
     hasPermission(currentUser, 'weight_record') && { key: 'weigh', label: 'Weigh', icon: <Scale className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('weight') },
-    hasPermission(currentUser, 'health_record') && { key: 'treat', label: 'Treat', icon: <Syringe className="h-7 w-7" />, onClick: () => setActiveTab('health-tracking') },
+    hasPermission(currentUser, 'health_record') && { key: 'treat', label: 'Treat', icon: <Syringe className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('treat') },
     hasPermission(currentUser, 'stock_create') && { key: 'add', label: 'Add cattle', icon: <PlusCircle className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('add') },
     hasPermission(currentUser, 'sales_record') && { key: 'sell', label: 'Sell', icon: <DollarSign className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('sale') },
-    hasPermission(currentUser, 'feed_manage') && { key: 'feed', label: 'Feed in', icon: <Package className="h-7 w-7" />, onClick: () => setActiveTab('feed-inventory') }
+    hasPermission(currentUser, 'feed_manage') && { key: 'feed', label: 'Feed in', icon: <Package className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('feed') }
   ] as (RecordAction | false)[]).filter((a): a is RecordAction => !!a);
 
   const handleViewDetails = (cowId: string) => {
@@ -491,6 +481,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           onAddTransaction={async (tx) => {
             await addFeedTransactionMutation.mutateAsync(tx);
           }}
+          onOpenFeedIn={() => handleOpenQuickEntry('feed')}
           currentUser={currentUser}
           farms={dbData.settings?.farms ?? []}
         />
@@ -500,7 +491,9 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         <HealthTab
           data={dbData}
           onAddHealthLog={async (log) => {
-            await addHealthLogMutation.mutateAsync(log);          }}
+            await addHealthLogMutation.mutateAsync(log);
+          }}
+          onOpenTreat={() => handleOpenQuickEntry('treat')}
           onDeleteHealthLog={async (logId) => {
             await deleteHealthLogMutation.mutateAsync(logId);
           }}
@@ -612,26 +605,37 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           await addCowMutation.mutateAsync(cow);
         }}
       />
-      <QuickEntryModal
+      <FeedInFlow
+        isOpen={isQuickEntryOpen && quickEntryTab === 'feed'}
+        onClose={() => setIsQuickEntryOpen(false)}
+        products={dbData.feedProducts || []}
+        farms={dbData.settings?.farms ?? []}
+        currentUser={currentUser}
+        onSave={async tx => {
+          await addFeedTransactionMutation.mutateAsync(tx);
+        }}
+      />
+      <TreatFlow
+        isOpen={isQuickEntryOpen && quickEntryTab === 'treat'}
+        onClose={() => setIsQuickEntryOpen(false)}
+        cattle={activeCows}
+        common={dbData.settings}
+        currentUser={currentUser}
+        preselectedCowId={preselectedCowId}
+        onSave={async log => {
+          await addHealthLogMutation.mutateAsync(log);
+        }}
+      />
+      <SellFlow
         isOpen={isQuickEntryOpen && quickEntryTab === 'sale'}
         onClose={() => setIsQuickEntryOpen(false)}
-        common={dbData.settings} // Feed the settings master data instead of old hardcoded sheet
-        activeCows={activeCows}
-        activeBatches={dbData.batches.filter(b => b.status === 'Active')}
-        defaultTab={quickEntryTab}
+        cattle={activeCows}
         preselectedCowId={preselectedCowId}
-        currentUser={currentUser}
-        onAddCow={async (data) => {
-          await addCowMutation.mutateAsync(data);
-        }}
-        onAddWeight={async (cowId, weight, healthStatus, date) => {
+        onWeigh={async (cowId, weight, healthStatus, date) => {
           await addWeightMutation.mutateAsync({ cowId, weight, healthStatus, date });
         }}
-        onRecordSale={async (cowId, unitPrice, saleType, date, buyer) => {
+        onSell={async (cowId, unitPrice, saleType, date, buyer) => {
           await recordSaleMutation.mutateAsync({ cowId, unitPrice, saleType, date, buyer });
-        }}
-        onRecordBatchSale={async (batchId, unitPrice, saleType, date) => {
-          await recordBatchSaleMutation.mutateAsync({ batchId, unitPrice, saleType, date });
         }}
       />
     </SidebarLayout>
