@@ -25,6 +25,8 @@ import { UserRoleItem } from '@/lib/types';
 import { hasPermission } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
 import LanguageSwitcher from '../LanguageSwitcher';
+import InstallAppButton from '../InstallAppButton';
+import ShareAppButton from '../ShareAppButton';
 
 export type ActiveTabType =
   | 'today'
@@ -249,6 +251,12 @@ export default function SidebarLayout({
           </NavSection>
         )}
       </nav>
+
+      {/* ─── Install / share this app ─── */}
+      <div className="flex-shrink-0 px-3 pt-2 border-t border-slate-200 space-y-0.5">
+        <InstallAppButton />
+        <ShareAppButton />
+      </div>
 
       {/* ─── User Profile Footer ─── */}
       {currentUser && (
