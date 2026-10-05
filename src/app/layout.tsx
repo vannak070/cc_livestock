@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Kantumruy_Pro, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import ReactQueryProvider from "@/components/providers/ReactQueryProvider";
 import ServiceWorkerRegister from "@/components/providers/ServiceWorkerRegister";
@@ -8,6 +9,22 @@ import ServiceWorkerRegister from "@/components/providers/ServiceWorkerRegister"
 const kantumruy = Kantumruy_Pro({
   variable: "--font-kantumruy",
   subsets: ["latin", "khmer"],
+});
+
+// Kantumruy draws the riel sign (៛) much smaller than the digits next to it.
+// This face is the same Kantumruy Pro Khmer file (SIL Open Font License), used
+// only for that one character and drawn 50% larger; everything else falls
+// through to the normal Kantumruy above.
+const rielSign = localFont({
+  src: "./fonts/kantumruy-pro-khmer.woff2",
+  variable: "--font-riel",
+  weight: "100 700",
+  display: "swap",
+  adjustFontFallback: false,
+  declarations: [
+    { prop: "unicode-range", value: "U+17DB" },
+    { prop: "size-adjust", value: "150%" },
+  ],
 });
 
 const geistMono = Geist_Mono({
@@ -43,7 +60,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${kantumruy.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${kantumruy.variable} ${rielSign.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-canvas text-ink font-sans">
         <ReactQueryProvider>
