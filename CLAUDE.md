@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CC Livestock: a cattle-fattening operations app (stock intake, batches, weights, health, feed inventory, sales/finance, analytics, proposal plans, permissions). Next.js 16 (App Router) + React 19 + PostgreSQL. UI text is bilingual (`src/locales/en.ts`, `km.ts`, `LanguageContext`); some data values are Khmer strings (e.g. farm location `រទាំង`).
 
-`claude/config.md` has additional agent workflow notes (the `claude/features|updates|tests` spec-file workflow, deploy history). Its "mobile-app" sections are stale in the current working tree: `mobile-app/` is deleted (uncommitted) here.
+`claude/config.md` has additional agent workflow notes (the `claude/features|updates|tests` spec-file workflow, deploy history). Its "mobile-app" sections are stale: `mobile-app/` was removed from this repo (commit f7a608b).
 
 ## Commands
 
@@ -52,4 +52,4 @@ Do not run `npm install`/`npm ci` from a sandboxed/remote shell that isn't the u
 
 - Next.js 16 differs from older versions; read the relevant guide in `node_modules/next/dist/docs/` before writing Next-specific code (see AGENTS.md).
 - `tsconfig.json` excludes `mobile-app/` from the web TypeScript project (commit 83d9816).
-- `backups/*.json` are real production DB backups (gitignored); don't commit or delete them.
+- `backups/` holds real database backups and dumps (the whole folder is gitignored); don't commit or delete them.

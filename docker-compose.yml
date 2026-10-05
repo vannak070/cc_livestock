@@ -1,3 +1,8 @@
+# Pin the Compose project name so containers and the postgres_data volume keep
+# their existing names (livestock_mgt-*) whatever this folder is called.
+# Without it, renaming the folder would start a new, empty database.
+name: livestock_mgt
+
 # Local/dev Docker Compose for the Livestock Management System.
 #
 # NOTE ON CONTAINER NAMES: earlier versions of this file pinned fixed global

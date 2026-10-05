@@ -3,7 +3,7 @@
 How an AI agent (or a human following the same rules) should work on this
 repo. This is the real project — if you're reading this from a copy at
 `StudioProjects/LiveStock`, that copy is stale/wrong; this repo
-(`HOVA_Project/CC_Farm_Mgt`) is the source of truth.
+(`HOVA_Project/CC_Livestock`) is the source of truth.
 
 ## What this project is
 
