@@ -506,7 +506,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
         onSubmit={onSaveProduct}
         initialProduct={productModal.product}
         categories={data.settings?.feedTypes}
-        onManageCategories={() => setCategoryOpen(true)}
+        onManageCategories={canManage ? () => setCategoryOpen(true) : undefined}
       />
       <FeedCategoryModal isOpen={categoryOpen} onClose={() => setCategoryOpen(false)} settings={data.settings} />
       <FeedInFlow
