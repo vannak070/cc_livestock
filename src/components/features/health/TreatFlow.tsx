@@ -7,7 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { HealthLogItem, MasterSetup, StockItem, UserRoleItem } from '@/lib/types';
 import { sickCattle } from '@/lib/attention';
-import { Choice, FlowDone, FlowFooter, FlowShell, NUM, Question, RowButton, today } from '../flow/FlowShell';
+import { FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, RowButton, today } from '../flow/FlowShell';
 
 interface TreatFlowProps {
   isOpen: boolean;
@@ -192,11 +192,7 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, onS
 
       {step === 'name' && (
         <>
-          <div className="flex flex-wrap gap-3">
-            {[...names, OTHER].map(n => (
-              <Choice key={n} selected={choice === n} onClick={() => { setChoice(n); setError(''); }}>{n === OTHER ? 'Something else' : n}</Choice>
-            ))}
-          </div>
+          <PickList options={[...names, OTHER]} value={choice} onChange={v => { setChoice(v); setError(''); }} labelFor={n => (n === OTHER ? 'Something else' : n)} />
           {choice === OTHER && <Input autoFocus aria-label="Name" value={custom} onChange={e => { setCustom(e.target.value); setError(''); }} placeholder="Type the name" className="h-14 text-lg" />}
         </>
       )}

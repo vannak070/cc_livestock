@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { FarmItem, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
-import { Choice, FlowDone, FlowFooter, FlowShell, NUM, Question, RowButton, money, today } from '../flow/FlowShell';
+import { FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, RowButton, money, today } from '../flow/FlowShell';
 
 interface FeedInFlowProps {
   isOpen: boolean;
@@ -158,7 +158,7 @@ function FeedInBody({ onClose, products, farms, currentUser, onSave }: FeedInFlo
             <Question label="Farm"><p className="rounded-xl bg-slate-50 px-4 py-3 text-lg font-medium text-ink">{lockedFarm}</p></Question>
           ) : (
             <Question label="Which farm?">
-              <div className="flex flex-wrap gap-3">{farms.map(f => <Choice key={f.id} selected={farm === f.name} onClick={() => { setFarm(f.name); setError(''); }}>{f.name}</Choice>)}</div>
+              <PickList options={farms.map(f => f.name)} value={farm} onChange={v => { setFarm(v); setError(''); }} />
             </Question>
           )}
           <Question label="Date delivered"><Input aria-label="Date delivered" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" /></Question>

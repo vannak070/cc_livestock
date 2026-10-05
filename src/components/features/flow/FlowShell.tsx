@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
-import { ArrowLeft, Check } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Check, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
@@ -23,7 +24,7 @@ export function Choice({ selected, onClick, children }: { selected: boolean; onC
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`min-h-14 min-w-24 flex-1 rounded-xl border-2 px-5 text-lg font-medium transition-colors ${selected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-ink hover:border-emerald-600'}`}
+      className={`min-h-14 min-w-24 flex-1 whitespace-normal break-words rounded-xl border-2 px-4 py-2 text-center text-lg font-medium leading-snug transition-colors ${selected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-ink hover:border-emerald-600'}`}
     >
       {children}
     </button>
@@ -36,6 +37,53 @@ export function Question({ label, hint, children }: { label: string; hint?: stri
       <p className="mb-2 text-lg font-medium text-ink">{label}</p>
       {children}
       {hint && <p className="mt-2 text-base text-ink-muted">{hint}</p>}
+    </div>
+  );
+}
+
+const MAX_BUTTONS = 4;
+const SEARCH_FROM = 7;
+
+/**
+ * Choose one of many. A few options show as big buttons; a longer list (many
+ * farms or breeds) becomes full-width rows that never clip a long name, with a
+ * search box once it is long enough to need one.
+ */
+export function PickList({ options, value, onChange, labelFor = o => o }: { options: string[]; value: string; onChange: (v: string) => void; labelFor?: (o: string) => string }) {
+  const [q, setQ] = useState('');
+  if (options.length <= MAX_BUTTONS) {
+    return (
+      <div className="grid grid-cols-2 gap-3">
+        {options.map(o => <Choice key={o} selected={value === o} onClick={() => onChange(o)}>{labelFor(o)}</Choice>)}
+      </div>
+    );
+  }
+  const needle = q.trim().toLowerCase();
+  const shown = needle ? options.filter(o => labelFor(o).toLowerCase().includes(needle)) : options;
+  return (
+    <div className="space-y-3">
+      {options.length >= SEARCH_FROM && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
+          <Input value={q} onChange={e => setQ(e.target.value)} placeholder="Search" aria-label="Search the list" className="h-12 pl-10 text-lg" />
+        </div>
+      )}
+      <ul className="space-y-2">
+        {shown.map(o => (
+          <li key={o}>
+            <button
+              type="button"
+              onClick={() => onChange(o)}
+              aria-pressed={value === o}
+              className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border-2 px-4 py-2 text-left text-lg font-medium transition-colors ${value === o ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-ink hover:border-emerald-600'}`}
+            >
+              <span className="break-words">{labelFor(o)}</span>
+              {value === o && <Check className="h-6 w-6 shrink-0" aria-hidden />}
+            </button>
+          </li>
+        ))}
+        {shown.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">Nothing matches that.</li>}
+      </ul>
     </div>
   );
 }

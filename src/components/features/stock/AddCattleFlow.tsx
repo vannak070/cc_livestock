@@ -6,7 +6,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { MasterSetup, StockItem, UserRoleItem } from '@/lib/types';
-import { Choice, FlowDone, FlowFooter, FlowShell, NUM, Question, money as fmtMoney, today } from '../flow/FlowShell';
+import { Choice, FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, money as fmtMoney, today } from '../flow/FlowShell';
 
 export type NewCattle = Omit<StockItem, 'no' | 'status'> & { imageUrl?: string };
 
@@ -237,31 +237,31 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }:
           {step === 'kind' && (
             <>
               <Question label="Sex">
-                <div className="flex flex-wrap gap-3">{sexes.map(s => <Choice key={s} selected={sex === s} onClick={() => { setSex(s); setError(''); }}>{s}</Choice>)}</div>
+                <PickList options={sexes} value={sex} onChange={v => { setSex(v); setError(''); }} />
               </Question>
-              {breeds.length > 0 && (
-                <Question label="Breed">
-                  <div className="flex flex-wrap gap-3">{breeds.map(b => <Choice key={b} selected={breed === b} onClick={() => { setBreed(b); setError(''); }}>{b}</Choice>)}</div>
-                </Question>
-              )}
               <Question label="Age (if you know it)">
                 <Input aria-label="Age" value={age} onChange={e => setAge(e.target.value)} placeholder="for example 18 months" />
               </Question>
+              {breeds.length > 0 && (
+                <Question label="Breed">
+                  <PickList options={breeds} value={breed} onChange={v => { setBreed(v); setError(''); }} />
+                </Question>
+              )}
             </>
           )}
 
           {step === 'where' && (
             <>
+              <Question label="Date it arrived">
+                <Input aria-label="Date it arrived" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" />
+              </Question>
               {lockedFarm ? (
                 <Question label="Farm"><p className="rounded-xl bg-slate-50 px-4 py-3 text-lg font-medium text-ink">{lockedFarm}</p></Question>
               ) : (
                 <Question label="Which farm?">
-                  <div className="flex flex-wrap gap-3">{farmNames.map(f => <Choice key={f} selected={farm === f} onClick={() => { setFarm(f); setError(''); }}>{f}</Choice>)}</div>
+                  <PickList options={farmNames} value={farm} onChange={v => { setFarm(v); setError(''); }} />
                 </Question>
               )}
-              <Question label="Date it arrived">
-                <Input aria-label="Date it arrived" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" />
-              </Question>
             </>
           )}
 
