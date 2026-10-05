@@ -377,7 +377,7 @@ export default function FeedInventoryTab({
       <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <Package className="h-6 w-6 text-emerald-600 animate-pulse" />
               DSR-16 Concentrate Feed Stock Management
             </h3>
@@ -414,18 +414,18 @@ export default function FeedInventoryTab({
               <Scale className="h-5 w-5" />
             </div>
             <div>
-              <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+              <h4 className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
                 ⚡ Automated Daily Feed Stock Out Active ({batchRationUsage.activeHeadcount} Active Cattle)
               </h4>
-              <p className="text-[11px] text-emerald-800 font-semibold mt-0.5">
-                Stock out is calculated automatically each day based on active Daily Feed Ration specs: <strong className="text-emerald-950 font-black">{format2DecimalsWithCommas(batchRationUsage.totalDailyRationKg)} kg/day</strong> ({format2DecimalsWithCommas(batchRationUsage.totalDailyRationBags)} bags/day) across {batchRationUsage.activeBatchesCount} active fattening programs. Manual stock out is disabled.
+              <p className="text-xs text-emerald-800 font-semibold mt-0.5">
+                Stock out is calculated automatically each day based on active Daily Feed Ration specs: <strong className="text-emerald-950 font-bold">{format2DecimalsWithCommas(batchRationUsage.totalDailyRationKg)} kg/day</strong> ({format2DecimalsWithCommas(batchRationUsage.totalDailyRationBags)} bags/day) across {batchRationUsage.activeBatchesCount} active fattening programs. Manual stock out is disabled.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3 bg-white px-3.5 py-2 rounded-xl border border-emerald-200 shadow-2xs">
             <div className="text-right">
-              <p className="text-[9px] font-black uppercase text-slate-400">Stock Coverage</p>
-              <p className="text-xs font-black text-emerald-800">
+              <p className="text-xs font-bold text-slate-400">Stock Coverage</p>
+              <p className="text-xs font-bold text-emerald-800">
                 {batchRationUsage.totalDailyRationKg > 0 
                   ? `~${Math.floor(totalOnsiteKg / batchRationUsage.totalDailyRationKg)} Days Remaining` 
                   : 'Sufficient Feed'}
@@ -442,10 +442,10 @@ export default function FeedInventoryTab({
                 <AlertTriangle className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider">
+                <h4 className="text-xs font-bold text-amber-900 ">
                   ⚠️ Low Stock Warning Triggered ({lowStockAlerts.length} Items Below Threshold)
                 </h4>
-                <p className="text-[11px] text-amber-700 font-semibold mt-0.5">
+                <p className="text-xs text-amber-700 font-semibold mt-0.5">
                   Stock levels for {lowStockAlerts.map(a => `${a.productName} (${a.balanceBags} bags)`).join(', ')} have dropped below 50 bags (1,500 kg threshold).
                 </p>
               </div>
@@ -464,33 +464,33 @@ export default function FeedInventoryTab({
         {/* KPI Dashboard Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-left pt-2">
           <div className="bg-slate-50/80 border border-slate-200/60 p-4 rounded-2xl shadow-2xs">
-            <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Total Stock On-Hand (Bags)</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">
+            <p className="text-xs font-bold text-slate-400 ">Total Stock On-Hand (Bags)</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">
               {totalOnsiteBags.toLocaleString()}{' '}
               <span className="text-xs font-bold text-slate-500">bags</span>
             </p>
           </div>
 
           <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl shadow-2xs">
-            <p className="text-[9px] font-black uppercase text-blue-700 tracking-wider">Total Feed Biomass (kg)</p>
-            <p className="text-2xl font-black text-blue-900 mt-1">
+            <p className="text-xs font-bold text-blue-700 ">Total Feed Biomass (kg)</p>
+            <p className="text-2xl font-bold text-blue-900 mt-1">
               {format2DecimalsWithCommas(totalOnsiteKg)}{' '}
               <span className="text-xs font-bold text-blue-600">kg</span>
             </p>
           </div>
 
           <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl shadow-2xs">
-            <p className="text-[9px] font-black uppercase text-emerald-700 tracking-wider">Feed Stock Valuation</p>
-            <p className="text-2xl font-black text-emerald-900 mt-1">
+            <p className="text-xs font-bold text-emerald-700 ">Feed Stock Valuation</p>
+            <p className="text-2xl font-bold text-emerald-900 mt-1">
               ៛ {format2DecimalsWithCommas(totalValuation)}
             </p>
           </div>
 
           <div className={`p-4 rounded-2xl border shadow-2xs ${
-            lowStockAlerts.length > 0 ? 'bg-rose-50/70 border-rose-200 text-rose-900' : 'bg-slate-50/80 border-slate-200/60'
+ lowStockAlerts.length > 0 ? 'bg-rose-50/70 border-rose-200 text-rose-900' : 'bg-slate-50/80 border-slate-200/60'
           }`}>
-            <p className="text-[9px] font-black uppercase tracking-wider opacity-70">Low Stock Alerts</p>
-            <p className="text-2xl font-black mt-1">
+            <p className="text-xs font-bold opacity-70">Low Stock Alerts</p>
+            <p className="text-2xl font-bold mt-1">
               {lowStockAlerts.length}{' '}
               <span className="text-xs font-bold">Products</span>
             </p>
@@ -504,7 +504,7 @@ export default function FeedInventoryTab({
           <button
             onClick={() => setSubView('balances')}
             className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-              subView === 'balances' ? 'bg-white text-emerald-700 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800'
+ subView === 'balances' ? 'bg-white text-emerald-700 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             ⚖️ Stock Balance ({filteredBalances.length})
@@ -512,7 +512,7 @@ export default function FeedInventoryTab({
           <button
             onClick={() => setSubView('products')}
             className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-              subView === 'products' ? 'bg-white text-emerald-700 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800'
+ subView === 'products' ? 'bg-white text-emerald-700 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             📦 Product Master ({products.length})
@@ -520,7 +520,7 @@ export default function FeedInventoryTab({
           <button
             onClick={() => setSubView('transactions')}
             className={`px-3.5 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-              subView === 'transactions' ? 'bg-white text-emerald-700 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800'
+ subView === 'transactions' ? 'bg-white text-emerald-700 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             📊 Movement Ledger ({filteredTransactions.length})
@@ -622,7 +622,7 @@ export default function FeedInventoryTab({
           {/* Display Mode Toggle Control Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50 border border-slate-200/70 p-2.5 rounded-2xl">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider pl-1">
+              <span className="text-xs font-bold text-slate-500 pl-1">
                 Stock Allocation Display Mode:
               </span>
             </div>
@@ -631,8 +631,8 @@ export default function FeedInventoryTab({
                 type="button"
                 onClick={() => setBalanceViewMode('consolidated')}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                  balanceViewMode === 'consolidated'
-                    ? 'bg-white text-emerald-800 shadow-xs font-black'
+ balanceViewMode === 'consolidated'
+                    ? 'bg-white text-emerald-800 shadow-xs font-bold'
                     : 'text-slate-600 hover:text-slate-900 font-semibold'
                 }`}
               >
@@ -642,8 +642,8 @@ export default function FeedInventoryTab({
                 type="button"
                 onClick={() => setBalanceViewMode('specific_batch')}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                  balanceViewMode === 'specific_batch'
-                    ? 'bg-white text-emerald-800 shadow-xs font-black'
+ balanceViewMode === 'specific_batch'
+                    ? 'bg-white text-emerald-800 shadow-xs font-bold'
                     : 'text-slate-600 hover:text-slate-900 font-semibold'
                 }`}
               >
@@ -670,7 +670,7 @@ export default function FeedInventoryTab({
                   ]
                 });
               }}
-              className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-2xs cursor-pointer"
+              className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xs cursor-pointer"
             >
               <Download className="h-3.5 w-3.5" /> Export Excel
             </Button>
@@ -680,7 +680,7 @@ export default function FeedInventoryTab({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-black text-[9.5px] uppercase tracking-wider">
+                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold text-xs ">
                     <th className="py-3.5 px-5">Feed Product</th>
                     <th className="py-3.5 px-5">Warehouse / Farm</th>
                     <th className="py-3.5 px-5">{balanceViewMode === 'specific_batch' ? 'Active Batch' : 'Active Batches under Farm'}</th>
@@ -696,36 +696,36 @@ export default function FeedInventoryTab({
                   {paginatedBalances.length > 0 ? (
                     paginatedBalances.map((item, idx) => (
                       <tr key={item.id || `${item.productId}-${item.farmLocation}-${idx}`} className="hover:bg-slate-50/40 transition-colors">
-                        <td className="py-3.5 px-5 font-black text-slate-900">{item.productName}</td>
+                        <td className="py-3.5 px-5 font-bold text-slate-900">{item.productName}</td>
                         <td className="py-3.5 px-5 font-bold text-slate-800">
-                          <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg text-xs font-extrabold text-slate-700">
+                          <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-700">
                             🏢 {item.farmLocation}
                           </span>
                         </td>
                         <td className="py-3.5 px-5 font-bold">
                           {balanceViewMode === 'specific_batch' ? (
                             item.activeBatchName ? (
-                              <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200/80 px-2.5 py-1 rounded-lg text-xs font-extrabold shadow-2xs">
+                              <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200/80 px-2.5 py-1 rounded-lg text-xs font-bold shadow-2xs">
                                 📦 {item.activeBatchName}
                               </span>
                             ) : (
-                              <span className="text-[11px] text-slate-400 font-medium">—</span>
+                              <span className="text-xs text-slate-400 font-medium">—</span>
                             )
                           ) : (
                             item.activeBatches && item.activeBatches.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
                                 {item.activeBatches.map((bName, bIdx) => (
-                                  <span key={bIdx} className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200/80 px-2 py-0.5 rounded-md text-[11px] font-bold shadow-2xs">
+                                  <span key={bIdx} className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200/80 px-2 py-0.5 rounded-md text-xs font-bold shadow-2xs">
                                     📦 {bName}
                                   </span>
                                 ))}
                               </div>
                             ) : (
-                              <span className="text-[11px] text-slate-400 font-medium">—</span>
+                              <span className="text-xs text-slate-400 font-medium">—</span>
                             )
                           )}
                         </td>
-                      <td className="py-3.5 px-5 font-mono font-black text-slate-900 text-sm">
+                      <td className="py-3.5 px-5 font-mono font-bold text-slate-900 text-sm">
                         {item.balanceBags.toLocaleString()} <span className="text-xs text-slate-400 font-bold">bags</span>
                       </td>
                       <td className="py-3.5 px-5 font-mono font-bold text-blue-700">
@@ -734,16 +734,16 @@ export default function FeedInventoryTab({
                       <td className="py-3.5 px-5 font-mono text-slate-600">
                         ៛ {format2DecimalsWithCommas(item.unitCost)} / kg
                       </td>
-                      <td className="py-3.5 px-5 font-mono font-black text-emerald-700">
+                      <td className="py-3.5 px-5 font-mono font-bold text-emerald-700">
                         ៛ {format2DecimalsWithCommas(item.totalValuation)}
                       </td>
                       <td className="py-3.5 px-5">
                         {item.isLowStock ? (
-                          <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black uppercase flex items-center gap-1 w-max animate-pulse">
+                          <span className="px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1 w-max animate-pulse">
                             ⚠️ Low Stock ($\le$ 50 bags)
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase flex items-center gap-1 w-max">
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center gap-1 w-max">
                             ● In Stock
                           </span>
                         )}
@@ -752,12 +752,12 @@ export default function FeedInventoryTab({
                         {hasPermission(currentUser, 'feed_manage') ? (
                           <Button
                             onClick={() => openTxModal('STOCK_IN')}
-                            className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-[10px] font-bold py-1 px-2.5 border border-emerald-200/60 cursor-pointer"
+                            className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-bold py-1 px-2.5 border border-emerald-200/60 cursor-pointer"
                           >
                             + Add Stock
                           </Button>
                         ) : (
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Read Only</span>
+                          <span className="text-xs text-slate-400 font-bold ">Read Only</span>
                         )}
                       </td>
                     </tr>
@@ -788,7 +788,7 @@ export default function FeedInventoryTab({
       {subView === 'products' && (
         <div className="space-y-3">
           <div className="flex justify-between items-center bg-slate-50 border border-slate-200/70 p-2.5 rounded-2xl">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-700 pl-1">
+            <span className="text-xs font-bold text-slate-700 pl-1">
               📦 Feed Product Master Catalog
             </span>
             <Button
@@ -811,7 +811,7 @@ export default function FeedInventoryTab({
                   ]
                 });
               }}
-              className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-2xs cursor-pointer"
+              className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xs cursor-pointer"
             >
               <Download className="h-3.5 w-3.5" /> Export Excel
             </Button>
@@ -820,7 +820,7 @@ export default function FeedInventoryTab({
             <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-black text-[9.5px] uppercase tracking-wider">
+                <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold text-xs ">
                   <th className="py-3.5 px-5">Code</th>
                   <th className="py-3.5 px-5">Product Name</th>
                   <th className="py-3.5 px-5">Category</th>
@@ -836,14 +836,14 @@ export default function FeedInventoryTab({
                   paginatedProducts.map(prod => (
                     <tr key={prod.id} className="hover:bg-slate-50/40 transition-colors">
                       <td className="py-3.5 px-5 font-mono font-bold text-slate-800">{prod.id}</td>
-                      <td className="py-3.5 px-5 font-black text-slate-900">{prod.name}</td>
+                      <td className="py-3.5 px-5 font-bold text-slate-900">{prod.name}</td>
                       <td className="py-3.5 px-5 font-bold text-slate-600">{prod.category}</td>
                       <td className="py-3.5 px-5 font-mono text-slate-700">
                         {prod.unit} ({prod.weightPerUnit} kg/unit)
                       </td>
                       <td className="py-3.5 px-5 font-mono text-slate-900">
-                        <span className="font-black text-emerald-800">៛ {format2DecimalsWithCommas(prod.costPerBag || (prod.unitCost * prod.weightPerUnit))}</span> / bag
-                        <div className="text-[10px] font-bold text-slate-400">
+                        <span className="font-bold text-emerald-800">៛ {format2DecimalsWithCommas(prod.costPerBag || (prod.unitCost * prod.weightPerUnit))}</span> / bag
+                        <div className="text-xs font-bold text-slate-400">
                           (៛ {format2DecimalsWithCommas(prod.unitCost)} / kg)
                         </div>
                       </td>
@@ -857,7 +857,7 @@ export default function FeedInventoryTab({
                             <button
                               type="button"
                               onClick={() => { setEditingProduct(prod); setIsProductModalOpen(true); }}
-                              className="px-2.5 py-1 text-slate-700 hover:bg-slate-100 rounded-lg text-[10px] font-bold cursor-pointer border border-slate-200"
+                              className="px-2.5 py-1 text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-bold cursor-pointer border border-slate-200"
                             >
                               Edit
                             </button>
@@ -872,7 +872,7 @@ export default function FeedInventoryTab({
                                   onConfirm: () => onDeleteProduct(prod.id)
                                 });
                               }}
-                              className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 rounded-lg text-[10px] font-bold cursor-pointer border border-rose-200"
+                              className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold cursor-pointer border border-rose-200"
                             >
                               Delete
                             </button>
@@ -907,7 +907,7 @@ export default function FeedInventoryTab({
       {subView === 'transactions' && (
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50 border border-slate-200/70 p-2.5 rounded-2xl">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-700 pl-1">
+            <span className="text-xs font-bold text-slate-700 pl-1">
               🚚 Feed Stock Movement Ledger
             </span>
             <div className="flex items-center gap-2 flex-wrap">
@@ -937,7 +937,7 @@ export default function FeedInventoryTab({
                     ]
                   });
                 }}
-                className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-2xs cursor-pointer"
+                className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xs cursor-pointer"
               >
                 <Download className="h-3.5 w-3.5" /> Export Excel
               </Button>
@@ -947,7 +947,7 @@ export default function FeedInventoryTab({
             <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-black text-[9.5px] uppercase tracking-wider">
+                <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold text-xs ">
                   <th className="py-3.5 px-5">Ref #</th>
                   <th className="py-3.5 px-5">Date</th>
                   <th className="py-3.5 px-5">Type</th>
@@ -964,8 +964,8 @@ export default function FeedInventoryTab({
                       <td className="py-3.5 px-5 font-mono font-bold text-slate-800">{tx.referenceNo || tx.id}</td>
                       <td className="py-3.5 px-5 text-slate-500">{tx.date ? tx.date.split('T')[0] : 'N/A'}</td>
                       <td className="py-3.5 px-5">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
-                          tx.type === 'STOCK_IN'
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+ tx.type === 'STOCK_IN'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : 'bg-rose-50 text-rose-700 border-rose-200'
                         }`}>
@@ -974,13 +974,13 @@ export default function FeedInventoryTab({
                       </td>
                       <td className="py-3.5 px-5 font-bold text-slate-900">{tx.productName}</td>
                       <td className="py-3.5 px-5 font-mono">
-                        <span className="font-black text-slate-900">{tx.quantityBags} bags</span>{' '}
+                        <span className="font-bold text-slate-900">{tx.quantityBags} bags</span>{' '}
                         <span className="text-slate-400 text-xs">({format2DecimalsWithCommas(tx.quantityKg)} kg)</span>
                       </td>
                       <td className="py-3.5 px-5 text-slate-600 font-medium">
                         <span className="font-bold text-slate-900">{tx.targetFarm || 'Farm Warehouse'}</span>
                       </td>
-                      <td className="py-3.5 px-5 text-right font-mono font-black text-slate-900">
+                      <td className="py-3.5 px-5 text-right font-mono font-bold text-slate-900">
                         ៛ {format2DecimalsWithCommas(tx.totalCost)}
                       </td>
                     </tr>

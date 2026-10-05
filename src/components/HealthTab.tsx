@@ -210,8 +210,8 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
         <Card className="bg-white border border-slate-100 p-4 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">Total Medical Events</p>
-              <h4 className="text-xl font-black text-slate-900 mt-1">{farmFilteredHealthLogs.length}</h4>
+              <p className="text-xs font-bold text-slate-400">Total Medical Events</p>
+              <h4 className="text-xl font-bold text-slate-900 mt-1">{farmFilteredHealthLogs.length}</h4>
             </div>
             <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <Activity className="h-5 w-5" />
@@ -222,8 +222,8 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
         <Card className="bg-white border border-slate-100 p-4 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">Herd Health Status</p>
-              <h4 className={`text-base font-black mt-1 ${activeCows.filter(c => ['poor', 'sick', 'critical'].includes(c.healthStatus?.toLowerCase() || '')).length > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+              <p className="text-xs font-bold text-slate-400">Herd Health Status</p>
+              <h4 className={`text-base font-bold mt-1 ${activeCows.filter(c => ['poor', 'sick', 'critical'].includes(c.healthStatus?.toLowerCase() || '')).length > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                 {activeCows.filter(c => ['poor', 'sick', 'critical'].includes(c.healthStatus?.toLowerCase() || '')).length > 0 
                   ? `⚠️ ${activeCows.filter(c => ['poor', 'sick', 'critical'].includes(c.healthStatus?.toLowerCase() || '')).length} Sick Alert`
                   : '✓ All Herd Stable'
@@ -239,8 +239,8 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
         <Card className="bg-white border border-slate-100 p-4 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10.5px] font-extrabold uppercase tracking-wider text-slate-400">Total Medical Expense</p>
-              <h4 className="text-xl font-black text-slate-900 mt-1">
+              <p className="text-xs font-bold text-slate-400">Total Medical Expense</p>
+              <h4 className="text-xl font-bold text-slate-900 mt-1">
                 ៛ {farmFilteredHealthLogs.reduce((sum, l) => sum + (l.cost || 0), 0).toLocaleString()}
               </h4>
             </div>
@@ -274,7 +274,7 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
             <form onSubmit={handleSub} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="h_cow" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Select Cow ID</Label>
+                  <Label htmlFor="h_cow" className="text-xs font-bold text-slate-450 ">Select Cow ID</Label>
                   <select
                     id="h_cow"
                     value={cowId}
@@ -289,7 +289,7 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="h_type" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Event Type</Label>
+                  <Label htmlFor="h_type" className="text-xs font-bold text-slate-450 ">Event Type</Label>
                   <select
                     id="h_type"
                     value={type}
@@ -305,7 +305,7 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="h_name" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Vaccine / Disease / Treatment Name</Label>
+                <Label htmlFor="h_name" className="text-xs font-bold text-slate-450 ">Vaccine / Disease / Treatment Name</Label>
                 <select
                   id="h_name"
                   value={name}
@@ -324,22 +324,22 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="h_date" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Log Date</Label>
+                  <Label htmlFor="h_date" className="text-xs font-bold text-slate-450 ">Log Date</Label>
                   <Input id="h_date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="h_cost" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Treatment Cost (៛)</Label>
+                  <Label htmlFor="h_cost" className="text-xs font-bold text-slate-450 ">Treatment Cost (៛)</Label>
                   <Input id="h_cost" type="number" value={cost} onChange={e => setCost(Number(e.target.value))} required />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="h_admin" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Administered By</Label>
+                <Label htmlFor="h_admin" className="text-xs font-bold text-slate-450 ">Administered By</Label>
                 <Input id="h_admin" value={administeredBy} onChange={e => setAdministeredBy(e.target.value)} required />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="h_notes" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Veterinarian Notes</Label>
+                <Label htmlFor="h_notes" className="text-xs font-bold text-slate-450 ">Veterinarian Notes</Label>
                 <textarea
                   id="h_notes"
                   rows={3}
@@ -378,7 +378,7 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
         /* Health Logs Table Ledger */
         <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
           <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-            <h4 className="text-sm font-extrabold uppercase tracking-wider text-slate-800">Veterinary Treatment Ledger</h4>
+            <h4 className="text-sm font-bold text-slate-800">Veterinary Treatment Ledger</h4>
             <div className="flex items-center gap-2 flex-wrap">
               <select
                 value={selectedCohortId}
@@ -416,7 +416,7 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
                     ]
                   });
                 }}
-                className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-2xs cursor-pointer"
+                className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xs cursor-pointer"
               >
                 <Download className="h-3.5 w-3.5" /> Export Excel
               </Button>
@@ -425,7 +425,7 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/20 text-[#003B33] font-bold uppercase tracking-wider">
+                <tr className="border-b border-slate-100 bg-slate-50/20 text-[#003B33] font-bold ">
                   <th className="py-3.5 px-4">Cow ID</th>
                   <th className="py-3.5 px-4">Event Type</th>
                   <th className="py-3.5 px-4">Vaccine / Diagnostic</th>
@@ -446,15 +446,15 @@ export default function HealthTab({ data, onAddHealthLog, onDeleteHealthLog, onU
                           <div className="flex items-center gap-1.5">
                             <span>{log.cowId}</span>
                             {cohort && (
-                              <span className="text-[8.5px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-1 py-0.2 rounded" title={cohort.name}>
+                              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1 py-0.2 rounded" title={cohort.name}>
                                 {cohort.id}
                               </span>
                             )}
                           </div>
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className={`px-2 py-0.5 rounded-lg font-bold border text-[10px] uppercase ${
-                            log.type === 'Vaccination'
+                          <span className={`px-2 py-0.5 rounded-lg font-bold border text-xs ${
+ log.type === 'Vaccination'
                               ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                               : log.type === 'Disease'
                               ? 'bg-rose-50 text-rose-600 border-rose-100'

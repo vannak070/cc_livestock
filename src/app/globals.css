@@ -1,28 +1,60 @@
 @import "tailwindcss";
 
+/*
+ * CC Livestock look (UI proposal, Option C): white surfaces with the logo in
+ * full colour, logo crimson for the brand name, logo leaf green for actions,
+ * and red kept for real problems only.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F7F6F3;
+  --foreground: #17201C;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-kantumruy);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  /* Brand */
+  --color-brand: #B3202F;          /* logo crimson: brand name, brand stripe */
+  --color-brand-dark: #8E1824;
+  --color-canvas: #F7F6F3;         /* page background */
+  --color-ink: #17201C;            /* body text */
+  --color-ink-muted: #4B5852;      /* secondary text, 7:1 on white */
+
+  /*
+   * The app's existing `emerald-*` classes become the logo's leaf green, so
+   * every green button, badge and highlight follows the brand at once.
+   */
+  --color-emerald-50: #ECF7F0;
+  --color-emerald-100: #D3EEDC;
+  --color-emerald-200: #A9DDBB;
+  --color-emerald-300: #74C593;
+  --color-emerald-400: #3FA86A;
+  --color-emerald-500: #1A9150;
+  --color-emerald-600: #0E7A38;
+  --color-emerald-700: #0B632E;
+  --color-emerald-800: #0A4F26;
+  --color-emerald-900: #083F1F;
+  --color-emerald-950: #04240F;
+
+  /* Pale grey labels were 2.6:1 on white; this keeps them readable (4.8:1). */
+  --color-slate-400: #64748B;
+
+  /* Nothing smaller than 14px: the two smallest sizes move up. */
+  --text-xs: 0.875rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.375rem;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

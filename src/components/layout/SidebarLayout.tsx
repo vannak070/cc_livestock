@@ -72,25 +72,26 @@ function NavItem({ icon, label, isActive, onClick, badge, badgeColor = 'amber' }
   return (
     <button
       onClick={onClick}
-      className={`w-full group flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+      aria-current={isActive ? 'page' : undefined}
+      className={`w-full group flex items-center justify-between min-h-12 px-3 py-2.5 rounded-xl transition-colors duration-150 cursor-pointer ${
         isActive
-          ? 'bg-gradient-to-r from-emerald-500/20 to-teal-500/10 text-emerald-300 border border-emerald-600/30 shadow-sm'
-          : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'
+          ? 'bg-emerald-50 text-emerald-800 font-semibold'
+          : 'text-ink hover:bg-slate-100 font-medium'
       }`}
     >
       <span className="flex items-center gap-3">
-        <span className={`flex-shrink-0 transition-colors duration-200 ${isActive ? 'text-emerald-400' : 'text-slate-500 group-hover:text-slate-300'}`}>
+        <span className={`flex-shrink-0 transition-colors duration-150 ${isActive ? 'text-emerald-700' : 'text-ink-muted group-hover:text-ink'}`}>
           {icon}
         </span>
-        <span className="text-[13px] leading-none">{label}</span>
+        <span className="text-base leading-tight text-left">{label}</span>
       </span>
       <span className="flex items-center gap-2">
         {badge ? (
-          <span className={`inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[9px] font-black text-white ${badgeColors[badgeColor]} animate-pulse`}>
+          <span className={`inline-flex items-center justify-center h-6 min-w-6 px-1.5 rounded-full text-xs font-bold text-white ${badgeColors[badgeColor]}`}>
             {badge}
           </span>
         ) : isActive ? (
-          <ChevronRight className="h-3 w-3 text-emerald-400/60" />
+          <ChevronRight className="h-4 w-4 text-emerald-700" />
         ) : null}
       </span>
     </button>
@@ -100,10 +101,8 @@ function NavItem({ icon, label, isActive, onClick, badge, badgeColor = 'amber' }
 function NavSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-0.5">
-      <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-600 px-3 py-1.5 flex items-center gap-2">
-        <span className="h-px flex-1 bg-slate-700/50" />
+      <p className="text-xs font-semibold text-ink-muted px-3 pt-2 pb-1">
         {label}
-        <span className="h-px flex-1 bg-slate-700/50" />
       </p>
       {children}
     </div>
@@ -143,32 +142,33 @@ export default function SidebarLayout({
 
   // Role color badge
   const roleColors: Record<string, string> = {
-    'Super Admin': 'bg-red-500/20 text-red-300 border-red-500/30',
-    'Admin': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-    'Company': 'bg-teal-500/20 text-teal-300 border-teal-500/30',
-    'Farm Owner': 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    'Farm Staff': 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-    'Veterinarian': 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+    'Super Admin': 'bg-rose-50 text-rose-800 border-rose-200',
+    'Admin': 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    'Company': 'bg-teal-50 text-teal-800 border-teal-200',
+    'Farm Owner': 'bg-amber-50 text-amber-800 border-amber-200',
+    'Farm Staff': 'bg-indigo-50 text-indigo-800 border-indigo-200',
+    'Veterinarian': 'bg-blue-50 text-blue-800 border-blue-200',
   };
-  const roleBadgeClass = roleColors[currentUser?.role || ''] || 'bg-slate-500/20 text-slate-300 border-slate-500/30';
+  const roleBadgeClass = roleColors[currentUser?.role || ''] || 'bg-slate-100 text-ink border-slate-200';
 
   const navContent = (
-    <div className="flex flex-col h-full bg-[#0C1F1A]">
+    <div className="flex flex-col h-full bg-white border-r border-slate-200">
 
       {/* ─── Logo ─── */}
-      <div className="flex items-center justify-between h-[72px] px-5 border-b border-white/5 flex-shrink-0">
+      <div className="flex items-center justify-between h-20 px-4 border-b-4 border-brand flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 flex items-center justify-center flex-shrink-0">
-            <img src="/logo.png" alt="CC Livestock Logo" className="h-full w-full object-contain filter drop-shadow-md" />
+          <div className="h-12 w-12 flex items-center justify-center flex-shrink-0">
+            <img src="/logo.png" alt="CC Livestock logo" className="h-full w-full object-contain" />
           </div>
           <div>
-            <p className="text-white font-black text-sm tracking-wide leading-none">CC Livestock</p>
-            <p className="text-emerald-500 text-[9px] font-bold tracking-[0.12em] uppercase mt-0.5">Cattle ERP</p>
+            <p className="text-brand font-bold text-lg leading-tight">CC Livestock</p>
+            <p className="text-ink-muted text-sm leading-tight">Farm records</p>
           </div>
         </div>
         <button
           onClick={() => setMobileMenuOpen(false)}
-          className="md:hidden text-slate-500 hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          aria-label="Close menu"
+          className="md:hidden text-ink-muted hover:text-ink h-11 w-11 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors"
         >
           <X className="h-5 w-5" />
         </button>
@@ -178,12 +178,12 @@ export default function SidebarLayout({
 
 
       {/* ─── Navigation Links ─── */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scrollbar-thin scrollbar-thumb-emerald-900/60">
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
 
         {/* Core */}
         <NavSection label="Overview">
           <NavItem
-            icon={<LayoutDashboard className="h-4 w-4" />}
+            icon={<LayoutDashboard className="h-5 w-5" />}
             label={t('nav.dashboard')}
             isActive={activeTab === 'dashboard'}
             onClick={() => handleTabChange('dashboard')}
@@ -197,7 +197,7 @@ export default function SidebarLayout({
           <NavSection label="Livestock ERP">
             {hasPermission(currentUser, 'stock_view') && (
               <NavItem
-                icon={<Beef className="h-4 w-4" />}
+                icon={<Beef className="h-5 w-5" />}
                 label={t('nav.cattleRegistry')}
                 isActive={activeTab === 'cow-inventory'}
                 onClick={() => handleTabChange('cow-inventory')}
@@ -205,21 +205,21 @@ export default function SidebarLayout({
             )}
             {hasPermission(currentUser, 'batch_view') && (
               <NavItem
-                icon={<TrendingUp className="h-4 w-4" />}
+                icon={<TrendingUp className="h-5 w-5" />}
                 label={t('nav.batchManagement')}
                 isActive={activeTab === 'batch-management'}
                 onClick={() => handleTabChange('batch-management')}
               />
             )}
             <NavItem
-              icon={<Package className="h-4 w-4" />}
+              icon={<Package className="h-5 w-5" />}
               label={t('nav.feedStock')}
               isActive={activeTab === 'feed-inventory'}
               onClick={() => handleTabChange('feed-inventory')}
             />
             {hasPermission(currentUser, 'health_view') && (
               <NavItem
-                icon={<Syringe className="h-4 w-4" />}
+                icon={<Syringe className="h-5 w-5" />}
                 label={t('nav.healthVaccines')}
                 isActive={activeTab === 'health-tracking'}
                 onClick={() => handleTabChange('health-tracking')}
@@ -234,7 +234,7 @@ export default function SidebarLayout({
         {hasPermission(currentUser, 'sales_view') && (
           <NavSection label="Financials">
             <NavItem
-              icon={<DollarSign className="h-4 w-4" />}
+              icon={<DollarSign className="h-5 w-5" />}
               label={t('nav.financeLedger')}
               isActive={activeTab === 'sales-finance'}
               onClick={() => handleTabChange('sales-finance')}
@@ -246,13 +246,13 @@ export default function SidebarLayout({
         {hasPermission(currentUser, 'analytics_view') && (
           <NavSection label="Insights & Planning">
             <NavItem
-              icon={<PieChart className="h-4 w-4" />}
+              icon={<PieChart className="h-5 w-5" />}
               label={t('nav.analytics')}
               isActive={activeTab === 'analytics'}
               onClick={() => handleTabChange('analytics')}
             />
             <NavItem
-              icon={<Calculator className="h-4 w-4" />}
+              icon={<Calculator className="h-5 w-5" />}
               label={t('nav.proposalPlan')}
               isActive={activeTab === 'proposal-plan'}
               onClick={() => handleTabChange('proposal-plan')}
@@ -265,7 +265,7 @@ export default function SidebarLayout({
           <NavSection label="Administration">
             {hasPermission(currentUser, 'farms_manage') && (
               <NavItem
-                icon={<Building className="h-4 w-4" />}
+                icon={<Building className="h-5 w-5" />}
                 label={t('nav.farmsBranches')}
                 isActive={activeTab === 'farms'}
                 onClick={() => handleTabChange('farms')}
@@ -273,7 +273,7 @@ export default function SidebarLayout({
             )}
             {hasPermission(currentUser, 'settings_manage') && (
               <NavItem
-                icon={<Settings className="h-4 w-4" />}
+                icon={<Settings className="h-5 w-5" />}
                 label={t('nav.masterSettings')}
                 isActive={activeTab === 'settings'}
                 onClick={() => handleTabChange('settings')}
@@ -285,25 +285,26 @@ export default function SidebarLayout({
 
       {/* ─── User Profile Footer ─── */}
       {currentUser && (
-        <div className="flex-shrink-0 mx-3 mb-3 mt-1 border-t border-white/5 pt-3">
-          <div className="flex items-center gap-3 bg-white/5 rounded-xl px-3 py-2.5 hover:bg-white/8 transition-colors">
+        <div className="flex-shrink-0 mx-3 mb-3 mt-1 border-t border-slate-200 pt-3">
+          <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-3 py-2.5">
             {/* Avatar */}
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center font-black text-xs text-white flex-shrink-0 shadow-md">
+            <div className="h-10 w-10 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-sm text-white flex-shrink-0">
               {userInitials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-bold text-white truncate leading-tight">{currentUser.name}</p>
-              <span className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-full border mt-0.5 ${roleBadgeClass}`}>
+              <p className="text-sm font-semibold text-ink truncate leading-tight">{currentUser.name}</p>
+              <span className={`inline-block text-xs font-bold px-1.5 py-0.5 rounded-full border mt-0.5 ${roleBadgeClass}`}>
                 {currentUser.role}
               </span>
             </div>
             {onLogout && (
               <button
                 onClick={onLogout}
-                className="text-slate-500 hover:text-rose-400 transition-colors cursor-pointer p-1.5 rounded-lg hover:bg-rose-500/10"
-                title="Logout"
+                className="text-ink-muted hover:text-rose-700 transition-colors cursor-pointer h-11 w-11 flex items-center justify-center rounded-xl hover:bg-rose-50"
+                title="Sign out"
+                aria-label="Sign out"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-5 w-5" />
               </button>
             )}
           </div>
@@ -313,10 +314,10 @@ export default function SidebarLayout({
   );
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-800 font-sans">
+    <div className="flex min-h-screen bg-canvas text-ink font-sans">
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 flex-shrink-0 flex-col shadow-2xl shadow-slate-900/20">
+      <aside className="hidden md:flex w-72 flex-shrink-0 flex-col sticky top-0 h-screen">
         {navContent}
       </aside>
 
@@ -334,7 +335,7 @@ export default function SidebarLayout({
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col bg-slate-50 min-w-0 overflow-y-auto">
+      <main className="flex-1 flex flex-col bg-canvas min-w-0 overflow-y-auto">
 
         {/* Top Header Bar (Hidden when activeTab === 'proposal-plan') */}
         {activeTab !== 'proposal-plan' ? (
@@ -344,16 +345,16 @@ export default function SidebarLayout({
                 {/* Mobile Hamburger */}
                 <button
                   onClick={() => setMobileMenuOpen(true)}
-                  className="md:hidden p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
-                  aria-label="Open Navigation Menu"
+                  className="md:hidden h-12 w-12 flex items-center justify-center rounded-xl bg-slate-100 text-ink hover:bg-slate-200 transition-colors"
+                  aria-label="Open menu"
                 >
-                  <Menu className="h-5 w-5" />
+                  <Menu className="h-6 w-6" />
                 </button>
                 <div>
-                  <h2 className="text-base sm:text-xl font-black tracking-tight text-slate-900 leading-tight">
+                  <h2 className="text-base sm:text-xl font-bold tracking-tight text-slate-900 leading-tight">
                     {t('nav.systemTitle')}
                   </h2>
-                  <p className="text-[10px] sm:text-xs text-slate-400 font-semibold flex items-center gap-1.5 mt-0.5">
+                  <p className="text-xs sm:text-xs text-slate-400 font-semibold flex items-center gap-1.5 mt-0.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
                     {t('nav.systemSubtitle')}
                   </p>
@@ -372,8 +373,8 @@ export default function SidebarLayout({
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex items-center justify-between">
                 <div>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.totalHerd')}</p>
-                  <h3 className="text-xl font-black text-slate-900 mt-0.5 leading-none">{totalHead}<span className="text-[10px] text-emerald-600 font-bold ml-1">head</span></h3>
+                  <p className="text-xs font-bold text-slate-400 ">{t('dashboard.totalHerd')}</p>
+                  <h3 className="text-xl font-bold text-slate-900 mt-0.5 leading-none">{totalHead}<span className="text-xs text-emerald-600 font-bold ml-1">head</span></h3>
                 </div>
                 <div className="h-9 w-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm flex-shrink-0">
                   <Database className="h-4 w-4" />
@@ -382,8 +383,8 @@ export default function SidebarLayout({
 
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center justify-between">
                 <div>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.avgWeight')}</p>
-                  <h3 className="text-xl font-black text-slate-900 mt-0.5 leading-none">{averageWeight}<span className="text-[10px] text-blue-600 font-bold ml-1">kg</span></h3>
+                  <p className="text-xs font-bold text-slate-400 ">{t('dashboard.avgWeight')}</p>
+                  <h3 className="text-xl font-bold text-slate-900 mt-0.5 leading-none">{averageWeight}<span className="text-xs text-blue-600 font-bold ml-1">kg</span></h3>
                 </div>
                 <div className="h-9 w-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm flex-shrink-0">
                   <Scale className="h-4 w-4" />
@@ -392,8 +393,8 @@ export default function SidebarLayout({
 
               <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex items-center justify-between">
                 <div>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.assetValue')}</p>
-                  <h3 className="text-sm font-black text-slate-900 mt-0.5 leading-none truncate">៛ {format2DecimalsWithCommas(inventoryValue)}</h3>
+                  <p className="text-xs font-bold text-slate-400 ">{t('dashboard.assetValue')}</p>
+                  <h3 className="text-sm font-bold text-slate-900 mt-0.5 leading-none truncate">៛ {format2DecimalsWithCommas(inventoryValue)}</h3>
                 </div>
                 <div className="h-9 w-9 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-sm flex-shrink-0">
                   <DollarSign className="h-4 w-4" />
@@ -401,16 +402,16 @@ export default function SidebarLayout({
               </div>
 
               <div className={`border rounded-xl p-3 flex items-center justify-between ${
-                healthAlertsCount > 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-100'
+ healthAlertsCount > 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-100'
               }`}>
                 <div>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Health Status</p>
-                  <h3 className={`text-sm font-black mt-0.5 leading-none ${healthAlertsCount > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                  <p className="text-xs font-bold text-slate-400 ">Health Status</p>
+                  <h3 className={`text-sm font-bold mt-0.5 leading-none ${healthAlertsCount > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
                     {healthAlertsCount > 0 ? `${healthAlertsCount} Alerts` : '✓ All Stable'}
                   </h3>
                 </div>
                 <div className={`h-9 w-9 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0 text-white ${
-                  healthAlertsCount > 0 ? 'bg-rose-500' : 'bg-emerald-600'
+ healthAlertsCount > 0 ? 'bg-rose-500' : 'bg-emerald-600'
                 }`}>
                   <Activity className="h-4 w-4" />
                 </div>

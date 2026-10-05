@@ -415,8 +415,8 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
         <div className="flex border-b border-slate-200 overflow-x-auto">
           <button
             onClick={() => { setSubTab('livestock'); setActiveCategory('breeds'); }}
-            className={`flex items-center gap-2 px-6 py-3.5 border-b-2 font-bold text-xs uppercase tracking-wider transition-all duration-150 cursor-pointer ${
-              subTab === 'livestock'
+            className={`flex items-center gap-2 px-6 py-3.5 border-b-2 font-bold text-xs transition-all duration-150 cursor-pointer ${
+ subTab === 'livestock'
                 ? 'border-emerald-600 text-emerald-600'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
@@ -426,8 +426,8 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
           </button>
           <button
             onClick={() => { setSubTab('financial'); setActiveCategory('revenueTypes'); }}
-            className={`flex items-center gap-2 px-6 py-3.5 border-b-2 font-bold text-xs uppercase tracking-wider transition-all duration-150 cursor-pointer ${
-              subTab === 'financial'
+            className={`flex items-center gap-2 px-6 py-3.5 border-b-2 font-bold text-xs transition-all duration-150 cursor-pointer ${
+ subTab === 'financial'
                 ? 'border-emerald-600 text-emerald-600'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
@@ -437,8 +437,8 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
           </button>
           <button
             onClick={() => setSubTab('users')}
-            className={`flex items-center gap-2 px-6 py-3.5 border-b-2 font-bold text-xs uppercase tracking-wider transition-all duration-150 cursor-pointer ${
-              subTab === 'users'
+            className={`flex items-center gap-2 px-6 py-3.5 border-b-2 font-bold text-xs transition-all duration-150 cursor-pointer ${
+ subTab === 'users'
                 ? 'border-emerald-600 text-emerald-600'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
@@ -449,12 +449,12 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
         </div>
       ) : (
         <div className="border-b border-slate-200 pb-4">
-          <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2 uppercase tracking-wide">
+          <h2 className="text-base font-bold text-slate-800 flex items-center gap-2 ">
             <ShieldCheck className="h-5 w-5 text-emerald-600 animate-pulse" />
             Farm Staff & Vet User Management
           </h2>
           <p className="text-xs text-slate-400 font-medium mt-1">
-            Create, manage, and configure security permissions for staff and veterinarians scoped to your farm: <strong className="text-emerald-700 font-black">{currentUser.farmLocation}</strong>.
+            Create, manage, and configure security permissions for staff and veterinarians scoped to your farm: <strong className="text-emerald-700 font-bold">{currentUser.farmLocation}</strong>.
           </p>
         </div>
       )}
@@ -464,7 +464,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Navigation Selection list */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs h-fit space-y-1">
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3.5 mb-3.5">Configure Categories</h4>
+            <h4 className="text-xs font-bold text-slate-400 px-3.5 mb-3.5">Configure Categories</h4>
             {(subTab === 'livestock' ? livestockKeys : financialKeys).map(key => {
               const isActive = activeCategory === key;
               return (
@@ -472,15 +472,15 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                   key={key}
                   onClick={() => setActiveCategory(key)}
                   className={`w-full text-left px-3.5 py-3 rounded-xl text-xs font-semibold transition-all duration-150 flex items-center justify-between cursor-pointer ${
-                    isActive
-                      ? 'bg-emerald-50 text-emerald-700 border-l-4 border-emerald-600'
+ isActive
+ ? 'bg-emerald-50 text-emerald-700 border-l-4 border-emerald-600'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
                   <span>{categoriesMeta[key]?.label}</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition-all ${
-                    isActive 
-                      ? 'bg-[#D1FAE5] text-[#065F46]' 
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold transition-all ${
+ isActive 
+ ? 'bg-[#D1FAE5] text-[#065F46]' 
                       : 'bg-slate-100 text-slate-500'
                   }`}>
                     {((settings[key] || []) as string[]).length}
@@ -579,18 +579,18 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                     <div key={role.id} className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-3 flex flex-col justify-between hover:border-slate-300 transition-all">
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-black text-xs text-slate-800">{role.name}</span>
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                            role.isSystem ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'
+                          <span className="font-bold text-xs text-slate-800">{role.name}</span>
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+ role.isSystem ? 'bg-slate-200 text-slate-600' : 'bg-emerald-100 text-emerald-800'
                           }`}>
                             {role.isSystem ? 'System' : 'Custom'}
                           </span>
                         </div>
-                        <p className="text-[10.5px] text-slate-500 line-clamp-2">{role.description}</p>
+                        <p className="text-xs text-slate-500 line-clamp-2">{role.description}</p>
                       </div>
 
                       <div className="flex items-center justify-between border-t border-slate-200/60 pt-2.5 text-xs">
-                        <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1">
+                        <span className="text-xs font-bold text-slate-600 flex items-center gap-1">
                           <CheckCircle2 className="h-3 w-3 text-emerald-600" />
                           {role.permissions.length} / {ALL_PERMISSIONS.length} Functions
                         </span>
@@ -598,7 +598,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                           <button
                             type="button"
                             onClick={() => openEditRoleModal(role)}
-                            className="px-2 py-1 text-slate-600 hover:text-slate-900 text-[10px] font-bold cursor-pointer"
+                            className="px-2 py-1 text-slate-600 hover:text-slate-900 text-xs font-bold cursor-pointer"
                           >
                             Edit
                           </button>
@@ -606,7 +606,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                             <button
                               type="button"
                               onClick={() => handleDeleteRole(role.id)}
-                              className="px-2 py-1 text-rose-500 hover:text-rose-700 text-[10px] font-bold cursor-pointer"
+                              className="px-2 py-1 text-rose-500 hover:text-rose-700 text-xs font-bold cursor-pointer"
                             >
                               Delete
                             </button>
@@ -662,7 +662,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+                    <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 bg-slate-50/50">
                       <th className="py-3 pl-3">Employee Profile</th>
                       <th className="py-3">System Role</th>
                       <th className="py-3">Location Scope</th>
@@ -697,11 +697,11 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                           <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="py-3.5 pl-3">
                               <p className="font-bold text-slate-800">{user.name}</p>
-                              <p className="text-[10px] text-slate-400">{user.email}</p>
+                              <p className="text-xs text-slate-400">{user.email}</p>
                             </td>
                             <td className="py-3.5">
-                              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${
-                                user.role === 'Super Admin' ? 'bg-red-50 text-red-700 border-red-200' :
+                              <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+ user.role === 'Super Admin' ? 'bg-red-50 text-red-700 border-red-200' :
                                 user.role === 'Admin' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                 user.role === 'Company' ? 'bg-teal-50 text-teal-700 border-teal-200' :
                                 user.role === 'Farm Owner' ? 'bg-amber-50 text-amber-800 border-amber-200' :
@@ -713,26 +713,26 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                               </span>
                             </td>
                             <td className="py-3.5">
-                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                                user.farmLocation ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-50 text-slate-400 border-slate-100'
+                              <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold border ${
+ user.farmLocation ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-50 text-slate-400 border-slate-100'
                               }`}>
                                 {user.farmLocation || 'Global (All Farms)'}
                               </span>
                             </td>
                             <td className="py-3.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-bold">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">
                                 <CheckCircle2 className="h-3 w-3 text-emerald-600" />
                                 {enabledCount} / {ALL_PERMISSIONS.length} Functions
                               </span>
                             </td>
                             <td className="py-3.5">
                               {user.role === 'Super Admin' ? (
-                                <span className="text-[10px] font-bold text-red-500">Active (Locked)</span>
+                                <span className="text-xs font-bold text-red-500">Active (Locked)</span>
                               ) : (
                                 <button
                                   onClick={() => handleToggleUserStatus(user.id)}
-                                  className={`text-[10px] font-bold transition-colors cursor-pointer ${
-                                    user.status === 'Active' ? 'text-emerald-600 hover:text-emerald-700 hover:underline' : 'text-slate-400 hover:text-slate-500 hover:underline'
+                                  className={`text-xs font-bold transition-colors cursor-pointer ${
+ user.status === 'Active' ? 'text-emerald-600 hover:text-emerald-700 hover:underline' : 'text-slate-400 hover:text-slate-500 hover:underline'
                                   }`}
                                 >
                                   {user.status}
@@ -742,14 +742,14 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                             <td className="py-3.5 text-right pr-3 space-x-1">
                               <button
                                 onClick={() => handleStartEditUser(user)}
-                                className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                                className="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                               >
                                 Edit Account
                               </button>
                               {user.role !== 'Super Admin' && (
                                 <button
                                   onClick={() => handleRemoveUser(user.id)}
-                                  className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                                  className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                                 >
                                   Delete
                                 </button>
@@ -779,7 +779,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
       <Dialog open={isRoleModalOpen} onOpenChange={setIsRoleModalOpen}>
         <DialogContent className="max-w-3xl bg-white p-6 rounded-2xl border border-slate-100 shadow-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="text-left pb-4 border-b border-slate-100">
-            <DialogTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Award className="h-5 w-5 text-emerald-600" />
               {editingRole ? `Edit Role: ${editingRole.name}` : 'Create New Custom Role'}
             </DialogTitle>
@@ -787,7 +787,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
               Define a new system role name, description, and assign default function permissions.
             </DialogDescription>
             {editingRole?.isSystem && (
-              <div className="bg-amber-50/70 border border-amber-200 p-2.5 rounded-xl text-[10px] text-amber-800 font-bold leading-normal mt-3">
+              <div className="bg-amber-50/70 border border-amber-200 p-2.5 rounded-xl text-xs text-amber-800 font-bold leading-normal mt-3">
                 ⚠️ System Role Lock: You cannot rename or delete system roles because the core system scoping rules rely on their names, but you can customize their default function permissions.
               </div>
             )}
@@ -831,7 +831,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                   return (
                     <div key={module.id} className="bg-white border border-slate-200 rounded-lg p-2.5 space-y-1.5">
                       <div className="flex items-center justify-between border-b border-slate-100 pb-1">
-                        <span className="text-[11px] font-black text-slate-800">{module.label}</span>
+                        <span className="text-xs font-bold text-slate-800">{module.label}</span>
                         <button
                           type="button"
                           onClick={() => {
@@ -841,7 +841,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                               setRolePermissions(prev => Array.from(new Set([...prev, ...moduleKeys])));
                             }
                           }}
-                          className="text-[9px] font-bold text-emerald-600 hover:underline cursor-pointer"
+                          className="text-xs font-bold text-emerald-600 hover:underline cursor-pointer"
                         >
                           {isAllEnabled ? 'None' : 'All'}
                         </button>
@@ -849,7 +849,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                       {module.items.map(item => {
                         const isChecked = rolePermissions.includes(item.key);
                         return (
-                          <label key={item.key} className="flex items-center gap-2 text-[11px] cursor-pointer">
+                          <label key={item.key} className="flex items-center gap-2 text-xs cursor-pointer">
                             <input
                               type="checkbox"
                               checked={isChecked}
@@ -908,7 +908,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
             {/* Core Account Details */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-slate-400">Employee Name</label>
+                <label className="text-xs font-bold text-slate-400">Employee Name</label>
                 <input
                   type="text"
                   required
@@ -919,7 +919,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-slate-400">Corporate Email</label>
+                <label className="text-xs font-bold text-slate-400">Corporate Email</label>
                 <input
                   type="email"
                   required
@@ -930,7 +930,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-slate-400">Password</label>
+                <label className="text-xs font-bold text-slate-400">Password</label>
                 <input
                   type="password"
                   required={!editingUserId}
@@ -941,7 +941,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                 />
               </div>
               <div className="space-y-1 sm:col-span-2">
-                <label className="text-[10px] font-bold uppercase text-slate-400">Mobile PIN Sign-in (optional)</label>
+                <label className="text-xs font-bold text-slate-400">Mobile PIN Sign-in (optional)</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -957,11 +957,11 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                   maxLength={12}
                   className="w-full bg-white border border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:border-emerald-600"
                 />
-                <p className="text-[10px] text-slate-400">
+                <p className="text-xs text-slate-400">
                   Lets this person sign in on the CC Livestock mobile app with just a PIN instead of email and password. Leave blank to {editingUserId ? 'keep the current PIN unchanged.' : 'skip PIN sign-in.'}
                 </p>
                 {editingUserId && settings.users.find(u => u.id === editingUserId)?.hasPin && (
-                  <label className="flex items-center gap-1.5 text-[10px] font-bold text-red-600 pt-0.5 cursor-pointer">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-red-600 pt-0.5 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={clearPin}
@@ -972,7 +972,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                 )}
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-slate-400">Role Selection</label>
+                <label className="text-xs font-bold text-slate-400">Role Selection</label>
                 <select
                   value={userRole}
                   disabled={editingUserId !== null && settings.users.find(u => u.id === editingUserId)?.role === 'Super Admin'}
@@ -987,7 +987,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                 </select>
               </div>
               <div className="space-y-1 col-span-2">
-                <label className="text-[10px] font-bold uppercase text-slate-400">Farm Location Scope</label>
+                <label className="text-xs font-bold text-slate-400">Farm Location Scope</label>
                 <select
                   value={userFarmLocation}
                   disabled={isFarmOwner}
@@ -1005,7 +1005,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
             {/* Quick Preset Buttons */}
             {!isFarmOwner && (
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+                <span className="text-xs font-bold text-slate-600 flex items-center gap-1">
                   <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Apply Quick Permission Preset:
                 </span>
                 <div className="flex flex-wrap gap-1.5">
@@ -1013,7 +1013,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                     <button
                       type="button"
                       onClick={() => handleApplyPreset('all')}
-                      className="px-2.5 py-1 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                      className="px-2.5 py-1 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                     >
                       Select All (Super Admin)
                     </button>
@@ -1026,7 +1026,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                         key={r.id}
                         type="button"
                         onClick={() => handleApplyPreset(r.name)}
-                        className="px-2.5 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                        className="px-2.5 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                       >
                         {r.name}
                       </button>
@@ -1049,11 +1049,11 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                     return (
                       <div key={module.id} className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2 shadow-2xs">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                          <span className="text-xs font-black text-slate-800">{module.label}</span>
+                          <span className="text-xs font-bold text-slate-800">{module.label}</span>
                           <button
                             type="button"
                             onClick={() => toggleModulePermissions(moduleKeys)}
-                            className="text-[10px] font-bold text-emerald-650 hover:underline cursor-pointer"
+                            className="text-xs font-bold text-emerald-650 hover:underline cursor-pointer"
                           >
                             {isAllEnabled ? 'Deselect All' : 'Select All'}
                           </button>
@@ -1065,8 +1065,8 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                               <label
                                 key={item.key}
                                 className={`flex items-start gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
-                                  isChecked
-                                    ? 'bg-emerald-50/60 border-emerald-300 text-emerald-950 font-bold'
+ isChecked
+ ? 'bg-emerald-50/60 border-emerald-300 text-emerald-950 font-bold'
                                     : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50'
                                 }`}
                               >
@@ -1078,7 +1078,7 @@ export default function SettingsTab({ settings, currentUser }: SettingsTabProps)
                                 />
                                 <div>
                                   <p className="font-bold leading-tight">{item.label}</p>
-                                  <p className="text-[10px] text-slate-400 font-normal leading-tight mt-0.5">{item.description}</p>
+                                  <p className="text-xs text-slate-400 font-normal leading-tight mt-0.5">{item.description}</p>
                                 </div>
                               </label>
                             );

@@ -4,26 +4,27 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-base font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-emerald-600 text-white shadow hover:bg-emerald-500",
+          "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
         destructive:
-          "bg-red-900/50 text-red-200 border border-red-800 hover:bg-red-900/70",
+          "border-2 border-rose-700 bg-white text-rose-800 hover:bg-rose-50",
         outline:
-          "border border-slate-800 bg-slate-900 text-slate-100 shadow-sm hover:bg-slate-800",
+          "border-2 border-emerald-600 bg-white text-emerald-700 hover:bg-emerald-50",
         secondary:
-          "bg-slate-800 text-slate-100 shadow-sm hover:bg-slate-700",
-        ghost: "hover:bg-slate-800 hover:text-slate-100",
-        link: "text-emerald-400 underline-offset-4 hover:underline",
+          "bg-slate-100 text-ink hover:bg-slate-200",
+        ghost: "text-ink hover:bg-slate-100",
+        link: "text-emerald-700 underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-8",
-        icon: "h-9 w-9",
+        // Thumb-sized: 48px by default, never below 44px.
+        default: "h-12 px-5",
+        sm: "h-11 px-4 text-sm",
+        lg: "h-14 px-8 text-lg",
+        icon: "h-12 w-12",
       },
     },
     defaultVariants: {

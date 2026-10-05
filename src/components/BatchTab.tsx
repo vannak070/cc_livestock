@@ -615,13 +615,13 @@ export default function BatchTab({
               <TrendingUp className="h-7 w-7 text-emerald-400" />
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-black tracking-tight">Start a Fattening Program</h3>
+              <h3 className="text-xl font-bold tracking-tight">Start a Fattening Program</h3>
               <p className="text-sm text-emerald-200/80 mt-1 leading-relaxed">
                 Set up your fattening batch, enroll cattle, and activate the feeding schedule — all in one step.
               </p>
               <div className="flex flex-wrap gap-3 mt-3">
                 {['🧠 AI Feed Ration', '⚡ Auto ADG Tracking', '📊 Daily Cost Reports'].map(f => (
-                  <span key={f} className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full">{f}</span>
+                  <span key={f} className="text-xs font-bold bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full">{f}</span>
                 ))}
               </div>
             </div>
@@ -631,7 +631,7 @@ export default function BatchTab({
           <div className="bg-white border border-slate-200/70 rounded-2xl shadow-sm overflow-hidden">
             {/* Section: Program Details */}
             <div className="px-6 pt-5 pb-4 border-b border-slate-100">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">─── Program Details</p>
+              <p className="text-xs font-bold text-slate-400 mb-3">─── Program Details</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700">Program Name *</label>
@@ -668,13 +668,13 @@ export default function BatchTab({
             {/* Section: Enroll Cattle */}
             <div className="px-6 py-4 border-b border-slate-100">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">─── Enroll Cattle (Optional)</p>
+                <p className="text-xs font-bold text-slate-400">─── Enroll Cattle (Optional)</p>
                 <div className="flex items-center gap-3">
                   {launchCowIds.length > 0 && (
-                    <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md">{launchCowIds.length} selected</span>
+                    <span className="text-xs font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md">{launchCowIds.length} selected</span>
                   )}
                   {launchCowIds.length > 0 && (
-                    <button onClick={() => setLaunchCowIds([])} className="text-[10px] font-bold text-rose-500 hover:text-rose-700 cursor-pointer">✕ Clear</button>
+                    <button onClick={() => setLaunchCowIds([])} className="text-xs font-bold text-rose-500 hover:text-rose-700 cursor-pointer">✕ Clear</button>
                   )}
                 </div>
               </div>
@@ -738,7 +738,7 @@ export default function BatchTab({
                         <button
                           type="button"
                           onClick={() => setLaunchCowIds(prev => Array.from(new Set([...prev, ...filtered.map(c => c.id)])))}
-                          className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer"
+                          className="text-xs font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer"
                         >
                           + Select All ({filtered.length})
                         </button>
@@ -750,15 +750,15 @@ export default function BatchTab({
                             key={cow.id}
                             onClick={() => setLaunchCowIds(prev => checked ? prev.filter(i => i !== cow.id) : [...prev, cow.id])}
                             className={`flex items-center justify-between p-2.5 rounded-lg border text-xs cursor-pointer transition-all ${
-                              checked
-                                ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+ checked
+ ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
                                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                             }`}
                           >
                             <div>
-                              <span className="font-black text-slate-800">{cow.id}</span>
+                              <span className="font-bold text-slate-800">{cow.id}</span>
                               <span className="ml-2 text-slate-400">{cow.breed} • {cow.weight} kg</span>
-                              <span className="ml-2 text-[10px] text-slate-400 font-medium">{cow.location}</span>
+                              <span className="ml-2 text-xs text-slate-400 font-medium">{cow.location}</span>
                             </div>
                             {checked && <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />}
                           </div>
@@ -768,7 +768,7 @@ export default function BatchTab({
                   );
                 })()}
               </div>
-              <p className="text-[10px] text-slate-400 mt-1.5 font-medium">You can also add cattle after the program is created.</p>
+              <p className="text-xs text-slate-400 mt-1.5 font-medium">You can also add cattle after the program is created.</p>
             </div>
 
             {/* Footer: Error + Launch Button */}
@@ -780,13 +780,13 @@ export default function BatchTab({
                 </div>
               )}
               <div className="flex items-center justify-between gap-4">
-                <p className="text-[11px] text-slate-400 font-medium">
+                <p className="text-xs text-slate-400 font-medium">
                   {launchCowIds.length > 0 ? `🐄 ${launchCowIds.length} cattle will be enrolled immediately.` : 'No cattle enrolled yet — you can add them later.'}
                 </p>
                 <Button
                   onClick={handleLaunchProgram}
                   disabled={isInitializingHerd || !launchName.trim() || !launchBatchId.trim()}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isInitializingHerd ? (
                     <><span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Starting...</>
@@ -802,7 +802,7 @@ export default function BatchTab({
           {hasPermission(currentUser, 'batch_create') && (
             <div className="flex items-center gap-3 text-slate-400">
               <div className="flex-1 h-px bg-slate-200" />
-              <span className="text-[11px] font-bold uppercase tracking-wider">or</span>
+              <span className="text-xs font-bold ">or</span>
               <div className="flex-1 h-px bg-slate-200" />
             </div>
           )}
@@ -833,11 +833,11 @@ export default function BatchTab({
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+              <h3 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
                 <TrendingUp className="h-6 w-6 text-emerald-600 animate-pulse" />
                 {t('batches.title')}
               </h3>
-              <p className="text-[11px] text-slate-400 font-semibold">
+              <p className="text-xs text-slate-400 font-semibold">
                 {t('batches.subtitle')}
               </p>
             </div>
@@ -889,43 +889,43 @@ export default function BatchTab({
           {/* KPI Dashboard Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 text-left">
             <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-xs">
-              <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Cattle In Fattening</p>
-              <p className="text-2xl font-black text-slate-800 mt-1">
+              <p className="text-xs font-bold text-slate-400 ">Cattle In Fattening</p>
+              <p className="text-2xl font-bold text-slate-800 mt-1">
                 {fatteningCowsInHerd.length}{' '}
                 <span className="text-xs font-bold text-emerald-600">Head</span>
               </p>
             </div>
             <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-xs">
-              <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Total Herd Biomass</p>
-              <p className="text-2xl font-black text-slate-800 mt-1">
+              <p className="text-xs font-bold text-slate-400 ">Total Herd Biomass</p>
+              <p className="text-2xl font-bold text-slate-800 mt-1">
                 {format2DecimalsWithCommas(totalBiomass)}{' '}
                 <span className="text-xs font-bold text-blue-600">kg</span>
               </p>
             </div>
             <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-xs">
-              <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Avg Weight per Head</p>
-              <p className="text-2xl font-black text-slate-800 mt-1">
+              <p className="text-xs font-bold text-slate-400 ">Avg Weight per Head</p>
+              <p className="text-2xl font-bold text-slate-800 mt-1">
                 {format2Decimals(avgBiomass)}{' '}
                 <span className="text-xs font-bold text-slate-500">kg</span>
               </p>
             </div>
             <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-xs">
-              <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Expected Selling Price</p>
-              <p className="text-2xl font-black text-emerald-600 mt-1">
+              <p className="text-xs font-bold text-slate-400 ">Expected Selling Price</p>
+              <p className="text-2xl font-bold text-emerald-600 mt-1">
                 {defaultBatch?.expectedSellingPrice ? `៛ ${format2DecimalsWithCommas(defaultBatch.expectedSellingPrice)} / kg` : 'Not Set'}
               </p>
             </div>
             <div className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-xs">
-              <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Selling Target Date</p>
-              <p className="text-2xl font-black text-amber-600 mt-1">
+              <p className="text-xs font-bold text-slate-400 ">Selling Target Date</p>
+              <p className="text-2xl font-bold text-amber-600 mt-1">
                 {defaultBatch?.sellingTargetDate || 'Not Set'}
               </p>
             </div>
             <div className="bg-gradient-to-br from-emerald-50/20 to-teal-50/25 border border-emerald-100/50 p-4.5 rounded-2xl shadow-xs animate-pulse">
-              <p className="text-[9px] font-black uppercase text-emerald-700 tracking-wider">Daily Feed Cost (Total)</p>
-              <p className="text-2xl font-black text-emerald-700 mt-1">
+              <p className="text-xs font-bold text-emerald-700 ">Daily Feed Cost (Total)</p>
+              <p className="text-2xl font-bold text-emerald-700 mt-1">
                 ៛ {format2DecimalsWithCommas(totalHerdDailyFeedCost)}{' '}
-                <span className="text-[10px] font-bold opacity-85">/ day</span>
+                <span className="text-xs font-bold opacity-85">/ day</span>
               </p>
             </div>
           </div>
@@ -935,7 +935,7 @@ export default function BatchTab({
             <button
               onClick={() => setSubView('members')}
               className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
-                subView === 'members'
+ subView === 'members'
                   ? 'bg-white text-emerald-700 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
@@ -945,7 +945,7 @@ export default function BatchTab({
             <button
               onClick={() => setSubView('feed')}
               className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
-                subView === 'feed'
+ subView === 'feed'
                   ? 'bg-white text-emerald-700 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
@@ -955,7 +955,7 @@ export default function BatchTab({
             <button
               onClick={() => setSubView('report')}
               className={`px-4 py-2 rounded-lg transition-all cursor-pointer ${
-                subView === 'report'
+ subView === 'report'
                   ? 'bg-white text-emerald-700 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
@@ -970,7 +970,7 @@ export default function BatchTab({
               {/* Herd List (2 cols) */}
               <div className={hasPermission(currentUser, 'batch_edit') ? 'lg:col-span-2 space-y-4' : 'space-y-4'}>
                 <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 text-left">
+                  <h4 className="text-xs font-bold text-slate-400 text-left">
                     បញ្ជីឈ្មោះគោបំប៉នបច្ចុប្បន្ន (FATTENING HERD MEMBERS)
                   </h4>
                   <Button
@@ -999,7 +999,7 @@ export default function BatchTab({
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 uppercase font-black text-[9.5px] tracking-wider">
+                        <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold text-xs ">
                           <th className="py-3 px-4">Cow ID</th>
                           <th className="py-3 px-4">Breed (ពូជ)</th>
                           <th className="py-3 px-4">Current Weight</th>
@@ -1011,14 +1011,14 @@ export default function BatchTab({
                         {fatteningCowsInHerd.slice((herdMemberPage - 1) * herdMemberPageSize, herdMemberPage * herdMemberPageSize).length > 0 ? (
                           fatteningCowsInHerd.slice((herdMemberPage - 1) * herdMemberPageSize, herdMemberPage * herdMemberPageSize).map(cow => (
                             <tr key={cow.id} className="border-b border-slate-50 hover:bg-slate-50/30 transition-colors">
-                              <td className="py-3.5 px-4 font-black text-slate-800">{cow.id}</td>
+                              <td className="py-3.5 px-4 font-bold text-slate-800">{cow.id}</td>
                               <td className="py-3.5 px-4 text-slate-750">{cow.breed}</td>
                               <td className="py-3.5 px-4 font-mono font-bold text-slate-800">
-                                {cow.weight} <span className="text-slate-400 text-[10px]">kg</span>
+                                {cow.weight} <span className="text-slate-400 text-xs">kg</span>
                               </td>
                               <td className="py-3.5 px-4">
-                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold border ${
-                                  cow.healthStatus === 'Good'
+                                <span className={`px-2 py-0.5 rounded-md text-xs font-bold border ${
+ cow.healthStatus === 'Good'
                                     ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                                     : cow.healthStatus === 'Poor'
                                     ? 'bg-rose-50 text-rose-600 border-rose-100'
@@ -1038,7 +1038,7 @@ export default function BatchTab({
                                     <UserMinus className="h-4 w-4" />
                                   </button>
                                 ) : (
-                                  <span className="text-[10px] text-slate-400 font-bold">Locked</span>
+                                  <span className="text-xs text-slate-400 font-bold">Locked</span>
                                 )}
                               </td>
                             </tr>
@@ -1069,14 +1069,14 @@ export default function BatchTab({
                 <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-xs space-y-4 max-h-[600px] flex flex-col">
                   <div>
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-800">
+                      <h4 className="text-xs font-bold text-slate-800">
                         {t('batches.addCattleToBatch')}
                       </h4>
-                      <span className="text-[10px] font-black text-emerald-650 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                      <span className="text-xs font-bold text-emerald-650 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
                         {selectedCowIds.length} Selected
                       </span>
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Select unassigned active stock cows to put on fattening</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Select unassigned active stock cows to put on fattening</p>
                   </div>
 
                   <div className={`grid grid-cols-1 ${!currentUser?.farmLocation ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-2`}>
@@ -1126,7 +1126,7 @@ export default function BatchTab({
                     </select>
                   </div>
 
-                  <div className="flex items-center justify-between text-[10px] font-bold px-1">
+                  <div className="flex items-center justify-between text-xs font-bold px-1">
                     <button
                       type="button"
                       onClick={handleSelectAllFiltered}
@@ -1159,14 +1159,14 @@ export default function BatchTab({
                               );
                             }}
                             className={`p-2.5 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-colors ${
-                              isSelected
-                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold shadow-xs'
+ isSelected
+ ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold shadow-xs'
                                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                             }`}
                           >
                             <div className="text-left">
-                              <span className="font-black text-slate-800">{cow.id}</span>
-                              <p className="text-[9px] text-slate-400 mt-0.5">{cow.breed} • {cow.weight} kg</p>
+                              <span className="font-bold text-slate-800">{cow.id}</span>
+                              <p className="text-xs text-slate-400 mt-0.5">{cow.breed} • {cow.weight} kg</p>
                             </div>
                             {isSelected ? (
                               <UserMinus className="h-4 w-4 text-emerald-600" />
@@ -1177,7 +1177,7 @@ export default function BatchTab({
                         );
                       })
                     ) : (
-                      <p className="text-[10px] text-center text-slate-400 py-10 font-bold">
+                      <p className="text-xs text-center text-slate-400 py-10 font-bold">
                         {unassignedCows.length === 0 ? 'All cows allocated.' : 'No stock cows match filter.'}
                       </p>
                     )}
@@ -1200,11 +1200,11 @@ export default function BatchTab({
               {/* Feeding Program Configuration Form (2 cols) */}
               <div className="lg:col-span-2 bg-white border border-slate-100 rounded-2xl p-6 shadow-xs text-left">
                 <div className="border-b border-slate-200 pb-3 mb-4">
-                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
                     <Layers className="h-4 w-4 text-emerald-600" />
                     របបអាហារបំប៉នប្រចាំថ្ងៃ (Daily Feeding Ration Config)
                   </h4>
-                  <p className="text-[10.5px] text-slate-400 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     Set portion sizes and unit costs for daily concentrates and roughages fed per cow.
                   </p>
                 </div>
@@ -1213,7 +1213,7 @@ export default function BatchTab({
                   {/* Dynamic Ingredients List */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                      <Label className="text-xs font-bold text-slate-400 ">
                         Feed Ingredients List ({feedIngredients.length} Items)
                       </Label>
                       <button
@@ -1236,7 +1236,7 @@ export default function BatchTab({
                         <div key={item.id} className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 space-y-2">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 flex-1">
-                              <span className="h-5 w-5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black flex items-center justify-center flex-shrink-0">
+                              <span className="h-5 w-5 rounded-md bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center justify-center flex-shrink-0">
                                 {idx + 1}
                               </span>
 
@@ -1257,7 +1257,7 @@ export default function BatchTab({
                                     }
                                   }
                                 }}
-                                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-extrabold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
+                                className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 cursor-pointer"
                               >
                                 <option value="">-- Select Feed Product from Admin Catalog --</option>
                                 {catalogProducts.map(p => (
@@ -1296,7 +1296,7 @@ export default function BatchTab({
 
                           <div className="grid grid-cols-3 gap-3 pt-1">
                             <div>
-                              <Label className="text-[9px] font-bold uppercase text-slate-400">Portion (kg/head/day)</Label>
+                              <Label className="text-xs font-bold text-slate-400">Portion (kg/head/day)</Label>
                               <Input
                                 type="number"
                                 step="0.1"
@@ -1307,9 +1307,9 @@ export default function BatchTab({
                             </div>
                             <div>
                               <div className="flex items-center justify-between">
-                                <Label className="text-[9px] font-bold uppercase text-slate-400">Unit Cost (៛ / kg)</Label>
+                                <Label className="text-xs font-bold text-slate-400">Unit Cost (៛ / kg)</Label>
                                 {matchedProd && (
-                                  <span className="text-[8px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded uppercase">
+                                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded ">
                                     ✓ Admin Catalog
                                   </span>
                                 )}
@@ -1324,7 +1324,7 @@ export default function BatchTab({
                               />
                             </div>
                             <div>
-                              <Label className="text-[9px] font-bold uppercase text-slate-400">Daily Cost / Head</Label>
+                              <Label className="text-xs font-bold text-slate-400">Daily Cost / Head</Label>
                               <div className="h-8 flex items-center px-2.5 bg-white border border-slate-200 rounded-md font-mono text-xs font-bold text-emerald-700 mt-0.5">
                                 ៛ {format2DecimalsWithCommas(itemDailyCost)}
                               </div>
@@ -1337,7 +1337,7 @@ export default function BatchTab({
 
                   <div className="grid grid-cols-2 gap-4 pt-2">
                     <div className="space-y-1">
-                      <Label htmlFor="f_frequency" className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Feeding Frequency</Label>
+                      <Label htmlFor="f_frequency" className="text-xs font-bold text-slate-400 ">Feeding Frequency</Label>
                       <select
                         id="f_frequency"
                         value={feedProgFrequency}
@@ -1352,7 +1352,7 @@ export default function BatchTab({
                     </div>
 
                     <div className="space-y-1">
-                      <Label htmlFor="f_start" className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Ration Start Date</Label>
+                      <Label htmlFor="f_start" className="text-xs font-bold text-slate-400 ">Ration Start Date</Label>
                       <Input
                         type="date"
                         id="f_start"
@@ -1379,7 +1379,7 @@ export default function BatchTab({
               {/* Feed Cost Summary Sidebar (1 col) */}
               <div className="space-y-4">
                 <Card className="bg-white border border-slate-100 p-5 rounded-2xl shadow-xs text-left">
-                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-2 mb-3">
+                  <h5 className="text-xs font-bold text-slate-400 border-b border-slate-50 pb-2 mb-3">
                     គណនាថ្លៃចំណី (Feed Cost Analysis)
                   </h5>
                   <div className="space-y-3.5 text-xs text-slate-650">
@@ -1395,11 +1395,11 @@ export default function BatchTab({
                       );
                     })}
 
-                    <div className="flex justify-between font-black text-slate-800 text-sm bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50">
+                    <div className="flex justify-between font-bold text-slate-800 text-sm bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50">
                       <span className="text-emerald-800 font-bold">Total / Head / Day</span>
                       <span className="text-emerald-800 font-bold">៛ {format2DecimalsWithCommas(dailyFeedCostPerHead)}</span>
                     </div>
-                    <div className="flex justify-between font-black text-slate-800 text-sm bg-teal-50/50 p-2.5 rounded-xl border border-teal-100/50">
+                    <div className="flex justify-between font-bold text-slate-800 text-sm bg-teal-50/50 p-2.5 rounded-xl border border-teal-100/50">
                       <span className="text-teal-800 font-bold">Herd Daily Cost ({fatteningCowsInHerd.length} head)</span>
                       <span className="text-teal-800 font-bold">៛ {format2DecimalsWithCommas(totalHerdDailyFeedCost)}</span>
                     </div>
@@ -1419,19 +1419,19 @@ export default function BatchTab({
 
                       return (
                         <div className={`p-3 rounded-xl border text-xs space-y-1.5 ${
-                          dsrOnHandBags <= 50 ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-slate-50 border-slate-200 text-slate-800'
+ dsrOnHandBags <= 50 ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-slate-50 border-slate-200 text-slate-800'
                         }`}>
-                          <div className="flex items-center justify-between font-black">
+                          <div className="flex items-center justify-between font-bold">
                             <span>📦 Live DSR-16 Feed Stock</span>
                             <span className="font-mono text-emerald-700">{format2DecimalsWithCommas(dsrOnHandBags)} bags ({format2DecimalsWithCommas(dsrOnHandBags * 30)} kg)</span>
                           </div>
-                          <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500">
+                          <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
                             <span>Daily Herd Ration Rate:</span>
                             <span className="font-mono font-bold text-slate-700">{format2DecimalsWithCommas(dailyHerdDsrKg)} kg/day ({format2DecimalsWithCommas(dailyHerdDsrBags)} bags/d)</span>
                           </div>
-                          <div className="flex items-center justify-between text-[11px] font-extrabold pt-1 border-t border-slate-200/60">
+                          <div className="flex items-center justify-between text-xs font-bold pt-1 border-t border-slate-200/60">
                             <span>Feed Stock Coverage:</span>
-                            <span className={`font-mono ${daysRemaining <= 7 ? 'text-rose-600 animate-pulse font-black' : 'text-emerald-700'}`}>
+                            <span className={`font-mono ${daysRemaining <= 7 ? 'text-rose-600 animate-pulse font-bold' : 'text-emerald-700'}`}>
                               {daysRemaining < 900 ? `~${daysRemaining} Days Remaining` : 'Stock Available'}
                             </span>
                           </div>
@@ -1501,39 +1501,39 @@ export default function BatchTab({
               return (
                 <div className="space-y-4 mt-4">
                   <div className="text-left">
-                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">របាយការណ៍លូតលាស់សរុប (HERD PERFORMANCE REPORT)</h4>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Average Daily Gain (ADG) calculated relative to herd program start date ({defaultBatch.startDate?.split('T')[0]}).</p>
+                    <h4 className="text-xs font-bold text-slate-800 ">របាយការណ៍លូតលាស់សរុប (HERD PERFORMANCE REPORT)</h4>
+                    <p className="text-xs text-slate-400 mt-0.5">Average Daily Gain (ADG) calculated relative to herd program start date ({defaultBatch.startDate?.split('T')[0]}).</p>
                   </div>
 
                   {/* Summary Widgets */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
                     <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl shadow-xs">
-                      <p className="text-[9px] uppercase font-bold text-emerald-700 tracking-wider">Herd Average ADG</p>
-                      <p className="text-xl font-black text-emerald-800 mt-1">{averageADG.toFixed(2)} <span className="text-xs font-bold">kg / day</span></p>
+                      <p className="text-xs font-bold text-emerald-700 ">Herd Average ADG</p>
+                      <p className="text-xl font-bold text-emerald-800 mt-1">{averageADG.toFixed(2)} <span className="text-xs font-bold">kg / day</span></p>
                     </div>
 
                     <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl shadow-xs">
-                      <p className="text-[9px] uppercase font-bold text-blue-700 tracking-wider">Top Performer (លូតលាស់ល្អបំផុត)</p>
+                      <p className="text-xs font-bold text-blue-700 ">Top Performer (លូតលាស់ល្អបំផុត)</p>
                       {topPerformer ? (
-                        <p className="text-xl font-black text-blue-800 mt-1">{topPerformer.cow.id} <span className="text-xs font-bold text-blue-650">({topPerformer.adg.toFixed(2)} kg/d)</span></p>
+                        <p className="text-xl font-bold text-blue-800 mt-1">{topPerformer.cow.id} <span className="text-xs font-bold text-blue-650">({topPerformer.adg.toFixed(2)} kg/d)</span></p>
                       ) : (
-                        <p className="text-xs font-extrabold text-blue-600 mt-2.5">Pending Weight Check</p>
+                        <p className="text-xs font-bold text-blue-600 mt-2.5">Pending Weight Check</p>
                       )}
                     </div>
 
                     <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl shadow-xs">
-                      <p className="text-[9px] uppercase font-bold text-rose-700 tracking-wider">Under Performer (លូតលាស់ខ្សោយបំផុត)</p>
+                      <p className="text-xs font-bold text-rose-700 ">Under Performer (លូតលាស់ខ្សោយបំផុត)</p>
                       {underPerformer ? (
-                        <p className="text-xl font-black text-rose-800 mt-1">{underPerformer.cow.id} <span className="text-xs font-bold text-rose-650">({underPerformer.adg.toFixed(2)} kg/d)</span></p>
+                        <p className="text-xl font-bold text-rose-800 mt-1">{underPerformer.cow.id} <span className="text-xs font-bold text-rose-650">({underPerformer.adg.toFixed(2)} kg/d)</span></p>
                       ) : (
-                        <p className="text-xs font-extrabold text-rose-600 mt-2.5">Pending Weight Check</p>
+                        <p className="text-xs font-bold text-rose-600 mt-2.5">Pending Weight Check</p>
                       )}
                     </div>
                   </div>
 
                   {/* Report Table */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50 border border-slate-200/70 p-2.5 rounded-2xl">
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-700 pl-1">
+                    <span className="text-xs font-bold text-slate-700 pl-1">
                       📊 ADG Growth Performance Report
                     </span>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -1562,7 +1562,7 @@ export default function BatchTab({
                             ]
                           });
                         }}
-                        className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-2xs cursor-pointer"
+                        className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xs cursor-pointer"
                       >
                         <Download className="h-3.5 w-3.5" /> Export Excel
                       </Button>
@@ -1572,7 +1572,7 @@ export default function BatchTab({
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 uppercase font-black text-[9.5px] tracking-wider">
+                          <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold text-xs ">
                             <th className="py-3 px-4">Cow ID</th>
                             <th className="py-3 px-4">Breed</th>
                             <th className="py-3 px-4">Initial Weight</th>
@@ -1585,19 +1585,19 @@ export default function BatchTab({
                           {reportData.slice((reportPage - 1) * reportPageSize, reportPage * reportPageSize).length > 0 ? (
                             reportData.slice((reportPage - 1) * reportPageSize, reportPage * reportPageSize).map(({ cow, initialWeight, currentWeight, gain, adg }) => (
                               <tr key={cow.id} className="border-b border-slate-50 hover:bg-slate-50/30 transition-colors">
-                                <td className="py-3 px-4 font-black text-slate-800">{cow.id}</td>
+                                <td className="py-3 px-4 font-bold text-slate-800">{cow.id}</td>
                                 <td className="py-3 px-4 text-slate-500">{cow.breed}</td>
                                 <td className="py-3 px-4 font-mono font-bold text-slate-650">{format2Decimals(initialWeight)} kg</td>
-                                <td className="py-3 px-4 font-mono font-black text-slate-800">{format2Decimals(currentWeight)} kg</td>
+                                <td className="py-3 px-4 font-mono font-bold text-slate-800">{format2Decimals(currentWeight)} kg</td>
                                 <td className="py-3 px-4">
-                                  <span className={`font-mono font-black text-xs ${gain >= 0 ? 'text-emerald-650' : 'text-rose-500'}`}>
+                                  <span className={`font-mono font-bold text-xs ${gain >= 0 ? 'text-emerald-650' : 'text-rose-500'}`}>
                                     {gain >= 0 ? `+${format2Decimals(gain)}` : format2Decimals(gain)} kg
                                   </span>
                                 </td>
                                 <td className="py-3 px-4 font-mono">
                                   <span className={`px-2 py-0.5 rounded-md font-bold ${
-                                    adg >= 1.0
-                                      ? 'bg-emerald-50 text-emerald-600'
+ adg >= 1.0
+ ? 'bg-emerald-50 text-emerald-600'
                                       : adg >= 0.5
                                       ? 'bg-blue-50 text-blue-600'
                                       : 'bg-rose-50 text-rose-600'
@@ -1638,7 +1638,7 @@ export default function BatchTab({
         <Dialog open={isScalingOpen} onOpenChange={setIsScalingOpen}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white p-6 rounded-2xl">
             <DialogHeader>
-              <DialogTitle className="text-base font-black text-slate-800">⚖️ កត់ទម្ងន់គោបំប៉ន (Herd Weight Logging)</DialogTitle>
+              <DialogTitle className="text-base font-bold text-slate-800">⚖️ កត់ទម្ងន់គោបំប៉ន (Herd Weight Logging)</DialogTitle>
               <DialogDescription className="text-xs text-slate-400 mt-0.5">
                 Record new weights for the fattening herd using all-cow or random sampling mode.
               </DialogDescription>
@@ -1647,12 +1647,12 @@ export default function BatchTab({
             <div className="space-y-4 mt-4 text-left">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">Cohort Batch Scaling</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Record current weights and update health conditions using all-scale or random sampling estimation.</p>
+                  <h4 className="text-xs font-bold text-slate-800 ">Cohort Batch Scaling</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">Record current weights and update health conditions using all-scale or random sampling estimation.</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="scale_date" className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date</Label>
+                    <Label htmlFor="scale_date" className="text-xs font-bold text-slate-400 ">Date</Label>
                     <Input
                       type="date"
                       id="scale_date"
@@ -1665,7 +1665,7 @@ export default function BatchTab({
               </div>
 
               {/* Scaling Mode Selector Toggle */}
-              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-[10px] font-bold w-fit">
+              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold w-fit">
                 <button
                   type="button"
                   onClick={() => setIsSamplingMode(false)}
@@ -1761,16 +1761,16 @@ export default function BatchTab({
                 {isSamplingMode ? (
                   <div className="space-y-4 bg-slate-50 border border-slate-100 rounded-2xl p-4">
                     <div className="border-b border-slate-200 pb-2">
-                      <span className="text-xs font-black text-slate-800">ស្ទង់ទម្ងន់គំរូ 3 (Log 3 Representative Sample Weights)</span>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Select one high-performing, one average, and one under-performing cow from the cohort.</p>
+                      <span className="text-xs font-bold text-slate-800">ស្ទង់ទម្ងន់គំរូ 3 (Log 3 Representative Sample Weights)</span>
+                      <p className="text-xs text-slate-400 mt-0.5">Select one high-performing, one average, and one under-performing cow from the cohort.</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* High Sample */}
                       <div className="bg-white border border-slate-100 rounded-xl p-3.5 space-y-2.5">
-                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full uppercase">1. Best Grower (ល្អបំផុត)</span>
+                        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full ">1. Best Grower (ល្អបំផុត)</span>
                         <div className="space-y-1">
-                          <Label htmlFor="sample_best" className="text-[9px] uppercase font-bold text-slate-400">Cow ID</Label>
+                          <Label htmlFor="sample_best" className="text-xs font-bold text-slate-400">Cow ID</Label>
                           <select
                             id="sample_best"
                             value={sampleBestId}
@@ -1789,7 +1789,7 @@ export default function BatchTab({
                           </select>
                         </div>
                         <div className="space-y-1">
-                          <Label htmlFor="sample_best_w" className="text-[9px] uppercase font-bold text-slate-400">New Weight (kg)</Label>
+                          <Label htmlFor="sample_best_w" className="text-xs font-bold text-slate-400">New Weight (kg)</Label>
                           <Input
                             type="number"
                             id="sample_best_w"
@@ -1804,9 +1804,9 @@ export default function BatchTab({
 
                       {/* Medium Sample */}
                       <div className="bg-white border border-slate-100 rounded-xl p-3.5 space-y-2.5">
-                        <span className="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full uppercase">2. Medium Grower (មធ្យម)</span>
+                        <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full ">2. Medium Grower (មធ្យម)</span>
                         <div className="space-y-1">
-                          <Label htmlFor="sample_med" className="text-[9px] uppercase font-bold text-slate-400">Cow ID</Label>
+                          <Label htmlFor="sample_med" className="text-xs font-bold text-slate-400">Cow ID</Label>
                           <select
                             id="sample_med"
                             value={sampleMediumId}
@@ -1825,7 +1825,7 @@ export default function BatchTab({
                           </select>
                         </div>
                         <div className="space-y-1">
-                          <Label htmlFor="sample_med_w" className="text-[9px] uppercase font-bold text-slate-400">New Weight (kg)</Label>
+                          <Label htmlFor="sample_med_w" className="text-xs font-bold text-slate-400">New Weight (kg)</Label>
                           <Input
                             type="number"
                             id="sample_med_w"
@@ -1840,9 +1840,9 @@ export default function BatchTab({
 
                       {/* Low Sample */}
                       <div className="bg-white border border-slate-100 rounded-xl p-3.5 space-y-2.5">
-                        <span className="text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full uppercase">3. Low Grower (ខ្សោយបំផុត)</span>
+                        <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full ">3. Low Grower (ខ្សោយបំផុត)</span>
                         <div className="space-y-1">
-                          <Label htmlFor="sample_low" className="text-[9px] uppercase font-bold text-slate-400">Cow ID</Label>
+                          <Label htmlFor="sample_low" className="text-xs font-bold text-slate-400">Cow ID</Label>
                           <select
                             id="sample_low"
                             value={sampleLowId}
@@ -1861,7 +1861,7 @@ export default function BatchTab({
                           </select>
                         </div>
                         <div className="space-y-1">
-                          <Label htmlFor="sample_low_w" className="text-[9px] uppercase font-bold text-slate-400">New Weight (kg)</Label>
+                          <Label htmlFor="sample_low_w" className="text-xs font-bold text-slate-400">New Weight (kg)</Label>
                           <Input
                             type="number"
                             id="sample_low_w"
@@ -1890,28 +1890,28 @@ export default function BatchTab({
 
                         return (
                           <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3.5 space-y-2 text-xs text-left">
-                            <p className="font-extrabold text-[#003B33] flex items-center gap-1.5">
+                            <p className="font-bold text-[#003B33] flex items-center gap-1.5">
                               📊 Results & Estimation Math (ការគណនាស្វ័យប្រវត្ត)
                             </p>
                             <div className="grid grid-cols-4 gap-2 text-center py-1">
                               <div className="bg-white border border-slate-100 p-2 rounded-lg">
-                                <p className="text-[9px] text-slate-400 font-bold uppercase">Best Gain</p>
-                                <p className="font-mono font-black text-emerald-600">+{bestGain.toFixed(1)} kg</p>
+                                <p className="text-xs text-slate-400 font-bold ">Best Gain</p>
+                                <p className="font-mono font-bold text-emerald-600">+{bestGain.toFixed(1)} kg</p>
                               </div>
                               <div className="bg-white border border-slate-100 p-2 rounded-lg">
-                                <p className="text-[9px] text-slate-400 font-bold uppercase">Medium Gain</p>
-                                <p className="font-mono font-black text-blue-600">+{mediumGain.toFixed(1)} kg</p>
+                                <p className="text-xs text-slate-400 font-bold ">Medium Gain</p>
+                                <p className="font-mono font-bold text-blue-600">+{mediumGain.toFixed(1)} kg</p>
                               </div>
                               <div className="bg-white border border-slate-100 p-2 rounded-lg">
-                                <p className="text-[9px] text-slate-400 font-bold uppercase">Low Gain</p>
-                                <p className="font-mono font-black text-rose-600">+{lowGain.toFixed(1)} kg</p>
+                                <p className="text-xs text-slate-400 font-bold ">Low Gain</p>
+                                <p className="font-mono font-bold text-rose-600">+{lowGain.toFixed(1)} kg</p>
                               </div>
                               <div className="bg-emerald-600 text-white p-2 rounded-lg">
-                                <p className="text-[9px] opacity-80 font-bold uppercase">Avg Gain</p>
-                                <p className="font-mono font-black">+{avgGain.toFixed(1)} kg</p>
+                                <p className="text-xs opacity-80 font-bold ">Avg Gain</p>
+                                <p className="font-mono font-bold">+{avgGain.toFixed(1)} kg</p>
                               </div>
                             </div>
-                            <p className="text-[10px] text-emerald-800 font-medium">
+                            <p className="text-xs text-emerald-800 font-medium">
                               💡 <strong>Assumption Applied</strong>: The system will automatically add <strong>+{avgGain.toFixed(1)} kg</strong> to the last recorded weight of all remaining {cohortCows.length - 3} cows in this cohort.
                             </p>
                           </div>
@@ -1934,8 +1934,8 @@ export default function BatchTab({
                           className="h-8 pl-9 text-xs font-semibold rounded-lg bg-white border border-slate-200"
                         />
                       </div>
-                      <div className="text-[11px] font-bold text-slate-500 whitespace-nowrap px-1">
-                        Showing <span className="font-mono text-emerald-600 font-extrabold">{
+                      <div className="text-xs font-bold text-slate-500 whitespace-nowrap px-1">
+                        Showing <span className="font-mono text-emerald-600 font-bold">{
                           activeCows.filter(c => defaultBatch.cowIds.includes(c.id) && (
                             !scaleSearchQuery ||
                             c.id.toLowerCase().includes(scaleSearchQuery.toLowerCase().trim()) ||
@@ -1960,16 +1960,16 @@ export default function BatchTab({
                           return (
                             <div key={cow.id} className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2.5 hover:border-emerald-200 transition-colors">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                                   <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
                                   {cow.id} ({cow.breed})
                                 </span>
-                                <span className="text-[10px] text-slate-400 font-bold">ទម្ងន់ចាស់: <span className="font-mono text-slate-700 font-extrabold">{cow.weight} kg</span></span>
+                                <span className="text-xs text-slate-400 font-bold">ទម្ងន់ចាស់: <span className="font-mono text-slate-700 font-bold">{cow.weight} kg</span></span>
                               </div>
 
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                  <Label htmlFor={`w_${cow.id}`} className="text-[9px] font-bold uppercase text-slate-400">ទម្ងន់ថ្មី (New Wt)</Label>
+                                  <Label htmlFor={`w_${cow.id}`} className="text-xs font-bold text-slate-400">ទម្ងន់ថ្មី (New Wt)</Label>
                                   <Input
                                     type="number"
                                     id={`w_${cow.id}`}
@@ -1986,7 +1986,7 @@ export default function BatchTab({
                                   />
                                 </div>
                                 <div>
-                                  <Label htmlFor={`h_${cow.id}`} className="text-[9px] font-bold uppercase text-slate-400">សុខភាព (Health)</Label>
+                                  <Label htmlFor={`h_${cow.id}`} className="text-xs font-bold text-slate-400">សុខភាព (Health)</Label>
                                   <select
                                     id={`h_${cow.id}`}
                                     className="flex h-8 w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800 mt-0.5 cursor-pointer font-bold"
@@ -2057,7 +2057,7 @@ export default function BatchTab({
       <Dialog open={isAllBatchesOpen} onOpenChange={setIsAllBatchesOpen}>
         <DialogContent className="max-w-4xl bg-white p-6 rounded-2xl border border-slate-100 shadow-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="text-left pb-4 border-b border-slate-100">
-            <DialogTitle className="text-lg font-black text-slate-900 flex items-center justify-between">
+            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Layers className="h-5 w-5 text-emerald-600" />
                 All Batches Ledger ({visibleBatches.length})
@@ -2071,7 +2071,7 @@ export default function BatchTab({
           <div className="overflow-x-auto pt-4">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 uppercase font-black text-[9.5px] tracking-wider">
+                <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold text-xs ">
                   <th className="py-3 px-4">Batch ID</th>
                   <th className="py-3 px-4">Batch Name</th>
                   <th className="py-3 px-4">Program Type</th>
@@ -2090,8 +2090,8 @@ export default function BatchTab({
                       <td className="py-3 px-4 text-slate-600">{b.type}</td>
                       <td className="py-3 px-4 font-semibold text-slate-700">{b.cowIds?.length || 0} Head</td>
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          b.status === 'Active'
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+ b.status === 'Active'
                             ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                             : 'bg-slate-100 text-slate-500 border border-slate-200'
                         }`}>
@@ -2106,7 +2106,7 @@ export default function BatchTab({
                             setSelectedBatchId(b.id);
                             setIsAllBatchesOpen(false);
                           }}
-                          className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                          className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                         >
                           Select
                         </button>
@@ -2117,7 +2117,7 @@ export default function BatchTab({
                             setIsCreateBatchModalOpen(true);
                             setIsAllBatchesOpen(false);
                           }}
-                          className="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                          className="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                         >
                           Edit
                         </button>
@@ -2128,7 +2128,7 @@ export default function BatchTab({
                               handleDeleteBatch(b.id);
                               setIsAllBatchesOpen(false);
                             }}
-                            className="px-2 py-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                            className="px-2 py-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                           >
                             Delete
                           </button>

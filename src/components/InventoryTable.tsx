@@ -182,10 +182,10 @@ export default function InventoryTable({
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2 text-left">
+          <h3 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2 text-left">
             🐄 {t('inventory.title')}
           </h3>
-          <p className="text-[11px] text-slate-400 font-semibold text-left">
+          <p className="text-xs text-slate-400 font-semibold text-left">
             {t('inventory.subtitle')}
           </p>
         </div>
@@ -231,8 +231,8 @@ export default function InventoryTable({
             <button
               type="button"
               onClick={() => setSelectedStatus('Active')}
-              className={`px-3 py-1 text-xs font-extrabold rounded-lg transition-all ${
-                selectedStatus === 'Active'
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+ selectedStatus === 'Active'
                   ? 'bg-white text-emerald-700 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
@@ -242,8 +242,8 @@ export default function InventoryTable({
             <button
               type="button"
               onClick={() => setSelectedStatus('Sold')}
-              className={`px-3 py-1 text-xs font-extrabold rounded-lg transition-all ${
-                selectedStatus === 'Sold'
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+ selectedStatus === 'Sold'
                   ? 'bg-white text-amber-700 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
@@ -253,8 +253,8 @@ export default function InventoryTable({
             <button
               type="button"
               onClick={() => setSelectedStatus('All')}
-              className={`px-3 py-1 text-xs font-extrabold rounded-lg transition-all ${
-                selectedStatus === 'All'
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+ selectedStatus === 'All'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
@@ -264,7 +264,7 @@ export default function InventoryTable({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-emerald-700 font-extrabold uppercase tracking-wider">Breed:</span>
+            <span className="text-xs text-emerald-700 font-bold ">Breed:</span>
             <select
               value={selectedBreed}
               onChange={(e) => setSelectedBreed(e.target.value)}
@@ -278,7 +278,7 @@ export default function InventoryTable({
 
           {/* Sex Filter Dropdown */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-emerald-700 font-extrabold uppercase tracking-wider">Sex:</span>
+            <span className="text-xs text-emerald-700 font-bold ">Sex:</span>
             <select
               value={selectedSex}
               onChange={(e) => setSelectedSex(e.target.value)}
@@ -344,7 +344,7 @@ export default function InventoryTable({
                 ]
               });
             }}
-            className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-2xs cursor-pointer ml-auto"
+            className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xs cursor-pointer ml-auto"
           >
             <Download className="h-3.5 w-3.5" /> Export Excel
           </Button>
@@ -355,7 +355,7 @@ export default function InventoryTable({
       <div className="overflow-x-auto border border-slate-100 rounded-2xl bg-white shadow-sm">
         <table className="w-full text-left border-collapse text-sm">
           <thead>
-            <tr className="border-b border-slate-100 bg-slate-50/20 text-[#003B33] text-xs font-black uppercase tracking-wider">
+            <tr className="border-b border-slate-100 bg-slate-50/20 text-[#003B33] text-xs font-bold ">
               <th className="py-4 px-5">
                 {t('inventory.cowId')} <span className="w-1 h-1 rounded-full bg-amber-500 inline-block" />
               </th>
@@ -393,14 +393,14 @@ export default function InventoryTable({
                   <tr key={cow.id} className="hover:bg-slate-50/40 transition-colors">
                     <td className="py-3.5 px-5 font-bold text-slate-900">{cow.id}</td>
                     <td className="py-3.5 px-5 text-slate-800 font-semibold">
-                      <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg text-xs font-extrabold text-slate-700">
+                      <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-700">
                         🏢 {getFarmName(cow.location)}
                       </span>
                     </td>
                     <td className="py-3.5 px-5 text-slate-800">{cow.breed}</td>
                     <td className="py-3.5 px-5">
                       <span className={`px-2.5 py-0.5 rounded-lg text-xs font-bold border ${
-                        cow.sex === 'M'
+ cow.sex === 'M'
                           ? 'bg-blue-50/50 text-blue-500 border-blue-150'
                           : 'bg-rose-50/50 text-rose-500 border-rose-150'
                       }`}>
@@ -412,11 +412,11 @@ export default function InventoryTable({
                       <span className="text-slate-400 text-xs">kg</span>
                     </td>
                     <td className="py-3.5 px-5 text-slate-800">
-                      <span className="font-black text-emerald-700">{format2Decimals(currentWeight)}</span>{' '}
+                      <span className="font-bold text-emerald-700">{format2Decimals(currentWeight)}</span>{' '}
                       <span className="text-slate-400 text-xs font-normal">kg</span>
                       {weightGain !== 0 && (
-                        <span className={`ml-1.5 text-[10px] font-extrabold px-1.5 py-0.5 rounded-md inline-block ${
-                          weightGain > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80' : 'bg-rose-50 text-rose-700 border border-rose-200/80'
+                        <span className={`ml-1.5 text-xs font-bold px-1.5 py-0.5 rounded-md inline-block ${
+ weightGain > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80' : 'bg-rose-50 text-rose-700 border border-rose-200/80'
                         }`}>
                           {weightGain > 0 ? `+${format2Decimals(weightGain)}` : format2Decimals(weightGain)} kg
                         </span>
@@ -429,8 +429,8 @@ export default function InventoryTable({
                       {cow.purchaseDate ? cow.purchaseDate.split('T')[0] : 'N/A'}
                     </td>
                   <td className="py-3.5 px-5">
-                    <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide border flex items-center gap-1.5 w-max ${
-                      cow.healthStatus.toLowerCase().trim() === 'good'
+                    <span className={`px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-1.5 w-max ${
+ cow.healthStatus.toLowerCase().trim() === 'good'
                         ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
                         : cow.healthStatus.toLowerCase().trim() === 'fair'
                         ? 'bg-amber-50 text-amber-600 border-amber-200'
@@ -441,8 +441,8 @@ export default function InventoryTable({
                     </span>
                   </td>
                   <td className="py-3.5 px-5">
-                    <span className={`px-2.5 py-0.5 rounded-lg text-[11px] font-bold border ${
-                      cow.status.toLowerCase().trim() === 'active'
+                    <span className={`px-2.5 py-0.5 rounded-lg text-xs font-bold border ${
+ cow.status.toLowerCase().trim() === 'active'
                         ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                         : 'bg-slate-50 text-slate-400 border-slate-100'
                     }`}>

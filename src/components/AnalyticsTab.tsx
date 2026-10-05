@@ -415,8 +415,8 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
       <div className="flex border-b border-slate-200 overflow-x-auto">
         <button
           onClick={() => setSubTab('overview')}
-          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-black text-xs uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'overview'
+          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap ${
+ subTab === 'overview'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
@@ -426,8 +426,8 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
         </button>
         <button
           onClick={() => setSubTab('demographics')}
-          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-black text-xs uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'demographics'
+          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap ${
+ subTab === 'demographics'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
@@ -437,8 +437,8 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
         </button>
         <button
           onClick={() => setSubTab('batches')}
-          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-black text-xs uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'batches'
+          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap ${
+ subTab === 'batches'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
@@ -448,8 +448,8 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
         </button>
         <button
           onClick={() => setSubTab('health')}
-          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-black text-xs uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'health'
+          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap ${
+ subTab === 'health'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
@@ -459,8 +459,8 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
         </button>
         <button
           onClick={() => setSubTab('financial')}
-          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-black text-xs uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'financial'
+          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap ${
+ subTab === 'financial'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
@@ -470,8 +470,8 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
         </button>
         <button
           onClick={() => setSubTab('prediction')}
-          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-black text-xs uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'prediction'
+          className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap ${
+ subTab === 'prediction'
               ? 'border-emerald-600 text-emerald-600'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
@@ -498,9 +498,9 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
           {/* Top KPI Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-xs space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Active Herd</p>
+              <p className="text-xs font-bold text-slate-400">Total Active Herd</p>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-black text-slate-800">{biKpis.totalActiveHead} <span className="text-xs font-bold text-emerald-600">Head</span></p>
+                <p className="text-2xl font-bold text-slate-800">{biKpis.totalActiveHead} <span className="text-xs font-bold text-emerald-600">Head</span></p>
                 <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
                   <Users className="h-5 w-5" />
                 </div>
@@ -508,9 +508,9 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
             </div>
 
             <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-xs space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Herd Asset Valuation</p>
+              <p className="text-xs font-bold text-slate-400">Herd Asset Valuation</p>
               <div className="flex items-center justify-between">
-                <p className="text-xl font-black text-emerald-600">៛ {biKpis.totalAssetValuation.toLocaleString()}</p>
+                <p className="text-xl font-bold text-emerald-600">៛ {biKpis.totalAssetValuation.toLocaleString()}</p>
                 <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
                   <Award className="h-5 w-5" />
                 </div>
@@ -518,9 +518,9 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
             </div>
 
             <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-xs space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Net Profit / Loss</p>
+              <p className="text-xs font-bold text-slate-400">Net Profit / Loss</p>
               <div className="flex items-center justify-between">
-                <p className={`text-xl font-black ${biKpis.netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <p className={`text-xl font-bold ${biKpis.netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                   ៛ {biKpis.netProfit.toLocaleString()}
                 </p>
                 <div className="h-9 w-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
@@ -530,9 +530,9 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
             </div>
 
             <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-xs space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Mortality Rate (%)</p>
+              <p className="text-xs font-bold text-slate-400">Mortality Rate (%)</p>
               <div className="flex items-center justify-between">
-                <p className="text-2xl font-black text-slate-800">{biKpis.mortalityRate}% <span className="text-xs text-slate-400 font-normal">({biKpis.deadCount} Dead)</span></p>
+                <p className="text-2xl font-bold text-slate-800">{biKpis.mortalityRate}% <span className="text-xs text-slate-400 font-normal">({biKpis.deadCount} Dead)</span></p>
                 <div className="h-9 w-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold">
                   <Activity className="h-5 w-5" />
                 </div>
@@ -649,7 +649,7 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                       </div>
                       <div className="grid grid-cols-2 gap-2 mt-2 max-h-[100px] overflow-y-auto pr-1">
                         {breedComposition.map((bc, idx) => (
-                          <div key={idx} className="flex items-center gap-1.5 text-[10px] font-bold">
+                          <div key={idx} className="flex items-center gap-1.5 text-xs font-bold">
                             <span className="h-2 w-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
                             <span className="text-slate-650 truncate" title={bc.name}>{bc.name} ({bc.percentage}%)</span>
                           </div>
@@ -674,7 +674,7 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                 {genderComposition.map((g, idx) => (
                   <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
                     <span className="text-xs font-bold text-slate-800">{g.name}</span>
-                    <span className="text-xs font-black text-emerald-600">{g.value} Head ({g.percentage}%)</span>
+                    <span className="text-xs font-bold text-emerald-600">{g.value} Head ({g.percentage}%)</span>
                   </div>
                 ))}
               </CardContent>
@@ -688,7 +688,7 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                 {acquisitionComposition.map((ac, idx) => (
                   <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
                     <span className="text-xs font-bold text-slate-800">{ac.name}</span>
-                    <span className="text-xs font-black text-slate-900">{ac.value} Head ({ac.percentage}%)</span>
+                    <span className="text-xs font-bold text-slate-900">{ac.value} Head ({ac.percentage}%)</span>
                   </div>
                 ))}
               </CardContent>
@@ -712,7 +712,7 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 ">
                       <th className="pb-3 pl-3">Batch Info</th>
                       <th className="pb-3">Program Type</th>
                       <th className="pb-3 text-center">Headcount</th>
@@ -727,24 +727,24 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                       <tr key={idx} className="hover:bg-slate-50/40">
                         <td className="py-4 pl-3">
                           <p className="font-bold text-slate-800">{ba.name}</p>
-                          <p className="text-[10px] font-mono text-slate-400 mt-0.5">{ba.code}</p>
+                          <p className="text-xs font-mono text-slate-400 mt-0.5">{ba.code}</p>
                         </td>
                         <td className="py-4">
-                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold text-[9px]">
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold text-xs">
                             {ba.type}
                           </span>
                         </td>
                         <td className="py-4 text-center font-bold text-slate-800">{ba.count} Head</td>
                         <td className="py-4 font-bold text-slate-800">{ba['Avg Weight (kg)']} kg</td>
-                        <td className="py-4 font-extrabold text-emerald-600">
+                        <td className="py-4 font-bold text-emerald-600">
                           {ba['ADG (kg/day)']} kg/day
                         </td>
                         <td className="py-4 font-bold text-slate-800">
                           ៛ {ba.dailyFeedCostPerHead.toLocaleString()} / head / day
                         </td>
                         <td className="py-4 text-right pr-3">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                            ba.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-500'
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${
+ ba.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-500'
                           }`}>
                             {ba.status}
                           </span>
@@ -787,9 +787,9 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                     <div key={idx} className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between">
                       <div>
                         <p className="font-bold text-slate-800">Cow ID: {log.cowId} • {log.name}</p>
-                        <p className="text-[10px] text-slate-400">{log.type} ({log.date ? new Date(log.date).toLocaleDateString() : 'N/A'})</p>
+                        <p className="text-xs text-slate-400">{log.type} ({log.date ? new Date(log.date).toLocaleDateString() : 'N/A'})</p>
                       </div>
-                      <span className="text-xs font-extrabold text-emerald-600">៛ {(log.cost || 0).toLocaleString()}</span>
+                      <span className="text-xs font-bold text-emerald-600">៛ {(log.cost || 0).toLocaleString()}</span>
                     </div>
                   ))
                 ) : (
@@ -822,7 +822,7 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                           <ShoppingBag className="h-5 w-5" />
                         </div>
                         <div>
-                          <CardTitle className="text-sm font-extrabold text-slate-800">
+                          <CardTitle className="text-sm font-bold text-slate-800">
                             Historical Cattle Sales Ledger
                           </CardTitle>
                           <CardDescription className="text-xs text-slate-400">
@@ -835,16 +835,16 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                     {/* Sales KPI Mini Summary Header Bar */}
                     <div className="grid grid-cols-3 gap-3 pt-3">
                       <div className="bg-emerald-50/60 border border-emerald-100 p-2.5 rounded-xl">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 block">Total Revenue</span>
-                        <span className="text-sm font-black text-emerald-700 font-mono">៛ {totalSalesRevenue.toLocaleString()}</span>
+                        <span className="text-xs font-bold text-emerald-600 block">Total Revenue</span>
+                        <span className="text-sm font-bold text-emerald-700 font-mono">៛ {totalSalesRevenue.toLocaleString()}</span>
                       </div>
                       <div className="bg-blue-50/60 border border-blue-100 p-2.5 rounded-xl">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 block">Avg Sale Weight</span>
-                        <span className="text-sm font-black text-blue-700 font-mono">{avgSaleWeight} kg</span>
+                        <span className="text-xs font-bold text-blue-600 block">Avg Sale Weight</span>
+                        <span className="text-sm font-bold text-blue-700 font-mono">{avgSaleWeight} kg</span>
                       </div>
                       <div className="bg-purple-50/60 border border-purple-100 p-2.5 rounded-xl">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-purple-600 block">Cattle Sold</span>
-                        <span className="text-sm font-black text-purple-700 font-mono">{totalSalesCount} Head</span>
+                        <span className="text-xs font-bold text-purple-600 block">Cattle Sold</span>
+                        <span className="text-sm font-bold text-purple-700 font-mono">{totalSalesCount} Head</span>
                       </div>
                     </div>
                   </CardHeader>
@@ -857,21 +857,21 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-slate-900 font-mono">Cow ID: {s.cowId}</span>
-                                {s.breed && <span className="text-[10px] font-bold bg-white text-slate-600 px-2 py-0.5 rounded-md border border-slate-200">{s.breed}</span>}
+                                {s.breed && <span className="text-xs font-bold bg-white text-slate-600 px-2 py-0.5 rounded-md border border-slate-200">{s.breed}</span>}
                                 {s.saleType && (
-                                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
-                                    s.saleType === 'Scale' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
+ s.saleType === 'Scale' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200'
                                   }`}>
                                     {s.saleType}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-[11px] text-slate-500 font-medium">
+                              <p className="text-xs text-slate-500 font-medium">
                                 📅 {s.salesDate ? new Date(s.salesDate).toLocaleDateString() : 'N/A'} • ⚖️ {s.weight} kg @ ៛ {s.unitPrice.toLocaleString()}/kg • 👤 {s.buyer || 'Direct Buyer'}
                               </p>
                             </div>
                             <div className="text-right">
-                              <span className="text-xs font-black text-emerald-600 font-mono block">៛ {s.totalPrice.toLocaleString()}</span>
+                              <span className="text-xs font-bold text-emerald-600 font-mono block">៛ {s.totalPrice.toLocaleString()}</span>
                             </div>
                           </div>
                         ))}
@@ -883,13 +883,13 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                           <ShoppingBag className="h-8 w-8 stroke-[1.75]" />
                         </div>
                         <div className="space-y-1 max-w-sm">
-                          <h5 className="text-sm font-extrabold text-slate-800">No Cattle Sales Recorded</h5>
+                          <h5 className="text-sm font-bold text-slate-800">No Cattle Sales Recorded</h5>
                           <p className="text-xs text-slate-400 leading-relaxed">
                             There are currently no completed cattle sales transactions logged for this farm location.
                           </p>
                         </div>
                         <div className="pt-2">
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-xl shadow-2xs">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-xl shadow-2xs">
                             💡 Sales recorded under Operation Ledger will automatically display here
                           </span>
                         </div>
@@ -910,7 +910,7 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
           <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-xs space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
               <div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <h3 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                   <TrendingUp className="h-6 w-6 text-emerald-600 animate-pulse" />
                   Batch Revenue & Profitability Prediction Engine
                 </h3>
@@ -997,48 +997,48 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
           {/* Predictive Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="bg-emerald-600 text-white p-5 rounded-3xl shadow-sm space-y-1">
-              <p className="text-[9.5px] font-black uppercase tracking-wider opacity-80">Predicted Gross Revenue</p>
-              <p className="text-2xl font-black font-mono">៛ {Math.round(predictionData.predictedGrossRevenue).toLocaleString()}</p>
-              <p className="text-[10.5px] text-emerald-100 font-semibold pt-1 border-t border-emerald-500/60">
+              <p className="text-xs font-bold opacity-80">Predicted Gross Revenue</p>
+              <p className="text-2xl font-bold font-mono">៛ {Math.round(predictionData.predictedGrossRevenue).toLocaleString()}</p>
+              <p className="text-xs text-emerald-100 font-semibold pt-1 border-t border-emerald-500/60">
                 {predictionData.headcount} Head @ ៛ {predictionData.pricePerKg.toLocaleString()}/kg
               </p>
             </div>
 
             <div className="bg-white border border-slate-100 p-5 rounded-3xl shadow-xs space-y-1">
-              <p className="text-[9.5px] font-black uppercase text-slate-400 tracking-wider">Projected Feed Expenses</p>
-              <p className="text-2xl font-black font-mono text-rose-600">៛ {Math.round(predictionData.projectedFeedExpenses).toLocaleString()}</p>
-              <p className="text-[10.5px] text-slate-400 font-semibold pt-1 border-t border-slate-100">
+              <p className="text-xs font-bold text-slate-400 ">Projected Feed Expenses</p>
+              <p className="text-2xl font-bold font-mono text-rose-600">៛ {Math.round(predictionData.projectedFeedExpenses).toLocaleString()}</p>
+              <p className="text-xs text-slate-400 font-semibold pt-1 border-t border-slate-100">
                 {predictionData.daysToHarvest} days @ ៛ {predictionData.dailyFeedCostPerHead.toLocaleString()}/head/day
               </p>
             </div>
 
             <div className="bg-white border border-slate-100 p-5 rounded-3xl shadow-xs space-y-1">
-              <p className="text-[9.5px] font-black uppercase text-slate-400 tracking-wider">Projected Net Profit</p>
-              <p className={`text-2xl font-black font-mono ${predictionData.projectedNetProfit >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+              <p className="text-xs font-bold text-slate-400 ">Projected Net Profit</p>
+              <p className={`text-2xl font-bold font-mono ${predictionData.projectedNetProfit >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
                 ៛ {Math.round(predictionData.projectedNetProfit).toLocaleString()}
               </p>
-              <p className="text-[10.5px] text-slate-400 font-semibold pt-1 border-t border-slate-100">
+              <p className="text-xs text-slate-400 font-semibold pt-1 border-t border-slate-100">
                 After Feed & Initial Asset Costs
               </p>
             </div>
 
             <div className="bg-white border border-slate-100 p-5 rounded-3xl shadow-xs space-y-1">
-              <p className="text-[9.5px] font-black uppercase text-slate-400 tracking-wider">Projected ROI (%)</p>
-              <p className="text-2xl font-black font-mono text-blue-700">
+              <p className="text-xs font-bold text-slate-400 ">Projected ROI (%)</p>
+              <p className="text-2xl font-bold font-mono text-blue-700">
                 {predictionData.projectedRoi.toFixed(1)}%
               </p>
-              <p className="text-[10.5px] text-slate-400 font-semibold pt-1 border-t border-slate-100">
+              <p className="text-xs text-slate-400 font-semibold pt-1 border-t border-slate-100">
                 Return on Total Investment
               </p>
             </div>
 
             <div className="bg-white border border-slate-100 p-5 rounded-3xl shadow-xs space-y-1">
-              <p className="text-[9.5px] font-black uppercase text-slate-400 tracking-wider">Predicted Final Avg Weight</p>
-              <p className="text-2xl font-black font-mono text-slate-900">
+              <p className="text-xs font-bold text-slate-400 ">Predicted Final Avg Weight</p>
+              <p className="text-2xl font-bold font-mono text-slate-900">
                 {predictionData.predictedFinalAvgWeight.toFixed(1)}{' '}
                 <span className="text-xs text-slate-400 font-bold">kg/head</span>
               </p>
-              <p className="text-[10.5px] text-slate-400 font-semibold pt-1 border-t border-slate-100">
+              <p className="text-xs text-slate-400 font-semibold pt-1 border-t border-slate-100">
                 +{predictionData.predictedGainPerHead.toFixed(1)} kg gain ({predictionData.daysToHarvest}d)
               </p>
             </div>
@@ -1047,7 +1047,7 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
           {/* Growth & Financial Projection Chart */}
           <Card className="bg-white border border-slate-100 shadow-xs p-6">
             <CardHeader className="px-0 pt-0">
-              <CardTitle className="text-base font-black text-slate-900 flex items-center justify-between">
+              <CardTitle className="text-base font-bold text-slate-900 flex items-center justify-between">
                 <span>📈 Projected Biomass & Net Profit Trajectory ({predictionData.daysToHarvest} Days Horizon)</span>
                 <span className="text-xs font-bold text-slate-400">Target Date: {targetHarvestDate}</span>
               </CardTitle>
@@ -1091,14 +1091,14 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
           <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-xs">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-black text-slate-900">Individual Cattle Harvest Prediction Ledger ({predictionData.headcount} Head)</h4>
+                <h4 className="text-sm font-bold text-slate-900">Individual Cattle Harvest Prediction Ledger ({predictionData.headcount} Head)</h4>
                 <p className="text-xs text-slate-400">Predicted final harvest weight and market value for each enrolled cow at target harvest date.</p>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-black text-[9.5px] uppercase tracking-wider">
+                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold text-xs ">
                     <th className="py-3.5 px-5">Cow ID</th>
                     <th className="py-3.5 px-5">Breed</th>
                     <th className="py-3.5 px-5">Current Weight</th>
@@ -1110,12 +1110,12 @@ export default function AnalyticsTab({ data, currentUser, farms = [] }: Analytic
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                   {predictionData.cowLedger.map(cow => (
                     <tr key={cow.cowId} className="hover:bg-slate-50/40 transition-colors">
-                      <td className="py-3.5 px-5 font-black text-slate-900">{cow.cowId}</td>
+                      <td className="py-3.5 px-5 font-bold text-slate-900">{cow.cowId}</td>
                       <td className="py-3.5 px-5 text-slate-500">{cow.breed}</td>
                       <td className="py-3.5 px-5 font-mono">{cow.currentWeight.toFixed(1)} kg</td>
                       <td className="py-3.5 px-5 font-mono text-emerald-600 font-bold">+{cow.predictedGain.toFixed(1)} kg</td>
-                      <td className="py-3.5 px-5 font-mono font-black text-slate-900 text-sm">{cow.predictedFinalWeight.toFixed(1)} kg</td>
-                      <td className="py-3.5 px-5 text-right font-mono font-black text-emerald-700">
+                      <td className="py-3.5 px-5 font-mono font-bold text-slate-900 text-sm">{cow.predictedFinalWeight.toFixed(1)} kg</td>
+                      <td className="py-3.5 px-5 text-right font-mono font-bold text-emerald-700">
                         ៛ {Math.round(cow.predictedValue).toLocaleString()}
                       </td>
                     </tr>

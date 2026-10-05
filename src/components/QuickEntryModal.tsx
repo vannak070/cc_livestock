@@ -456,7 +456,7 @@ export default function QuickEntryModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-[540px] max-h-[90vh] overflow-y-auto bg-white border border-slate-100 text-slate-800 p-6 rounded-2xl shadow-xl">
         <DialogHeader className="border-b border-slate-100 pb-3">
-          <DialogTitle className="text-lg font-black text-slate-800 text-left">{currentMeta.title}</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-slate-800 text-left">{currentMeta.title}</DialogTitle>
           <DialogDescription className="text-xs text-slate-400 font-medium text-left">
             {currentMeta.desc}
           </DialogDescription>
@@ -505,13 +505,13 @@ export default function QuickEntryModal({
                 className="relative z-10 flex flex-col items-center gap-2 focus:outline-none group"
               >
                 <div className={`h-10 w-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${
-                  step >= 1 
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 scale-105' 
+ step >= 1 
+ ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 scale-105' 
                     : 'bg-white border border-slate-200 text-slate-400 hover:border-slate-300'
                 }`}>
                   <FileText className="h-4.5 w-4.5" />
                 </div>
-                <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${step >= 1 ? 'text-emerald-700' : 'text-slate-400'}`}>Specs</span>
+                <span className={`text-xs font-bold transition-colors ${step >= 1 ? 'text-emerald-700' : 'text-slate-400'}`}>Specs</span>
               </button>
 
               <button
@@ -520,13 +520,13 @@ export default function QuickEntryModal({
                 className="relative z-10 flex flex-col items-center gap-2 focus:outline-none group"
               >
                 <div className={`h-10 w-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${
-                  step >= 2 
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 scale-105' 
+ step >= 2 
+ ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 scale-105' 
                     : 'bg-white border border-slate-200 text-slate-400 hover:border-slate-300'
                 }`}>
                   <DollarSign className="h-4.5 w-4.5" />
                 </div>
-                <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${step >= 2 ? 'text-emerald-700' : 'text-slate-400'}`}>Finance</span>
+                <span className={`text-xs font-bold transition-colors ${step >= 2 ? 'text-emerald-700' : 'text-slate-400'}`}>Finance</span>
               </button>
 
               <button
@@ -534,13 +534,13 @@ export default function QuickEntryModal({
                 className="relative z-10 flex flex-col items-center gap-2 focus:outline-none group"
               >
                 <div className={`h-10 w-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${
-                  step === 3 
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 scale-105' 
+ step === 3 
+ ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 scale-105' 
                     : 'bg-white border border-slate-200 text-slate-400'
                 }`}>
                   <ClipboardCheck className="h-4.5 w-4.5" />
                 </div>
-                <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${step === 3 ? 'text-emerald-700' : 'text-slate-400'}`}>Review</span>
+                <span className={`text-xs font-bold transition-colors ${step === 3 ? 'text-emerald-700' : 'text-slate-400'}`}>Review</span>
               </button>
             </div>
 
@@ -562,7 +562,7 @@ export default function QuickEntryModal({
                         <img src={uploadedCowImage} alt="Cattle Preview" className="h-14 w-14 object-cover rounded-xl border border-emerald-300/80 shadow-xs" />
                         <div>
                           <p className="text-xs font-bold text-slate-800">Cattle Photo Attached</p>
-                          <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Ready for registration • មិនបង្ខំ (Optional)</p>
+                          <p className="text-xs text-emerald-600 font-semibold mt-0.5">Ready for registration • មិនបង្ខំ (Optional)</p>
                         </div>
                       </div>
                       <Button
@@ -584,17 +584,17 @@ export default function QuickEntryModal({
                         <Upload className="h-5 w-5 text-slate-400 group-hover:text-emerald-600" />
                       </div>
                       <p className="text-xs font-bold text-slate-700">
-                        Upload Cattle Image <span className="text-[10px] font-normal text-slate-400 font-sans">(Optional • មិនបង្ខំ)</span>
+                        Upload Cattle Image <span className="text-xs font-normal text-slate-400 font-sans">(Optional • មិនបង្ខំ)</span>
                       </p>
-                      <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Click to select or drag photo (PNG, JPG up to 5MB)</p>
+                      <p className="text-xs text-slate-400 font-semibold mt-0.5">Click to select or drag photo (PNG, JPG up to 5MB)</p>
                     </label>
                   )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="id" className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
+                  <Label htmlFor="id" className="text-xs font-bold text-slate-400 flex justify-between">
                     <span>Cattle Tag / ID (លេខត្រចៀកគោ)</span>
-                    <span className="text-[9px] font-medium text-slate-400 normal-case">Letters, numbers, hyphens</span>
+                    <span className="text-xs font-medium text-slate-400 normal-case">Letters, numbers, hyphens</span>
                   </Label>
                   <div className="relative">
                     <Tag className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
@@ -605,7 +605,7 @@ export default function QuickEntryModal({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="breed" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Breed (ពូជគោ)</Label>
+                    <Label htmlFor="breed" className="text-xs font-bold text-slate-400 ">Breed (ពូជគោ)</Label>
                     <select
                       id="breed"
                       {...regAdd('breed')}
@@ -616,7 +616,7 @@ export default function QuickEntryModal({
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="sex" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sex (ភេទ)</Label>
+                    <Label htmlFor="sex" className="text-xs font-bold text-slate-400 ">Sex (ភេទ)</Label>
                     <select
                       id="sex"
                       {...regAdd('sex')}
@@ -631,7 +631,7 @@ export default function QuickEntryModal({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="age" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Age / DOB (អាយុ)</Label>
+                    <Label htmlFor="age" className="text-xs font-bold text-slate-400 ">Age / DOB (អាយុ)</Label>
                     <div className="relative">
                       <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                       <Input id="age" placeholder="e.g. 18 Months" {...regAdd('age')} className="rounded-xl pl-10" />
@@ -639,7 +639,7 @@ export default function QuickEntryModal({
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="weight" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Initial Weight (ទម្ងន់ដើម)</Label>
+                    <Label htmlFor="weight" className="text-xs font-bold text-slate-400 ">Initial Weight (ទម្ងន់ដើម)</Label>
                     <div className="relative">
                       <Input id="weight" type="number" placeholder="e.g. 250" {...regAdd('weight')} className="rounded-xl pr-10 font-mono font-bold" />
                       <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">kg</span>
@@ -649,7 +649,7 @@ export default function QuickEntryModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="purchaseDate" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purchase Date (ថ្ងៃទិញចូល)</Label>
+                  <Label htmlFor="purchaseDate" className="text-xs font-bold text-slate-400 ">Purchase Date (ថ្ងៃទិញចូល)</Label>
                   <div className="relative">
                     <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4 pointer-events-none" />
                     <Input id="purchaseDate" type="date" {...regAdd('purchaseDate')} className="rounded-xl pl-10 cursor-pointer text-slate-700 font-medium" />
@@ -666,7 +666,7 @@ export default function QuickEntryModal({
             {step === 2 && (
               <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-250">
                 <div className="space-y-1.5">
-                  <Label htmlFor="purchaseType" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purchase Type (ប្រភេទលទ្ធកម្ម)</Label>
+                  <Label htmlFor="purchaseType" className="text-xs font-bold text-slate-400 ">Purchase Type (ប្រភេទលទ្ធកម្ម)</Label>
                   <select
                     id="purchaseType"
                     {...regAdd('purchaseType')}
@@ -682,7 +682,7 @@ export default function QuickEntryModal({
                   {/* Barn / Location — editable for Admin/Super Admin, locked for assigned farm users */}
                   {isAdminUser ? (
                     <div className="space-y-1.5">
-                      <Label htmlFor="location" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('inventory.farm')}</Label>
+                      <Label htmlFor="location" className="text-xs font-bold text-slate-400 ">{t('inventory.farm')}</Label>
                       <select
                         id="location"
                         {...regAdd('location')}
@@ -699,18 +699,18 @@ export default function QuickEntryModal({
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('inventory.farm')}</Label>
+                      <Label className="text-xs font-bold text-slate-400 ">{t('inventory.farm')}</Label>
                       <div className="flex items-center gap-2 h-9 bg-emerald-50 border border-emerald-200 rounded-xl px-3">
                         <MapPin className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
                         <span className="text-sm font-bold text-emerald-800 truncate">{currentUser?.farmLocation}</span>
-                        <span className="ml-auto text-[9px] font-black text-emerald-600 uppercase tracking-wide">Assigned Farm</span>
+                        <span className="ml-auto text-xs font-bold text-emerald-600 ">Assigned Farm</span>
                       </div>
                     </div>
                   )}
 
                   {purchaseTypeVal === 'Purchase' && (
                     <div className="space-y-1.5 animate-in fade-in duration-200">
-                      <Label htmlFor="paymentMethod" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('inventory.paymentMethod')}</Label>
+                      <Label htmlFor="paymentMethod" className="text-xs font-bold text-slate-400 ">{t('inventory.paymentMethod')}</Label>
                       <select
                         id="paymentMethod"
                         {...regAdd('paymentMethod')}
@@ -727,22 +727,22 @@ export default function QuickEntryModal({
                 {purchaseTypeVal !== 'Born in Farm' && (
                   <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-200">
                     <div className="space-y-1.5">
-                      <Label htmlFor="ownerName" className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <Label htmlFor="ownerName" className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
                         <span>
                           {purchaseTypeVal === 'Transfer' ? 'Transfer From Owner (ប្រភពផ្ទេរ)' :
                            purchaseTypeVal === 'Partnership' ? 'Partner Name (ដៃគូសហការ)' :
                            'Source Supplier / Owner (ប្រភពទិញ)'}
                         </span>
-                        <span className="text-[8px] font-bold text-slate-300 normal-case bg-slate-100 px-1.5 py-0.5 rounded-md">Optional</span>
+                        <span className="text-xs font-bold text-slate-300 normal-case bg-slate-100 px-1.5 py-0.5 rounded-md">Optional</span>
                       </Label>
                       <Input id="ownerName" placeholder={purchaseTypeVal === 'Partnership' ? "Partner's name..." : "Supplier name (optional)..."} {...regAdd('ownerName')} className="rounded-xl" />
                     </div>
 
                     {purchaseTypeVal !== 'Transfer' && (
                       <div className="space-y-1.5">
-                        <Label htmlFor="phone" className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <Label htmlFor="phone" className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
                           <span>Contact Phone (លេខទូរស័ព្ទ)</span>
-                          <span className="text-[8px] font-bold text-slate-300 normal-case bg-slate-100 px-1.5 py-0.5 rounded-md">Optional</span>
+                          <span className="text-xs font-bold text-slate-300 normal-case bg-slate-100 px-1.5 py-0.5 rounded-md">Optional</span>
                         </Label>
                         <div className="relative">
                           <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-3.5 w-3.5" />
@@ -757,7 +757,7 @@ export default function QuickEntryModal({
                   <div className="space-y-4 animate-in fade-in duration-200">
                     <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-1.5 col-span-1">
-                        <Label htmlFor="buyType" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Buy Type (លក្ខខណ្ឌ)</Label>
+                        <Label htmlFor="buyType" className="text-xs font-bold text-slate-400 ">Buy Type (លក្ខខណ្ឌ)</Label>
                         <select
                           id="buyType"
                           {...regAdd('buyType')}
@@ -767,24 +767,24 @@ export default function QuickEntryModal({
                         </select>
                       </div>
                       <div className="space-y-1.5 col-span-2">
-                        <Label htmlFor="unitPrice" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <Label htmlFor="unitPrice" className="text-xs font-bold text-slate-400 ">
                           {buyTypeVal === 'Weight' ? 'Price per kg (៛ / គីឡូ)' : 'Cow Price / Unit Price (តម្លៃ ៛)'}
                         </Label>
                         <div className="relative">
-                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs font-extrabold">៛</span>
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs font-bold">៛</span>
                           <Input id="unitPrice" type="number" placeholder="e.g. 12000" {...regAdd('unitPrice')} className="rounded-xl pl-8 font-mono font-bold" />
                         </div>
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label htmlFor="totalPrice" className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between">
+                      <Label htmlFor="totalPrice" className="text-xs font-bold text-slate-400 flex justify-between">
                         <span>Total Capital Valuation (ទុនសរុប)</span>
-                        {buyTypeVal === 'Weight' && <span className="text-[9px] text-slate-450 normal-case font-medium">Auto: Weight &times; Unit Price</span>}
+                        {buyTypeVal === 'Weight' && <span className="text-xs text-slate-450 normal-case font-medium">Auto: Weight &times; Unit Price</span>}
                       </Label>
                       <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-700 text-xs font-extrabold">៛</span>
-                        <Input id="totalPrice" type="number" placeholder="Total valuation in ៛..." {...regAdd('totalPrice')} className="rounded-xl pl-8 font-mono text-emerald-700 font-black bg-emerald-50/40 border border-emerald-100 shadow-inner" readOnly />
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-700 text-xs font-bold">៛</span>
+                        <Input id="totalPrice" type="number" placeholder="Total valuation in ៛..." {...regAdd('totalPrice')} className="rounded-xl pl-8 font-mono text-emerald-700 font-bold bg-emerald-50/40 border border-emerald-100 shadow-inner" readOnly />
                       </div>
                     </div>
                   </div>
@@ -818,48 +818,48 @@ export default function QuickEntryModal({
               <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-250">
                 {/* Visual summary review card */}
                 <div className="bg-[#F8FAFC] border border-slate-200/60 rounded-2xl p-4.5 space-y-3.5 shadow-sm">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200/60 pb-2 flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-400 border-b border-slate-200/60 pb-2 flex items-center justify-between">
                     <span>Registration Review</span>
-                    <span className="text-[9px] bg-emerald-50 text-emerald-700 font-extrabold px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-normal">
+                    <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-100 tracking-normal">
                       Ready to register
                     </span>
                   </h4>
                   <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-xs">
                     <div>
-                      <p className="text-[9px] text-slate-400 uppercase tracking-wider font-extrabold">Cattle ID / Tag</p>
+                      <p className="text-xs text-slate-400 font-bold">Cattle ID / Tag</p>
                       <p className="font-bold text-slate-800 mt-0.5">{watchAdd('id') || '-'}</p>
                     </div>
                     <div>
-                      <p className="text-[9px] text-slate-400 uppercase tracking-wider font-extrabold">Breed & Sex</p>
+                      <p className="text-xs text-slate-400 font-bold">Breed & Sex</p>
                       <p className="font-bold text-slate-800 mt-0.5">{watchAdd('breed')} ({watchAdd('sex')})</p>
                     </div>
                     <div>
-                      <p className="text-[9px] text-slate-400 uppercase tracking-wider font-extrabold">Initial Weight</p>
+                      <p className="text-xs text-slate-400 font-bold">Initial Weight</p>
                       <p className="font-bold text-slate-800 mt-0.5">{watchAdd('weight')} kg</p>
                     </div>
                     <div>
-                      <p className="text-[9px] text-slate-400 uppercase tracking-wider font-extrabold">Barn / Location</p>
+                      <p className="text-xs text-slate-400 font-bold">Barn / Location</p>
                       <p className="font-bold text-slate-800 mt-0.5">{watchAdd('location') || '-'}</p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-[9px] text-slate-400 uppercase tracking-wider font-extrabold">Financial Setup details</p>
+                      <p className="text-xs text-slate-400 font-bold">Financial Setup details</p>
                       <p className="font-bold text-slate-850 mt-0.5">{watchAdd('purchaseType')} &bull; {watchAdd('paymentMethod')}</p>
                     </div>
                     <div className="col-span-2 border-t border-slate-100 pt-2 flex items-center justify-between">
                       <div>
-                        <p className="text-[9px] text-slate-400 uppercase tracking-wider font-extrabold">Acquisition ({watchAdd('buyType')})</p>
-                        <p className="font-extrabold text-slate-900 mt-0.5">៛ {Number(watchAdd('unitPrice')).toLocaleString()}{watchAdd('buyType') === 'Weight' ? '/kg' : ''}</p>
+                        <p className="text-xs text-slate-400 font-bold">Acquisition ({watchAdd('buyType')})</p>
+                        <p className="font-bold text-slate-900 mt-0.5">៛ {Number(watchAdd('unitPrice')).toLocaleString()}{watchAdd('buyType') === 'Weight' ? '/kg' : ''}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[9px] text-slate-400 uppercase tracking-wider font-extrabold">Total Capital</p>
-                        <p className="text-sm font-black text-emerald-600 mt-0.5">៛ {Number(watchAdd('totalPrice')).toLocaleString()}</p>
+                        <p className="text-xs text-slate-400 font-bold">Total Capital</p>
+                        <p className="text-sm font-bold text-emerald-600 mt-0.5">៛ {Number(watchAdd('totalPrice')).toLocaleString()}</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="healthStatus" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Initial Health Condition</Label>
+                  <Label htmlFor="healthStatus" className="text-xs font-bold text-slate-400 ">Initial Health Condition</Label>
                   <select
                     id="healthStatus"
                     {...regAdd('healthStatus')}
@@ -870,7 +870,7 @@ export default function QuickEntryModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="remark" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Remarks & Notes</Label>
+                  <Label htmlFor="remark" className="text-xs font-bold text-slate-400 ">Remarks & Notes</Label>
                   <textarea
                     id="remark"
                     rows={3}
@@ -897,7 +897,7 @@ export default function QuickEntryModal({
         {tab === 'weight' && (
           <form onSubmit={handleWSubmit(onSubmitW)} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="w_cowId" className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Cow ID</Label>
+              <Label htmlFor="w_cowId" className="text-xs font-bold text-slate-500 ">Select Cow ID</Label>
               <select
                 id="w_cowId"
                 {...regW('cowId')}
@@ -915,13 +915,13 @@ export default function QuickEntryModal({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="w_weight" className="text-xs font-bold text-slate-500 uppercase tracking-wider">New Weight (kg)</Label>
+                <Label htmlFor="w_weight" className="text-xs font-bold text-slate-500 ">New Weight (kg)</Label>
                 <Input id="w_weight" type="number" {...regW('weight')} />
                 {errorsW.weight && <p className="text-red-500 text-xs font-semibold">{errorsW.weight.message}</p>}
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="w_health" className="text-xs font-bold text-slate-500 uppercase tracking-wider">Health Status</Label>
+                <Label htmlFor="w_health" className="text-xs font-bold text-slate-500 ">Health Status</Label>
                 <select
                   id="w_health"
                   {...regW('healthStatus')}
@@ -933,7 +933,7 @@ export default function QuickEntryModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="w_date" className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tracking Date</Label>
+              <Label htmlFor="w_date" className="text-xs font-bold text-slate-500 ">Tracking Date</Label>
               <Input id="w_date" type="date" {...regW('trackingDate')} />
             </div>
 
@@ -948,13 +948,13 @@ export default function QuickEntryModal({
           <form onSubmit={handleCustomSaleSubmit} className="space-y-4">
             {/* Sale Target Toggle */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sale Target</Label>
+              <Label className="text-xs font-bold text-slate-500 ">Sale Target</Label>
               <div className="grid grid-cols-2 gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
                 <button
                   type="button"
                   onClick={() => setSaleTarget('cow')}
                   className={`py-1.5 text-xs font-bold rounded-lg transition-all duration-150 ${
-                    saleTarget === 'cow'
+ saleTarget === 'cow'
                       ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/40'
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
@@ -965,7 +965,7 @@ export default function QuickEntryModal({
                   type="button"
                   onClick={() => setSaleTarget('batch')}
                   className={`py-1.5 text-xs font-bold rounded-lg transition-all duration-150 ${
-                    saleTarget === 'batch'
+ saleTarget === 'batch'
                       ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/40'
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
@@ -979,8 +979,8 @@ export default function QuickEntryModal({
             {saleTarget === 'cow' ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="sale_cowId" className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Cow (ជ្រើសរើសគោ)</Label>
-                  <span className="text-[10px] text-slate-400 font-semibold">{filteredActiveCows.length} cattle available</span>
+                  <Label htmlFor="sale_cowId" className="text-xs font-bold text-slate-500 ">Select Cow (ជ្រើសរើសគោ)</Label>
+                  <span className="text-xs text-slate-400 font-semibold">{filteredActiveCows.length} cattle available</span>
                 </div>
 
                 {/* Quick Search Input */}
@@ -997,7 +997,7 @@ export default function QuickEntryModal({
                     <button
                       type="button"
                       onClick={() => setCowSearchQuery('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-full px-1.5 py-0.5 font-bold"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-full px-1.5 py-0.5 font-bold"
                     >
                       Clear
                     </button>
@@ -1026,7 +1026,7 @@ export default function QuickEntryModal({
             ) : (
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="sale_batchId" className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Cohort Batch</Label>
+                  <Label htmlFor="sale_batchId" className="text-xs font-bold text-slate-500 ">Select Cohort Batch</Label>
                   <select
                     id="sale_batchId"
                     value={saleBatchId}
@@ -1045,7 +1045,7 @@ export default function QuickEntryModal({
 
                 {saleBatchId && (
                   <div className="space-y-2 animate-in fade-in duration-200">
-                    <Label htmlFor="sale_batch_cowId" className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Cow from Batch</Label>
+                    <Label htmlFor="sale_batch_cowId" className="text-xs font-bold text-slate-500 ">Select Cow from Batch</Label>
                     
                     {/* Quick Search Input for Batch */}
                     <div className="relative">
@@ -1091,14 +1091,14 @@ export default function QuickEntryModal({
                       <Tag className="h-3.5 w-3.5" />
                     </div>
                     <div>
-                      <span className="font-black text-sm text-slate-900">{selectedCowObj.id}</span>
-                      <span className="text-[10px] text-slate-500 font-semibold block">{selectedCowObj.location || 'SNR Farm'}</span>
+                      <span className="font-bold text-sm text-slate-900">{selectedCowObj.id}</span>
+                      <span className="text-xs text-slate-500 font-semibold block">{selectedCowObj.location || 'SNR Farm'}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Sex:</span>
-                    <span className={`px-2.5 py-0.5 rounded-lg text-xs font-black uppercase tracking-wider border shadow-sm ${
-                      selectedCowObj.sex?.toLowerCase().startsWith('m') || selectedCowObj.sex === 'Male'
+                    <span className="text-xs font-bold text-slate-400 ">Sex:</span>
+                    <span className={`px-2.5 py-0.5 rounded-lg text-xs font-bold border shadow-sm ${
+ selectedCowObj.sex?.toLowerCase().startsWith('m') || selectedCowObj.sex === 'Male'
                         ? 'bg-blue-100 text-blue-800 border-blue-200'
                         : 'bg-purple-100 text-purple-800 border-purple-200'
                     }`}>
@@ -1109,16 +1109,16 @@ export default function QuickEntryModal({
 
                 <div className="grid grid-cols-3 gap-2 text-xs pt-0.5">
                   <div className="bg-white/90 p-2 rounded-xl border border-emerald-100/80">
-                    <span className="text-[9px] text-slate-400 font-bold uppercase block">Breed (ពូជ)</span>
-                    <span className="font-extrabold text-slate-800 text-xs">{selectedCowObj.breed || 'N/A'}</span>
+                    <span className="text-xs text-slate-400 font-bold block">Breed (ពូជ)</span>
+                    <span className="font-bold text-slate-800 text-xs">{selectedCowObj.breed || 'N/A'}</span>
                   </div>
                   <div className="bg-white/90 p-2 rounded-xl border border-emerald-100/80">
-                    <span className="text-[9px] text-slate-400 font-bold uppercase block">Weight (ទម្ងន់)</span>
-                    <span className="font-extrabold text-emerald-700 text-xs font-mono">{selectedCowObj.weight} kg</span>
+                    <span className="text-xs text-slate-400 font-bold block">Weight (ទម្ងន់)</span>
+                    <span className="font-bold text-emerald-700 text-xs font-mono">{selectedCowObj.weight} kg</span>
                   </div>
                   <div className="bg-white/90 p-2 rounded-xl border border-emerald-100/80">
-                    <span className="text-[9px] text-slate-400 font-bold uppercase block">Status</span>
-                    <span className="font-extrabold text-slate-800 text-xs">{selectedCowObj.healthStatus || 'Good'}</span>
+                    <span className="text-xs text-slate-400 font-bold block">Status</span>
+                    <span className="font-bold text-slate-800 text-xs">{selectedCowObj.healthStatus || 'Good'}</span>
                   </div>
                 </div>
               </div>
@@ -1126,13 +1126,13 @@ export default function QuickEntryModal({
 
             {/* Sale Type (Weight vs Lumpsum) */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sale Type</Label>
+              <Label className="text-xs font-bold text-slate-500 ">Sale Type</Label>
               <div className="grid grid-cols-2 gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
                 <button
                   type="button"
                   onClick={() => setSaleType('Weight')}
                   className={`py-1.5 text-xs font-bold rounded-lg transition-all duration-150 ${
-                    saleType === 'Weight'
+ saleType === 'Weight'
                       ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/40'
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
@@ -1143,7 +1143,7 @@ export default function QuickEntryModal({
                   type="button"
                   onClick={() => setSaleType('Lumpsum')}
                   className={`py-1.5 text-xs font-bold rounded-lg transition-all duration-150 ${
-                    saleType === 'Lumpsum'
+ saleType === 'Lumpsum'
                       ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/40'
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
@@ -1157,7 +1157,7 @@ export default function QuickEntryModal({
               {saleType === 'Weight' ? (
                 <>
                   <div className="space-y-1.5">
-                    <Label htmlFor="sale_weight" className="text-xs font-bold text-slate-500 uppercase tracking-wider">Scale Weight (kg)</Label>
+                    <Label htmlFor="sale_weight" className="text-xs font-bold text-slate-500 ">Scale Weight (kg)</Label>
                     <div className="relative">
                       <Input
                         id="sale_weight"
@@ -1172,9 +1172,9 @@ export default function QuickEntryModal({
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="sale_price" className="text-xs font-bold text-slate-500 uppercase tracking-wider">Unit Price (៛ / kg)</Label>
+                    <Label htmlFor="sale_price" className="text-xs font-bold text-slate-500 ">Unit Price (៛ / kg)</Label>
                     <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs font-extrabold">៛</span>
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs font-bold">៛</span>
                       <Input
                         id="sale_price"
                         type="number"
@@ -1190,9 +1190,9 @@ export default function QuickEntryModal({
                 </>
               ) : (
                 <div className="space-y-1.5 col-span-2">
-                  <Label htmlFor="sale_price" className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fixed Lumpsum Price (៛)</Label>
+                  <Label htmlFor="sale_price" className="text-xs font-bold text-slate-500 ">Fixed Lumpsum Price (៛)</Label>
                   <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs font-extrabold">៛</span>
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-600 text-xs font-bold">៛</span>
                     <Input
                       id="sale_price"
                       type="number"
@@ -1210,7 +1210,7 @@ export default function QuickEntryModal({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5 col-span-2">
-                <Label htmlFor="sale_date" className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sales Date</Label>
+                <Label htmlFor="sale_date" className="text-xs font-bold text-slate-500 ">Sales Date</Label>
                 <Input
                   id="sale_date"
                   type="date"
@@ -1223,7 +1223,7 @@ export default function QuickEntryModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="sale_buyer" className="text-xs font-bold text-slate-500 uppercase tracking-wider">Buyer / Sold To (លក់ជូន)</Label>
+              <Label htmlFor="sale_buyer" className="text-xs font-bold text-slate-500 ">Buyer / Sold To (លក់ជូន)</Label>
               <Input
                 id="sale_buyer"
                 type="text"
@@ -1236,8 +1236,8 @@ export default function QuickEntryModal({
 
             {/* Live Pricing Preview */}
             <div className="p-3 bg-emerald-50/50 border border-emerald-100/60 rounded-xl flex justify-between items-center text-xs font-bold animate-in fade-in duration-200">
-              <span className="text-slate-500 uppercase tracking-wider text-[10px]">Estimated Revenue:</span>
-              <span className="text-emerald-700 text-sm font-black">
+              <span className="text-slate-500 text-xs">Estimated Revenue:</span>
+              <span className="text-emerald-700 text-sm font-bold">
                 ៛ {(saleType === 'Weight' ? Number(saleWeight) * Number(saleUnitPrice) : Number(saleUnitPrice)).toLocaleString()}
               </span>
             </div>

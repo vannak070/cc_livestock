@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Kantumruy_Pro, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ReactQueryProvider from "@/components/providers/ReactQueryProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// One family for English and Khmer, so both scripts look consistent.
+const kantumruy = Kantumruy_Pro({
+  variable: "--font-kantumruy",
+  subsets: ["latin", "khmer"],
 });
 
 const geistMono = Geist_Mono({
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CC Livestock",
-  description: "Enterprise multi-farm livestock fattening ERP platform for tracking weight performance, ADG, feed rations, health logs, and financial P&L.",
+  description: "Farm records for your cattle: weights, health, feed and sales.",
   icons: {
     icon: "/logo.png",
     shortcut: "/favicon.ico",
@@ -31,9 +32,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${kantumruy.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50/80 text-slate-900 font-sans">
+      <body className="min-h-full flex flex-col bg-canvas text-ink font-sans">
         <ReactQueryProvider>
           {children}
         </ReactQueryProvider>

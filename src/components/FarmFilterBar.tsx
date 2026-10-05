@@ -58,7 +58,7 @@ export default function FarmFilterBar({
       {/* Icon + Label */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <Building2 className="h-4 w-4 text-emerald-600" />
-        <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 hidden sm:block">
+        <span className="text-xs font-bold text-slate-400 hidden sm:block">
           Farm / Branch
         </span>
       </div>
@@ -71,8 +71,8 @@ export default function FarmFilterBar({
         <button
           onClick={() => { setOpen(!open); setSearch(''); }}
           className={`group flex items-center gap-2 w-full sm:w-auto min-w-[220px] px-3.5 py-2 rounded-xl border text-xs font-bold transition-all duration-150 cursor-pointer ${
-            selectedFarm
-              ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
+ selectedFarm
+ ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
               : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
           }`}
         >
@@ -85,9 +85,9 @@ export default function FarmFilterBar({
           </span>
 
           {/* Count badge */}
-          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md flex-shrink-0 ${
-            selectedFarm
-              ? 'bg-emerald-200 text-emerald-700'
+          <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md flex-shrink-0 ${
+ selectedFarm
+ ? 'bg-emerald-200 text-emerald-700'
               : 'bg-slate-200 text-slate-500'
           }`}>
             {selectedCount} {label}
@@ -127,20 +127,20 @@ export default function FarmFilterBar({
               <button
                 onClick={() => { onFarmChange(null); setOpen(false); setSearch(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold transition-colors cursor-pointer ${
-                  !selectedFarm
-                    ? 'bg-emerald-50 text-emerald-800'
+ !selectedFarm
+ ? 'bg-emerald-50 text-emerald-800'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
                 }`}
               >
-                <span className="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0 text-[11px] font-black">
+                <span className="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0 text-xs font-bold">
                   ALL
                 </span>
                 <div className="flex-1 text-left">
-                  <p className="font-bold text-[12px]">All Farms & Branches</p>
-                  <p className="text-[10px] text-slate-400 font-medium">View consolidated data</p>
+                  <p className="font-bold text-xs">All Farms & Branches</p>
+                  <p className="text-xs text-slate-400 font-medium">View consolidated data</p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md">
+                  <span className="text-xs font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md">
                     {allCount}
                   </span>
                   {!selectedFarm && <Check className="h-3.5 w-3.5 text-emerald-600" />}
@@ -174,23 +174,23 @@ export default function FarmFilterBar({
                       key={farm.id}
                       onClick={() => { onFarmChange(farm.name); setOpen(false); setSearch(''); }}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold transition-colors cursor-pointer ${
-                        isActive
-                          ? 'bg-emerald-50 text-emerald-800'
+ isActive
+ ? 'bg-emerald-50 text-emerald-800'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
                       }`}
                     >
-                      <span className={`h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0 text-[10px] font-black ${colorClass}`}>
+                      <span className={`h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold ${colorClass}`}>
                         {farm.name.substring(0, 2).toUpperCase()}
                       </span>
                       <div className="flex-1 text-left min-w-0">
-                        <p className="font-bold text-[12px] truncate">{farm.name}</p>
+                        <p className="font-bold text-xs truncate">{farm.name}</p>
                         {farm.address && (
-                          <p className="text-[10px] text-slate-400 font-medium truncate">{farm.address}</p>
+                          <p className="text-xs text-slate-400 font-medium truncate">{farm.address}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
-                          isActive ? 'bg-emerald-200 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md ${
+ isActive ? 'bg-emerald-200 text-emerald-700' : 'bg-slate-100 text-slate-500'
                         }`}>
                           {count}
                         </span>
@@ -204,13 +204,13 @@ export default function FarmFilterBar({
 
             {/* Footer summary */}
             <div className="border-t border-slate-100 px-4 py-2 bg-slate-50/60 flex items-center justify-between">
-              <p className="text-[10px] text-slate-400 font-semibold">
+              <p className="text-xs text-slate-400 font-semibold">
                 {farms.length} farm{farms.length !== 1 ? 's' : ''} registered
               </p>
               {selectedFarm && (
                 <button
                   onClick={() => { onFarmChange(null); setOpen(false); setSearch(''); }}
-                  className="text-[10px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
                 >
                   <X className="h-3 w-3" /> Clear filter
                 </button>
@@ -224,7 +224,7 @@ export default function FarmFilterBar({
       {selectedFarm && (
         <button
           onClick={() => onFarmChange(null)}
-          className="flex-shrink-0 flex items-center gap-1.5 bg-emerald-100 text-emerald-700 hover:bg-rose-100 hover:text-rose-600 text-[10px] font-bold px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+          className="flex-shrink-0 flex items-center gap-1.5 bg-emerald-100 text-emerald-700 hover:bg-rose-100 hover:text-rose-600 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
           title="Clear farm filter"
         >
           <X className="h-3 w-3" />

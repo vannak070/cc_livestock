@@ -72,7 +72,7 @@ export function ConfirmModal({
           <div className={`h-12 w-12 rounded-full flex items-center justify-center border ${style.bg} ${style.border}`}>
             <Icon className={`h-6 w-6 ${style.text}`} />
           </div>
-          <DialogTitle className="text-base font-extrabold text-slate-800 tracking-tight text-center">
+          <DialogTitle className="text-base font-bold text-slate-800 tracking-tight text-center">
             {title}
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-400 font-medium leading-relaxed px-2 text-center">

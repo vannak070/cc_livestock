@@ -256,7 +256,7 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
       {/* Top Header Card */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
             <Building className="h-6 w-6 text-emerald-600" />
             {t('farms.title')}
           </h2>
@@ -301,8 +301,8 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
                 {/* Title & Actions */}
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="text-base font-black text-slate-800 tracking-tight">{farm.name}</h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">ID: {farm.id}</p>
+                    <h3 className="text-base font-bold text-slate-800 tracking-tight">{farm.name}</h3>
+                    <p className="text-xs font-bold text-slate-400 mt-0.5">ID: {farm.id}</p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button
@@ -322,14 +322,14 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
 
                 {/* Capacity Progress Bar */}
                 <div className="space-y-1.5">
-                  <div className="flex justify-between text-[11px] font-bold">
+                  <div className="flex justify-between text-xs font-bold">
                     <span className="text-slate-500">Cattle Occupancy</span>
                     <span className="text-slate-800">{cowCount} / {capacity} Head ({occupancyRate}%)</span>
                   </div>
                   <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div 
                       className={`h-full rounded-full transition-all duration-500 ${
-                        occupancyRate > 90 ? 'bg-rose-500' : occupancyRate > 75 ? 'bg-amber-500' : 'bg-emerald-500'
+ occupancyRate > 90 ? 'bg-rose-500' : occupancyRate > 75 ? 'bg-amber-500' : 'bg-emerald-500'
                       }`}
                       style={{ width: `${occupancyRate}%` }}
                     />
@@ -339,16 +339,16 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
                 {/* Staff & Herd Badges */}
                 <div className="grid grid-cols-3 gap-2">
                   <div className="bg-slate-50 p-2.5 rounded-xl text-center">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cattle Count</p>
-                    <p className="text-base font-black text-slate-800 mt-0.5">{cowCount}</p>
+                    <p className="text-xs font-bold text-slate-400 ">Cattle Count</p>
+                    <p className="text-base font-bold text-slate-800 mt-0.5">{cowCount}</p>
                   </div>
                   <div className="bg-slate-50 p-2.5 rounded-xl text-center">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Staff Size</p>
-                    <p className="text-base font-black text-slate-800 mt-0.5">{staffCount}</p>
+                    <p className="text-xs font-bold text-slate-400 ">Staff Size</p>
+                    <p className="text-base font-bold text-slate-800 mt-0.5">{staffCount}</p>
                   </div>
                   <div className="bg-slate-50 p-2.5 rounded-xl text-center">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Feed Batches</p>
-                    <p className="text-base font-black text-slate-800 mt-0.5">{activeBatches}</p>
+                    <p className="text-xs font-bold text-slate-400 ">Feed Batches</p>
+                    <p className="text-base font-bold text-slate-800 mt-0.5">{activeBatches}</p>
                   </div>
                 </div>
 
@@ -359,7 +359,7 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
                     <span className="text-slate-500 font-medium">Farm Owner:</span>
                     <span className="text-slate-800 font-bold">{owner ? owner.name : farm.ownerName || 'Not Created (គ្មានកំណត់)'}</span>
                   </div>
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 space-y-1 text-[10px]">
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 space-y-1 text-xs">
                     <div className="flex items-center gap-1.5 text-slate-600 font-bold">
                       <Mail className="h-3 w-3 text-emerald-600" />
                       <span>Email:</span>
@@ -384,7 +384,7 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
                   {farm.notes && (
                     <div className="flex items-start gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
                       <AlertCircle className="h-3.5 w-3.5 text-emerald-600 mt-0.5 flex-shrink-0" />
-                      <span className="text-[10px] text-slate-500 leading-normal font-medium">{farm.notes}</span>
+                      <span className="text-xs text-slate-500 leading-normal font-medium">{farm.notes}</span>
                     </div>
                   )}
                 </div>
@@ -411,7 +411,7 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
             {/* Core Details */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1 col-span-2">
-                <label className="text-[10px] font-bold uppercase text-slate-400">Farm Branch Name (ទីតាំងក្រោល)</label>
+                <label className="text-xs font-bold text-slate-400">Farm Branch Name (ទីតាំងក្រោល)</label>
                 <input
                   type="text"
                   required
@@ -423,7 +423,7 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
               </div>
 
               <div className="space-y-1 col-span-2">
-                <label className="text-[10px] font-bold uppercase text-slate-400">Capacity (Cows Limit)</label>
+                <label className="text-xs font-bold text-slate-400">Capacity (Cows Limit)</label>
                 <input
                   type="number"
                   required
@@ -445,7 +445,7 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
               </h4>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-slate-400">Owner Full Name</label>
+                <label className="text-xs font-bold text-slate-400">Owner Full Name</label>
                 <input
                   type="text"
                   required
@@ -457,7 +457,7 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-slate-400">Login Corporate Email (Username)</label>
+                <label className="text-xs font-bold text-slate-400">Login Corporate Email (Username)</label>
                 <input
                   type="email"
                   required
@@ -469,7 +469,7 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase text-slate-400">Login Password</label>
+                <label className="text-xs font-bold text-slate-400">Login Password</label>
                 <input
                   type="text"
                   required
@@ -482,7 +482,7 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-400">Farm Address / Geo Location</label>
+              <label className="text-xs font-bold text-slate-400">Farm Address / Geo Location</label>
               <input
                 type="text"
                 placeholder="District, Province, Country..."
@@ -493,7 +493,7 @@ export default function FarmsTab({ settings, currentUser, stock, batches }: Farm
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase text-slate-400">Operational Notes</label>
+              <label className="text-xs font-bold text-slate-400">Operational Notes</label>
               <textarea
                 placeholder="Enter specialized diet requirements, hardware setups, or remarks..."
                 value={farmNotes}

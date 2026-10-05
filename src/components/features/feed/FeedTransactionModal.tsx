@@ -99,7 +99,7 @@ export const FeedTransactionModal: React.FC<FeedTransactionModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-xl bg-white p-6 rounded-2xl border border-slate-100 shadow-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="text-left pb-4 border-b border-slate-100">
-          <DialogTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+          <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <ArrowDownLeft className="h-5 w-5 text-emerald-600" />
             Feed Stock In (Procurement / Inbound Delivery)
           </DialogTitle>
@@ -155,15 +155,15 @@ export const FeedTransactionModal: React.FC<FeedTransactionModalProps> = ({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Biomass (kg)</Label>
-              <div className="h-9 px-3 bg-slate-50 border border-slate-200 rounded-md flex items-center text-xs font-mono font-black text-slate-800">
+              <Label className="text-xs font-bold text-slate-400 ">Total Biomass (kg)</Label>
+              <div className="h-9 px-3 bg-slate-50 border border-slate-200 rounded-md flex items-center text-xs font-mono font-bold text-slate-800">
                 {totalKg.toLocaleString()} kg ({weightPerUnit} kg/bag)
               </div>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Valuation</Label>
-              <div className="h-9 px-3 bg-emerald-50 border border-emerald-200 rounded-md flex items-center text-xs font-mono font-black text-emerald-700">
+              <Label className="text-xs font-bold text-slate-400 ">Total Valuation</Label>
+              <div className="h-9 px-3 bg-emerald-50 border border-emerald-200 rounded-md flex items-center text-xs font-mono font-bold text-emerald-700">
                 ៛ {format2DecimalsWithCommas(totalCost)}
               </div>
             </div>

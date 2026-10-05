@@ -33,10 +33,10 @@ function addDaysToDateStr(dateStr: string, days: number): string {
   return d.toISOString().split('T')[0];
 }
 
-// Small uppercase divider label used to group the form into clear sections.
+// Small  divider label used to group the form into clear sections.
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1.5">
+    <p className="text-xs font-bold text-slate-400 border-b border-slate-100 pb-1.5">
       {children}
     </p>
   );
@@ -167,7 +167,7 @@ export const BatchModal: React.FC<BatchModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl bg-white p-6 rounded-2xl border border-slate-100 shadow-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="text-left pb-4 border-b border-slate-100">
-          <DialogTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+          <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
             {isEditMode ? (
               <>
                 <Edit2 className="h-5 w-5 text-emerald-600" />
@@ -201,7 +201,7 @@ export const BatchModal: React.FC<BatchModalProps> = ({
               <div className="space-y-1">
                 <Label htmlFor="batch_id" className="text-xs font-bold text-slate-700 flex items-center justify-between">
                   <span>Batch Code</span>
-                  <span className="text-[10px] text-slate-400 font-semibold">(Auto-generated)</span>
+                  <span className="text-xs text-slate-400 font-semibold">(Auto-generated)</span>
                 </Label>
                 <Input
                   id="batch_id"
@@ -307,7 +307,7 @@ export const BatchModal: React.FC<BatchModalProps> = ({
               <div className="space-y-1">
                 <Label htmlFor="batch_target_date" className="text-xs font-bold text-slate-700 flex items-center justify-between">
                   <span>Selling Target Date</span>
-                  <span className="text-[10px] text-slate-400 font-semibold">(Auto: Start + 90d)</span>
+                  <span className="text-xs text-slate-400 font-semibold">(Auto: Start + 90d)</span>
                 </Label>
                 <Input
                   id="batch_target_date"
@@ -341,16 +341,16 @@ export const BatchModal: React.FC<BatchModalProps> = ({
                   <UserPlus className="h-4 w-4 text-emerald-600" />
                   ជ្រើសរើសគោបញ្ចូលក្រុមដំបូង ({selectedCowIds.length} Selected)
                   {selectedCowIds.length < 3 ? (
-                    <span className="text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                    <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
                       ⚠️ Min 3 cows required
                     </span>
                   ) : (
-                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                       ✓ Ready ({selectedCowIds.length} cows)
                     </span>
                   )}
                 </Label>
-                <span className="text-[10px] text-slate-400 font-medium">
+                <span className="text-xs text-slate-400 font-medium">
                   {unassignedCows.length} Available Cows
                 </span>
               </div>
@@ -393,13 +393,13 @@ export const BatchModal: React.FC<BatchModalProps> = ({
                         key={cow.id}
                         onClick={() => toggleCowSelect(cow.id)}
                         className={`p-2 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-colors ${
-                          isChecked
-                            ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
+ isChecked
+ ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                         }`}
                       >
                         <div>
-                          <span className="font-black text-slate-800">{cow.id}</span>
+                          <span className="font-bold text-slate-800">{cow.id}</span>
                           <span className="ml-2 text-slate-500">{cow.breed} • {cow.weight} kg • {cow.sex}</span>
                         </div>
                         {isChecked && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}

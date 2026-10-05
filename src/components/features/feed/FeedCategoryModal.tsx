@@ -86,7 +86,7 @@ export const FeedCategoryModal: React.FC<FeedCategoryModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md bg-white p-6 rounded-2xl border border-slate-100 shadow-xl">
         <DialogHeader className="text-left pb-3 border-b border-slate-100">
-          <DialogTitle className="text-base font-black text-slate-900 flex items-center gap-2">
+          <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
             <Tag className="h-4 w-4 text-emerald-600" />
             Manage Feed Product Categories
           </DialogTitle>
@@ -130,7 +130,7 @@ export const FeedCategoryModal: React.FC<FeedCategoryModalProps> = ({
             <div className="max-h-56 overflow-y-auto space-y-1.5 border border-slate-150 p-2 rounded-xl bg-slate-50/50">
               {categories.map(cat => (
                 <div key={cat} className="flex items-center justify-between bg-white border border-slate-200/80 px-3 py-1.5 rounded-lg">
-                  <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
                     {cat}
                   </span>

@@ -217,7 +217,7 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
           <div className="flex items-center gap-2 text-slate-800 font-semibold">
             <AlertTriangle className="h-4.5 w-4.5 text-amber-500" />
             <span>
-              Scale Schedule Alerts: <span className="text-amber-700 font-black">{overdueCount} cattle overdue</span> and <span className="text-slate-800 font-black">{duesoonCount} cattle due soon</span> for weighing.
+              Scale Schedule Alerts: <span className="text-amber-700 font-bold">{overdueCount} cattle overdue</span> and <span className="text-slate-800 font-bold">{duesoonCount} cattle due soon</span> for weighing.
             </span>
           </div>
         </div>
@@ -229,7 +229,7 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
           <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
             <div>
               <h4 className="text-base font-bold text-slate-800">Weigh-in Schedule</h4>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Cattle check-in status (Target: {intervalDays}d)</p>
+              <p className="text-xs text-slate-400 font-bold ">Cattle check-in status (Target: {intervalDays}d)</p>
             </div>
             <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping" />
           </div>
@@ -243,16 +243,16 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
                     <div className="flex items-center gap-1.5">
                       <p className="font-bold text-slate-800">Tag: {schedule.cowId}</p>
                       {cohort && (
-                        <span className="text-[8.5px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-1 py-0.2 rounded" title={cohort.name}>
+                        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1 py-0.2 rounded" title={cohort.name}>
                           {cohort.id}
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-slate-450 font-medium">{schedule.breed} • Last weighed: {schedule.lastWeighDate ? schedule.lastWeighDate.toLocaleDateString() : 'Never'}</p>
+                    <p className="text-xs text-slate-450 font-medium">{schedule.breed} • Last weighed: {schedule.lastWeighDate ? schedule.lastWeighDate.toLocaleDateString() : 'Never'}</p>
                   </div>
                 <div className="text-right flex flex-col items-end gap-1.5">
-                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                    schedule.status === 'weighed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+ schedule.status === 'weighed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
                     schedule.status === 'duesoon' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
                     'bg-rose-50 text-rose-700 border border-rose-100'
                   }`}>
@@ -261,7 +261,7 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
                   {(schedule.status === 'overdue' || schedule.status === 'duesoon') && (
                     <button
                       onClick={() => onOpenLogWeight(schedule.cowId)}
-                      className="text-[9px] font-black uppercase text-emerald-600 hover:underline"
+                      className="text-xs font-bold text-emerald-600 hover:underline"
                     >
                       Scale &rarr;
                     </button>
@@ -279,7 +279,7 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
             <TrendingUp className="h-4.5 w-4.5 text-emerald-600" />
             <div>
               <h4 className="text-base font-bold text-slate-800">Growth Leaderboard</h4>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Top developmental gains</p>
+              <p className="text-xs text-slate-400 font-bold ">Top developmental gains</p>
             </div>
           </div>
 
@@ -288,15 +288,15 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
               growthLeaderboard.map((w, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-100 hover:shadow-sm transition-all">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-black text-slate-400 font-mono">#{idx + 1}</span>
+                    <span className="text-xs font-bold text-slate-400 font-mono">#{idx + 1}</span>
                     <div>
                       <p className="text-xs font-bold text-slate-900">Cow ID: {w.cowId}</p>
-                      <p className="text-[10px] text-slate-400 font-semibold">{w.breed}</p>
+                      <p className="text-xs text-slate-400 font-semibold">{w.breed}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-black text-emerald-600">+{(w.gainLoss * 100).toFixed(1)}%</p>
-                    <p className="text-[10px] text-slate-400 font-semibold">{w.currentWeight} kg</p>
+                    <p className="text-xs font-bold text-emerald-600">+{(w.gainLoss * 100).toFixed(1)}%</p>
+                    <p className="text-xs text-slate-400 font-semibold">{w.currentWeight} kg</p>
                   </div>
                 </div>
               ))
@@ -313,7 +313,7 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
               <ClipboardList className="h-4.5 w-4.5 text-emerald-600" />
               <div>
                 <h4 className="text-base font-bold text-slate-800">Recent Growth Logs</h4>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Chronological developmental logs</p>
+                <p className="text-xs text-slate-400 font-bold ">Chronological developmental logs</p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -356,26 +356,26 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-slate-900 text-sm">Cow ID: {log.cowId}</span>
-                      <span className="text-[10px] text-slate-400 font-semibold">({log.breed})</span>
+                      <span className="text-xs text-slate-400 font-semibold">({log.breed})</span>
                     </div>
-                    <p className="text-[11px] text-slate-400 font-medium">
+                    <p className="text-xs text-slate-400 font-medium">
                       Date: {log.trackingDate ? new Date(log.trackingDate).toLocaleDateString() : 'N/A'} • Status: {log.status}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <p className="font-bold text-slate-900 text-sm">{log.currentWeight} kg</p>
-                      <p className="text-[10px] text-slate-400 font-mono font-semibold">Old: {log.oldWeight} kg</p>
+                      <p className="text-xs text-slate-400 font-mono font-semibold">Old: {log.oldWeight} kg</p>
                     </div>
                     <div className="w-16 text-right">
                       {log.gainLoss !== 0 ? (
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider ${
-                          log.gainLoss > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+ log.gainLoss > 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
                         }`}>
                           {log.gainLoss > 0 ? '+' : ''}{(log.gainLoss * 100).toFixed(1)}%
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-50 text-slate-400">
+                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-50 text-slate-400">
                           0.0%
                         </span>
                       )}
@@ -451,7 +451,7 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
               setEditingWeightRecord(null);
             }} className="space-y-4 pt-4">
               <div className="space-y-1.5">
-                <Label htmlFor="ew_weight" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Current Weight (kg)</Label>
+                <Label htmlFor="ew_weight" className="text-xs font-bold text-slate-450 ">Current Weight (kg)</Label>
                 <Input
                   id="ew_weight"
                   type="number"
@@ -461,7 +461,7 @@ export default function WeightTab({ data, onOpenLogWeight, onDeleteWeightRecord,
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="ew_health" className="text-xs font-bold uppercase text-slate-450 tracking-wider">Health Status</Label>
+                <Label htmlFor="ew_health" className="text-xs font-bold text-slate-450 ">Health Status</Label>
                 <select
                   id="ew_health"
                   value={editingWeightRecord.healthStatus}

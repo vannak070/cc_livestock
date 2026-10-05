@@ -57,14 +57,14 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
       {/* Items Summary Text & Page Size Selector */}
       <div className="flex items-center gap-3">
         <span className="font-medium text-slate-500">
-          Showing <strong className="font-black text-slate-800">{startItem.toLocaleString()}</strong> to{' '}
-          <strong className="font-black text-slate-800">{endItem.toLocaleString()}</strong> of{' '}
-          <strong className="font-black text-slate-800">{totalItems.toLocaleString()}</strong> {itemLabel}
+          Showing <strong className="font-bold text-slate-800">{startItem.toLocaleString()}</strong> to{' '}
+          <strong className="font-bold text-slate-800">{endItem.toLocaleString()}</strong> of{' '}
+          <strong className="font-bold text-slate-800">{totalItems.toLocaleString()}</strong> {itemLabel}
         </span>
 
         {onPageSizeChange && (
           <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
-            <span className="text-[11px] text-slate-400 font-semibold">Per page:</span>
+            <span className="text-xs text-slate-400 font-semibold">Per page:</span>
             <select
               value={pageSize}
               onChange={e => {
@@ -124,8 +124,8 @@ export const TablePagination: React.FC<TablePaginationProps> = ({
                 type="button"
                 onClick={() => onPageChange(Number(p))}
                 className={`h-7 min-w-[28px] px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  isCurrent
-                    ? 'bg-emerald-600 text-white border border-emerald-600 shadow-2xs font-extrabold'
+ isCurrent
+ ? 'bg-emerald-600 text-white border border-emerald-600 shadow-2xs font-bold'
                     : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
                 }`}
               >

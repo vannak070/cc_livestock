@@ -142,8 +142,8 @@ export default function FinanceTab({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white border border-slate-100 p-4 rounded-xl flex items-center justify-between shadow-sm ">
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gross Sales Revenue</p>
-            <h4 className="text-lg font-black text-emerald-600 mt-1">៛ {format2DecimalsWithCommas(totalSales)}</h4>
+            <p className="text-xs font-bold text-slate-400 ">Gross Sales Revenue</p>
+            <h4 className="text-lg font-bold text-emerald-600 mt-1">៛ {format2DecimalsWithCommas(totalSales)}</h4>
           </div>
           <div className="h-9 w-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
             <ArrowUpRight className="h-4.5 w-4.5" />
@@ -152,8 +152,8 @@ export default function FinanceTab({
 
         <div className="bg-white border border-slate-100 p-4 rounded-xl flex items-center justify-between shadow-sm">
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cattle Acquisition Cost</p>
-            <h4 className="text-lg font-black text-slate-800 mt-1">៛ {format2DecimalsWithCommas(totalPurchases)}</h4>
+            <p className="text-xs font-bold text-slate-400 ">Cattle Acquisition Cost</p>
+            <h4 className="text-lg font-bold text-slate-800 mt-1">៛ {format2DecimalsWithCommas(totalPurchases)}</h4>
           </div>
           <div className="h-9 w-9 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center">
             <FileText className="h-4.5 w-4.5" />
@@ -161,16 +161,16 @@ export default function FinanceTab({
         </div>
 
         <div className={`border p-4 rounded-xl flex items-center justify-between shadow-sm ${
-          netEarnings >= 0 ? 'bg-emerald-50/40 border-emerald-100' : 'bg-rose-50/40 border-rose-100'
+ netEarnings >= 0 ? 'bg-emerald-50/40 border-emerald-100' : 'bg-rose-50/40 border-rose-100'
         }`}>
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Net P&L Margin</p>
-            <h4 className={`text-lg font-black mt-1 ${netEarnings >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+            <p className="text-xs font-bold text-slate-400 ">Net P&L Margin</p>
+            <h4 className={`text-lg font-bold mt-1 ${netEarnings >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
               ៛ {format2DecimalsWithCommas(netEarnings)}
             </h4>
           </div>
           <div className={`h-9 w-9 rounded-full flex items-center justify-center ${
-            netEarnings >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+ netEarnings >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
           }`}>
             <DollarSign className="h-4.5 w-4.5" />
           </div>
@@ -181,7 +181,7 @@ export default function FinanceTab({
         <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden flex flex-col justify-between">
           <div>
             <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
-              <h4 className="text-sm font-extrabold uppercase tracking-wider text-slate-800 font-mono">Gross Sales Revenue Ledger</h4>
+              <h4 className="text-sm font-bold text-slate-800 font-mono">Gross Sales Revenue Ledger</h4>
               <div className="flex items-center gap-2 flex-wrap">
                 <DateRangeFilterBar
                   startDate={startDate}
@@ -210,7 +210,7 @@ export default function FinanceTab({
                       ]
                     });
                   }}
-                  className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-2xs cursor-pointer"
+                  className="h-8 text-xs gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-2xs cursor-pointer"
                 >
                   <Download className="h-3.5 w-3.5" /> Export Excel
                 </Button>
@@ -227,7 +227,7 @@ export default function FinanceTab({
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/20 text-[#003B33] font-bold uppercase tracking-wider">
+                  <tr className="border-b border-slate-100 bg-slate-50/20 text-[#003B33] font-bold ">
                     <th className="py-3.5 px-4">Cattle ID</th>
                     <th className="py-3.5 px-4">Sex</th>
                     <th className="py-3.5 px-4">Sales Date</th>
@@ -254,8 +254,8 @@ export default function FinanceTab({
                           <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                             <td className="py-3.5 px-4 font-bold text-slate-800">{sale.cowId}</td>
                             <td className="py-3.5 px-4">
-                              <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-                                cowSex.toLowerCase().startsWith('m') || cowSex === 'Male'
+                              <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
+ cowSex.toLowerCase().startsWith('m') || cowSex === 'Male'
                                   ? 'bg-blue-50 text-blue-700 border border-blue-100'
                                   : cowSex.toLowerCase().startsWith('f') || cowSex === 'Female'
                                   ? 'bg-purple-50 text-purple-700 border border-purple-100'
@@ -269,8 +269,8 @@ export default function FinanceTab({
                             </td>
                             <td className="py-3.5 px-4 font-medium text-slate-550">{sale.breed}</td>
                             <td className="py-3.5 px-4">
-                              <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-                                deducedSaleType.toLowerCase().startsWith('scale') || deducedSaleType.toLowerCase().startsWith('weight')
+                              <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
+ deducedSaleType.toLowerCase().startsWith('scale') || deducedSaleType.toLowerCase().startsWith('weight')
                                   ? 'bg-blue-50 text-blue-700 border border-blue-100'
                                   : 'bg-amber-50 text-amber-700 border border-amber-100'
                               }`}>
@@ -280,7 +280,7 @@ export default function FinanceTab({
                             <td className="py-3.5 px-4 font-semibold text-slate-600">{deducedBuyer}</td>
                             <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-700">{sale.weight} kg</td>
                             <td className="py-3.5 px-4 text-right font-mono text-slate-500">៛ {sale.unitPrice.toLocaleString()}</td>
-                            <td className="py-3.5 px-4 font-mono text-emerald-600 font-extrabold text-right">៛ {sale.totalPrice.toLocaleString()}</td>
+                            <td className="py-3.5 px-4 font-mono text-emerald-600 font-bold text-right">៛ {sale.totalPrice.toLocaleString()}</td>
                             <td className="py-3.5 px-4 text-right pr-6">
                               <div className="flex items-center justify-end gap-2.5">
                                 {hasPermission(currentUser, 'sales_record') && (
@@ -406,7 +406,7 @@ export default function FinanceTab({
             }} className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="es_date" className="text-xs font-bold uppercase text-slate-455 tracking-wider">Sales Date</Label>
+                  <Label htmlFor="es_date" className="text-xs font-bold text-slate-455 ">Sales Date</Label>
                   <Input
                     id="es_date"
                     type="date"
@@ -416,7 +416,7 @@ export default function FinanceTab({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="es_type" className="text-xs font-bold uppercase text-slate-455 tracking-wider">Sale Type</Label>
+                  <Label htmlFor="es_type" className="text-xs font-bold text-slate-455 ">Sale Type</Label>
                   <select
                     id="es_type"
                     value={editingSalesRecord.saleType}
@@ -430,7 +430,7 @@ export default function FinanceTab({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="es_buyer" className="text-xs font-bold uppercase text-slate-455 tracking-wider">Buyer Name</Label>
+                <Label htmlFor="es_buyer" className="text-xs font-bold text-slate-455 ">Buyer Name</Label>
                 <Input
                   id="es_buyer"
                   type="text"
@@ -442,7 +442,7 @@ export default function FinanceTab({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="es_weight" className="text-xs font-bold uppercase text-slate-455 tracking-wider">Weight (kg)</Label>
+                  <Label htmlFor="es_weight" className="text-xs font-bold text-slate-455 ">Weight (kg)</Label>
                   <Input
                     id="es_weight"
                     type="number"
@@ -452,7 +452,7 @@ export default function FinanceTab({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="es_price" className="text-xs font-bold uppercase text-slate-455 tracking-wider">
+                  <Label htmlFor="es_price" className="text-xs font-bold text-slate-455 ">
                     {editingSalesRecord.saleType === 'Scale' ? 'Unit Price (៛/kg)' : 'Lumpsum Price (៛)'}
                   </Label>
                   <Input
@@ -467,8 +467,8 @@ export default function FinanceTab({
 
               {/* Total gross income preview */}
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Estimated Gross Income</span>
-                <span className="font-mono text-emerald-600 font-extrabold text-sm">
+                <span className="text-xs font-bold text-slate-500 ">Estimated Gross Income</span>
+                <span className="font-mono text-emerald-600 font-bold text-sm">
                   ៛ {(editingSalesRecord.saleType === 'Scale' ? editingSalesRecord.weight * editingSalesRecord.unitPrice : editingSalesRecord.unitPrice).toLocaleString()}
                 </span>
               </div>
