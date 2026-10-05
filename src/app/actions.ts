@@ -52,6 +52,8 @@ import { scopeFor } from '@/lib/farm-scope';
 import { farmGuard } from '@/lib/farm-guard';
 import { assertPlanningAccess } from '@/lib/authz';
 import { feedProductService } from '@/services/feed-product.service';
+import { saleReviewService } from '@/services/sale-review.service';
+import type { SaleReviewInput } from '@/lib/sale-review';
 
 // Every action below is a public endpoint as far as the network is
 // concerned. runAction (src/lib/run-action.ts) checks the caller's session and
@@ -164,6 +166,14 @@ export async function createBatchAction(batch: Omit<BatchItem, 'cowIds'>) {
   return runAction('Failed to create batch', ['batch_create'], async actor => {
     farmGuard.requireLocation(actor, batch.farmLocation);
     return createBatch(batch);
+  });
+}
+
+// Management (or the farm owner, for their own farm) decides whether a batch near its selling date is sold or fed longer.
+export async function reviewBatchSaleAction(batchId: string, input: SaleReviewInput) {
+  return runAction('Failed to save the review', ['batch_review'], async actor => {
+    await farmGuard.batch(actor, batchId);
+    return saleReviewService.review(actor, batchId, input);
   });
 }
 

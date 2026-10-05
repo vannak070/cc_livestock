@@ -7,6 +7,7 @@ export type PermissionKey =
   | 'batch_view'
   | 'batch_create'
   | 'batch_edit'
+  | 'batch_review'
   | 'batch_delete'
   | 'weight_view'
   | 'weight_record'
@@ -59,6 +60,7 @@ export const PERMISSION_MODULES: PermissionCategory[] = [
       { key: 'batch_view', label: 'View Fattening Batches', description: 'Access list of active feeding batches.' },
       { key: 'batch_create', label: 'Create Fattening Groups', description: 'Define new feeding programs and rations.' },
       { key: 'batch_edit', label: 'Modify Feeding Groups', description: 'Assign/remove cattle and update feed targets.' },
+      { key: 'batch_review', label: 'Review batches for sale', description: 'Decide, when a batch nears its selling date, to sell it or keep feeding with a new date. Changes no cattle records.' },
       { key: 'batch_delete', label: 'Delete Fattening Groups', description: 'Close and delete feed batch configurations.' }
     ]
   },
@@ -140,7 +142,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
   // must not unlock a wider set of actions. The one exception is Planning
   // (PLANNING_ROLES in lib/utils.ts): Management may save and delete plans,
   // which never change the real herd.
-  'Management': ['dashboard_view', 'stock_view', 'batch_view', 'weight_view', 'health_view', 'sales_view', 'costs_view', 'analytics_view', 'feed_view']
+  'Management': ['dashboard_view', 'stock_view', 'batch_view', 'batch_review', 'weight_view', 'health_view', 'sales_view', 'costs_view', 'analytics_view', 'feed_view']
 };
 
 export interface CustomRoleDefinition {

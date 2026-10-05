@@ -24,7 +24,8 @@ export class BatchRepository {
       feedingProgram: row.feeding_program || undefined,
       farmLocation: row.farm_location || undefined,
       expectedSellingPrice: row.expected_selling_price ? Number(row.expected_selling_price) : undefined,
-      sellingTargetDate: row.selling_target_date ? new Date(row.selling_target_date).toISOString().split('T')[0] : undefined
+      sellingTargetDate: row.selling_target_date ? new Date(row.selling_target_date).toISOString().split('T')[0] : undefined,
+      saleReview: row.sale_review || undefined
     };
   }
 
@@ -123,6 +124,7 @@ export class BatchRepository {
     if (updates.feedingProgram !== undefined) { fields.push(`feeding_program = $${idx++}`); params.push(updates.feedingProgram ? JSON.stringify(updates.feedingProgram) : null); }
     if (updates.farmLocation !== undefined) { fields.push(`farm_location = $${idx++}`); params.push(updates.farmLocation || null); }
     if (updates.expectedSellingPrice !== undefined) { fields.push(`expected_selling_price = $${idx++}`); params.push(updates.expectedSellingPrice !== null ? Number(updates.expectedSellingPrice) : null); }
+    if (updates.saleReview !== undefined) { fields.push(`sale_review = $${idx++}`); params.push(updates.saleReview ? JSON.stringify(updates.saleReview) : null); }
     if (updates.sellingTargetDate !== undefined) { fields.push(`selling_target_date = $${idx++}`); params.push(updates.sellingTargetDate ? new Date(updates.sellingTargetDate) : null); }
 
     if (fields.length > 0) {

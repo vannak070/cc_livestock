@@ -27,4 +27,17 @@ export interface BatchItem {
   farmLocation?: string;
   expectedSellingPrice?: number; // ៛ per kg (target price)
   sellingTargetDate?: string; // ISO date (YYYY-MM-DD) — planned sell/harvest date for this batch
+  /** The last management review near the selling date. */
+  saleReview?: SaleReview;
+}
+
+export interface SaleReview {
+  /** ready = decided to sell it; extend = keep feeding, with a new selling date. */
+  decision: 'ready' | 'extend';
+  note?: string;
+  by: string;
+  /** ISO time of the review. */
+  at: string;
+  /** The selling date before an extension. */
+  previousTarget?: string;
 }

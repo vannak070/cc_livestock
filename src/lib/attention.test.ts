@@ -46,7 +46,7 @@ describe('weighSchedules', () => {
 });
 
 describe('batchesNearSelling', () => {
-  it('lists active batches due within 10 days, overdue ones first', () => {
+  it('lists active batches due within the window, overdue ones first', () => {
     const d = data({
       batches: [
         { id: 'far', name: 'far', status: 'Active', sellingTargetDate: inDays(30), cowIds: [] },
@@ -57,6 +57,18 @@ describe('batchesNearSelling', () => {
       ]
     });
     expect(batchesNearSelling(d, 10, NOW).map(b => [b.batchId, b.daysRemaining])).toEqual([['late', -2], ['soon', 5]]);
+  });
+
+  it('warns 15 days ahead by default and drops batches already decided to sell', () => {
+    const d = data({
+      batches: [
+        { id: 'in15', name: 'in15', status: 'Active', sellingTargetDate: inDays(15), cowIds: [] },
+        { id: 'in16', name: 'in16', status: 'Active', sellingTargetDate: inDays(16), cowIds: [] },
+        { id: 'ready', name: 'ready', status: 'Active', sellingTargetDate: inDays(3), cowIds: [], saleReview: { decision: 'ready', by: 'M', at: '2026-01-01' } },
+        { id: 'extended', name: 'extended', status: 'Active', sellingTargetDate: inDays(4), cowIds: [], saleReview: { decision: 'extend', by: 'M', at: '2026-01-01' } }
+      ]
+    });
+    expect(batchesNearSelling(d, undefined, NOW).map(b => b.batchId)).toEqual(['extended', 'in15']);
   });
 });
 

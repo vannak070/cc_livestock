@@ -8,7 +8,7 @@ import { activeCattleIds, activeHeadcount, matchIngredientProduct } from './feed
 
 export const WEIGH_INTERVAL_DAYS = 14;
 export const DUE_SOON_MARGIN_DAYS = 2;
-export const SELL_WARNING_DAYS = 10;
+export const SELL_WARNING_DAYS = 15;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SICK_STATUSES = ['poor', 'sick', 'critical', 'quarantine'];
@@ -86,7 +86,7 @@ export interface SellingSoon {
   daysRemaining: number;
 }
 
-/** Active batches whose target selling date is within `withinDays` (or already passed). */
+/** Active batches whose target selling date is within `withinDays` (or already passed). A batch management already decided to sell is no longer an alert. */
 export function batchesNearSelling(
   data: Pick<ERPLivestockData, 'batches'>,
   withinDays = SELL_WARNING_DAYS,
@@ -94,7 +94,7 @@ export function batchesNearSelling(
 ): SellingSoon[] {
   const today = startOfDay(now).getTime();
   return data.batches
-    .filter(b => b.status === 'Active' && !!b.sellingTargetDate)
+    .filter(b => b.status === 'Active' && !!b.sellingTargetDate && b.saleReview?.decision !== 'ready')
     .map(b => ({
       batchId: b.id,
       batchName: b.name,
