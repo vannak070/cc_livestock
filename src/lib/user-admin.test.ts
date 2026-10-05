@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assignableRoles, canChangeUser, canOpenPeople, newPasswordProblem, deleteRole, grantable, roleDeleteBlock, rolesOf, saveRole, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
+import { assignableRoles, canChangeUser, canOpenPeople, isOfficePerson, newPasswordProblem, officeRoleNames, deleteRole, grantable, roleDeleteBlock, rolesOf, saveRole, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
 import { ALL_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS, type MasterSetup, type UserRoleItem } from '@/types/settings.types';
 
 const user = (id: string, role: string, farmLocation?: string, email = `${id}@x.com`): UserRoleItem => ({ id, name: id, email, role, status: 'Active', farmLocation });
@@ -86,6 +86,23 @@ describe('your own account', () => {
   it('still lets a Super Admin change another Super Admin', () => {
     const other = user('sa2', 'Super Admin');
     expect(validatePerson(settings(), input({ name: 'sa2', email: 'sa2@x.com', role: 'Admin', farmLocation: '', permissions: DEFAULT_ROLE_PERMISSIONS['Admin'] }), other, sa)).toEqual({});
+  });
+});
+
+describe('office people and farm people', () => {
+  const farms = ['Farm A', 'Farm B'];
+  it('keeps farm owners, staff and vets on a real farm out of the office list', () => {
+    expect(isOfficePerson(user('st', 'Farm Staff', 'Farm A'), farms)).toBe(false);
+    expect(isOfficePerson(user('own', 'Farm Owner', 'Farm B'), farms)).toBe(false);
+    expect(isOfficePerson(user('ad', 'Admin'), farms)).toBe(true);
+    expect(isOfficePerson(user('mg', 'Management', 'Farm A'), farms)).toBe(true);
+  });
+  it('keeps a farm person with no farm, or a farm that is gone, in the office list so they are not lost', () => {
+    expect(isOfficePerson(user('st', 'Farm Staff'), farms)).toBe(true);
+    expect(isOfficePerson(user('vet', 'Veterinarian', 'Old Farm'), farms)).toBe(true);
+  });
+  it('gives every role except the farm roles from Settings', () => {
+    expect(officeRoleNames(SYSTEM_ROLES)).toEqual(['Super Admin', 'Admin', 'Company', 'Management']);
   });
 });
 

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { MapPin, Pencil, Plus, Trash2, UserPlus, Users } from 'lucide-react';
+import { ArrowLeft, Crown, MapPin, Pencil, Plus, Trash2, UserPlus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { createUserAction, deleteFarmAction, saveFarmAction, setFarmOwnerAction } from '@/app/actions';
@@ -11,16 +11,14 @@ import { farmOwners, farmPeople, type FarmInput } from '@/lib/farm-settings';
 import type { PersonInput } from '@/lib/user-admin';
 import { getErrorMessage } from '@/lib/utils';
 import PersonFlow from '../settings/PersonFlow';
+import PeoplePanel from '../settings/PeoplePanel';
 import FarmFlow from './FarmFlow';
-import FarmPeopleDialog from './FarmPeopleDialog';
 
 interface FarmsPageProps {
   settings: MasterSetup;
   currentUser: UserRoleItem | null;
   stock: StockItem[];
   batches: BatchItem[];
-  /** Opens Settings with this farm's people; given only to people who may open Settings. */
-  onOpenPeople?: (farmName: string) => void;
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
@@ -39,14 +37,16 @@ async function ok<T>(res: { success: true; data: T } | { success: false; error: 
 
 type Add = { farm: FarmItem; kind: 'owner' | 'staff' };
 
-export default function FarmsPage({ settings, currentUser, stock, batches, onOpenPeople }: FarmsPageProps) {
+export default function FarmsPage({ settings, currentUser, stock, batches }: FarmsPageProps) {
   const queryClient = useQueryClient();
   const [flow, setFlow] = useState<null | { farm: FarmItem | null }>(null);
-  const [peopleOf, setPeopleOf] = useState<FarmItem | null>(null);
+  // The farm whose people page is open; looked up by id so a rename shows straight away.
+  const [peopleOfId, setPeopleOfId] = useState<string | null>(null);
   const [add, setAdd] = useState<Add | null>(null);
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger' | 'info' | 'warning'; confirmText: string; onConfirm?: () => void }>(null);
 
   const farms = settings.farms || [];
+  const peopleOf = farms.find(f => f.id === peopleOfId) ?? null;
   const refresh = () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); };
   const fail = (e: unknown) => setConfirm({ title: 'That did not work', description: getErrorMessage(e, 'The change could not be saved.'), type: 'info', confirmText: 'OK' });
 
@@ -96,8 +96,38 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onOpe
     return created.tempPassword;
   };
 
+  const peopleOwners = peopleOf ? farmOwners(settings, peopleOf.name) : [];
+
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
+      {peopleOf && currentUser ? (
+        <>
+          <Button variant="ghost" onClick={() => setPeopleOfId(null)}><ArrowLeft /> All farms</Button>
+          <div>
+            <h2 className="break-words text-2xl font-semibold text-ink">People on {peopleOf.name}</h2>
+            <p className="text-base text-ink-muted">The owner runs the farm; staff and vets record the daily work. A farm has one owner.</p>
+          </div>
+          {peopleOwners.length === 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50 p-4">
+              <p className="text-base text-amber-900">This farm has no owner yet.</p>
+              <Button onClick={() => setAdd({ farm: peopleOf, kind: 'owner' })}><UserPlus /> Add the owner</Button>
+            </div>
+          )}
+          {peopleOwners.length > 1 && (
+            <p className="rounded-2xl bg-amber-50 p-4 text-base text-amber-900">This farm has {peopleOwners.length} owners. Tap &quot;Make owner&quot; on the right person to leave just one.</p>
+          )}
+          <PeoplePanel
+            settings={settings}
+            actor={currentUser}
+            farm={peopleOf.name}
+            onChanged={refresh}
+            extraActions={u => (u.role !== 'Farm Owner' || peopleOwners.length > 1) && ['Farm Staff', 'Veterinarian', 'Farm Owner'].includes(u.role) && u.status === 'Active'
+              ? <Button variant="outline" size="sm" onClick={() => askMakeOwner(peopleOf, u.id, u.name)}><Crown /> Make owner</Button>
+              : null}
+          />
+        </>
+      ) : (
+      <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-semibold text-ink">Farms</h2>
@@ -161,7 +191,7 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onOpe
                     </>
                   )}
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setPeopleOf(farm)}><Users /> People ({people.length})</Button>
+                    <Button variant="outline" size="sm" onClick={() => setPeopleOfId(farm.id)}><Users /> People ({people.length})</Button>
                     {owners.length === 0 && <Button size="sm" onClick={() => setAdd({ farm, kind: 'owner' })}><UserPlus /> Add the owner</Button>}
                   </div>
                 </div>
@@ -172,19 +202,10 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onOpe
         </ul>
       )}
 
-      <FarmFlow isOpen={!!flow} onClose={() => setFlow(null)} farm={flow?.farm ?? null} settings={settings} onSave={save} onAddOwner={farm => setAdd({ farm, kind: 'owner' })} />
-
-      {peopleOf && (
-        <FarmPeopleDialog
-          farm={peopleOf}
-          settings={settings}
-          onClose={() => setPeopleOf(null)}
-          onAddOwner={() => { setAdd({ farm: peopleOf, kind: 'owner' }); setPeopleOf(null); }}
-          onAddStaff={() => { setAdd({ farm: peopleOf, kind: 'staff' }); setPeopleOf(null); }}
-          onMakeOwner={(userId, name) => { askMakeOwner(peopleOf, userId, name); setPeopleOf(null); }}
-          onOpenPeople={onOpenPeople ? () => onOpenPeople(peopleOf.name) : undefined}
-        />
+      </>
       )}
+
+      <FarmFlow isOpen={!!flow} onClose={() => setFlow(null)} farm={flow?.farm ?? null} settings={settings} onSave={save} onAddOwner={farm => setAdd({ farm, kind: 'owner' })} />
 
       {currentUser && add && (
         <PersonFlow
