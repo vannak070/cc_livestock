@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, Check, Search } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Search } from 'lucide-react';
+import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { StockItem } from '@/lib/types';
+import { Choice, FlowDone, FlowFooter, FlowShell, NUM, Question, RowButton, money, today } from '../flow/FlowShell';
 
 interface SellFlowProps {
   isOpen: boolean;
@@ -19,10 +19,7 @@ interface SellFlowProps {
   onSell: (cowId: string, unitPrice: number, saleType: 'Weight' | 'Lumpsum', date: string, buyer?: string) => Promise<void>;
 }
 
-type Step = 'pick' | 'price' | 'confirm' | 'done';
-
-const today = () => new Date().toISOString().split('T')[0];
-const money = (n: number) => `៛ ${Math.round(n).toLocaleString()}`;
+type Step = 'pick' | 'how' | 'price' | 'buyer' | 'confirm' | 'done';
 
 export default function SellFlow(props: SellFlowProps) {
   // Remount on every open so each sale starts from a clean form.
@@ -34,12 +31,12 @@ export default function SellFlow(props: SellFlowProps) {
 }
 
 function SellBody({ onClose, cattle, preselectedCowId, onWeigh, onSell }: SellFlowProps) {
-  const initial = preselectedCowId ? cattle.find(c => c.id === preselectedCowId) : undefined;
-  const [step, setStep] = useState<Step>(initial ? 'price' : 'pick');
-  const [cowId, setCowId] = useState<string | null>(initial?.id ?? null);
+  const known = preselectedCowId ? cattle.find(c => c.id === preselectedCowId) : undefined;
+  const [step, setStep] = useState<Step>(known ? 'how' : 'pick');
+  const [cowId, setCowId] = useState<string | null>(known?.id ?? null);
   const [query, setQuery] = useState('');
   const [perKg, setPerKg] = useState(true);
-  const [weight, setWeight] = useState(initial?.weight ? String(initial.weight) : '');
+  const [weight, setWeight] = useState(known?.weight ? String(known.weight) : '');
   const [price, setPrice] = useState('');
   const [buyer, setBuyer] = useState('');
   const [date, setDate] = useState(today());
@@ -59,19 +56,16 @@ function SellBody({ onClose, cattle, preselectedCowId, onWeigh, onSell }: SellFl
     return cattle.filter(c => !q || c.id.toLowerCase().includes(q) || c.breed?.toLowerCase().includes(q) || c.sex?.toLowerCase().includes(q));
   }, [cattle, query]);
 
+  const steps: Step[] = known ? ['how', 'price', 'buyer', 'confirm'] : ['pick', 'how', 'price', 'buyer', 'confirm'];
+  const order = steps;
+  const at = order.indexOf(step);
+
   const choose = (c: StockItem) => {
     setCowId(c.id);
     setWeight(c.weight ? String(c.weight) : '');
     setPrice('');
     setError('');
-    setStep('price');
-  };
-
-  const review = () => {
-    if (perKg && !(kg > 0)) { setError('Type the weight from the scale, in kg.'); return; }
-    if (!(unit > 0)) { setError(perKg ? 'Type the price for each kg.' : 'Type the price the buyer pays.'); return; }
-    setError('');
-    setStep('confirm');
+    setStep('how');
   };
 
   const sell = async () => {
@@ -91,154 +85,135 @@ function SellBody({ onClose, cattle, preselectedCowId, onWeigh, onSell }: SellFl
     }
   };
 
-  const another = () => {
-    setCowId(null);
-    setQuery('');
-    setWeight('');
-    setPrice('');
+  const next = () => {
+    if (step === 'how' && perKg && !(kg > 0)) { setError('Type the weight from the scale, in kg.'); return; }
+    if (step === 'price' && !(unit > 0)) { setError(perKg ? 'Type the price for each kg.' : 'Type the price the buyer pays.'); return; }
+    if (step === 'confirm') { sell(); return; }
     setError('');
-    setStep('pick');
+    setStep(order[at + 1]);
   };
+  const back = () => { setError(''); setStep(order[at - 1]); };
+  const another = () => { setCowId(null); setQuery(''); setWeight(''); setPrice(''); setError(''); setStep('pick'); };
+
+  const summary = cow && step !== 'pick' && step !== 'done' && step !== 'confirm'
+    ? [cow.id, perKg && kg > 0 && step !== 'how' ? `${kg} kg` : '', total > 0 && step === 'buyer' ? money(total) : ''].filter(Boolean).join(' · ')
+    : '';
 
   const title = {
     pick: 'Which animal is sold?',
-    price: `Sell ${cow?.id ?? ''}`,
+    how: `Sell ${cow?.id ?? ''}`,
+    price: 'What does the buyer pay?',
+    buyer: 'Who bought it?',
     confirm: 'Check the sale',
     done: 'Sale recorded',
   }[step];
+  const subtitle = {
+    pick: 'Choose the animal the buyer is taking.',
+    how: [cow?.breed, cow?.sex, cow?.location].filter(Boolean).join(' · '),
+    price: perKg ? 'The price for each kg.' : 'One price for the whole animal.',
+    buyer: 'Both are optional except the date.',
+    confirm: 'Once saved, the animal leaves the active herd.',
+    done: 'It is in the sales list.',
+  }[step];
 
   return (
-    <DialogContent className="max-w-md">
-      <DialogHeader>
-        <DialogTitle className="text-2xl font-semibold text-ink">{title}</DialogTitle>
-        <DialogDescription className="text-base text-ink-muted">
-          {step === 'pick' && 'Choose the animal the buyer is taking.'}
-          {step === 'price' && [cow?.breed, cow?.sex, cow?.location].filter(Boolean).join(' · ')}
-          {step === 'confirm' && 'Once saved, the animal leaves the active herd.'}
-          {step === 'done' && 'It is in the sales list.'}
-        </DialogDescription>
-      </DialogHeader>
-
+    <FlowShell
+      steps={steps}
+      step={step}
+      title={title}
+      subtitle={subtitle}
+      summary={summary}
+      error={error}
+      onSubmit={step === 'pick' || step === 'done' ? undefined : next}
+      footer={step === 'pick' || step === 'done' ? null : (
+        <FlowFooter onBack={at === 0 ? undefined : back} label={step === 'confirm' ? (saving ? 'Saving…' : 'Record sale') : 'Next'} busy={saving} />
+      )}
+    >
       {step === 'pick' && (
-        <div className="space-y-3">
+        <>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
-            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search tag number" aria-label="Search tag number" className="pl-10" />
+            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search tag number" aria-label="Search tag number" className="h-14 pl-10 text-lg" />
           </div>
-          <ul className="max-h-[50vh] space-y-2 overflow-y-auto">
+          <ul className="space-y-3 pb-2">
             {list.map(c => (
               <li key={c.id}>
-                <button
-                  type="button"
-                  onClick={() => choose(c)}
-                  className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-200 bg-white px-4 py-2 text-left hover:border-emerald-600"
-                >
+                <RowButton onClick={() => choose(c)}>
                   <span>
-                    <span className="block text-lg font-semibold text-ink">{c.id}</span>
-                    <span className="block text-sm text-ink-muted">{[c.sex, c.breed].filter(Boolean).join(' · ')}</span>
+                    <span className="block text-xl font-semibold text-ink">{c.id}</span>
+                    <span className="block text-base text-ink-muted">{[c.sex, c.breed].filter(Boolean).join(' · ')}</span>
                   </span>
-                  <span className="text-base font-medium text-ink">{c.weight ? `${c.weight} kg` : '—'}</span>
-                </button>
+                  <span className="text-lg font-medium text-ink">{c.weight ? `${c.weight} kg` : '—'}</span>
+                </RowButton>
               </li>
             ))}
-            {list.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-base text-ink-muted">No animal with that tag.</li>}
+            {list.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">No animal with that tag.</li>}
           </ul>
-        </div>
+        </>
       )}
 
-      {step === 'price' && cow && (
-        <div className="space-y-4">
-          <div>
-            <p className="mb-1 text-base font-medium text-ink">How is the price set?</p>
-            <div className="flex flex-wrap gap-2">
-              {[{ v: true, t: 'Price per kg' }, { v: false, t: 'One price for the animal' }].map(o => (
-                <button
-                  key={o.t}
-                  type="button"
-                  aria-pressed={perKg === o.v}
-                  onClick={() => { setPerKg(o.v); setError(''); }}
-                  className={`min-h-12 rounded-xl border-2 px-4 text-base font-medium ${perKg === o.v ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-ink'}`}
-                >
-                  {o.t}
-                </button>
-              ))}
+      {step === 'how' && cow && (
+        <>
+          <Question label="How is the price set?">
+            <div className="flex flex-wrap gap-3">
+              <Choice selected={perKg} onClick={() => { setPerKg(true); setError(''); }}>Price per kg</Choice>
+              <Choice selected={!perKg} onClick={() => { setPerKg(false); setError(''); }}>One price for the animal</Choice>
             </div>
-          </div>
-
+          </Question>
           {perKg && (
-            <div>
-              <label htmlFor="sell-kg" className="mb-1 block text-base font-medium text-ink">Weight on the scale (kg)</label>
-              <Input id="sell-kg" type="number" inputMode="decimal" value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className="h-14 text-xl font-semibold" />
-              {cow.weight ? <p className="mt-1 text-sm text-ink-muted">Last weight: {cow.weight} kg</p> : null}
-            </div>
+            <Question label="Weight on the scale (kg)" hint={cow.weight ? `Last weight: ${cow.weight} kg` : undefined}>
+              <Input aria-label="Weight on the scale in kg" type="number" inputMode="decimal" value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+            </Question>
           )}
+        </>
+      )}
 
-          <div>
-            <label htmlFor="sell-price" className="mb-1 block text-base font-medium text-ink">{perKg ? 'Price for each kg (៛)' : 'Price the buyer pays (៛)'}</label>
-            <Input id="sell-price" type="number" inputMode="numeric" autoFocus value={price} onChange={e => { setPrice(e.target.value); setError(''); }} className="h-14 text-xl font-semibold" />
-          </div>
-
-          <p className="rounded-xl bg-slate-50 p-3 text-base text-ink">
+      {step === 'price' && (
+        <Question label={perKg ? 'Price for each kg (៛)' : 'Price the buyer pays (៛)'}>
+          <Input aria-label="Price" type="number" inputMode="numeric" autoFocus value={price} onChange={e => { setPrice(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+          <p className="mt-3 rounded-xl bg-slate-50 p-3 text-lg text-ink">
             Total: <span className="font-semibold">{money(total > 0 ? total : 0)}</span>
+            {perKg && kg > 0 && unit > 0 && <span className="text-ink-muted"> ({kg} kg × {money(unit)})</span>}
           </p>
+        </Question>
+      )}
 
-          <div>
-            <label htmlFor="sell-buyer" className="mb-1 block text-base font-medium text-ink">Buyer (optional)</label>
-            <Input id="sell-buyer" value={buyer} onChange={e => setBuyer(e.target.value)} />
-          </div>
-          <div>
-            <label htmlFor="sell-date" className="mb-1 block text-base font-medium text-ink">Date sold</label>
-            <Input id="sell-date" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} />
-          </div>
-        </div>
+      {step === 'buyer' && (
+        <>
+          <Question label="Buyer (optional)"><Input aria-label="Buyer" value={buyer} onChange={e => setBuyer(e.target.value)} className="h-14 text-lg" /></Question>
+          <Question label="Date sold"><Input aria-label="Date sold" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" /></Question>
+        </>
       )}
 
       {step === 'confirm' && cow && (
-        <dl className="space-y-3 rounded-xl bg-slate-50 p-4 text-base">
-          <div className="flex justify-between"><dt className="text-ink-muted">Animal</dt><dd className="font-semibold text-ink">{cow.id}</dd></div>
-          {perKg && <div className="flex justify-between"><dt className="text-ink-muted">Weight</dt><dd className="font-semibold text-ink">{kg} kg × {money(unit)}</dd></div>}
-          <div className="flex justify-between"><dt className="text-ink-muted">Buyer</dt><dd className="font-semibold text-ink">{buyer.trim() || '—'}</dd></div>
-          <div className="flex justify-between"><dt className="text-ink-muted">Date</dt><dd className="font-semibold text-ink">{date}</dd></div>
-          <div className="flex justify-between border-t border-slate-200 pt-3 text-lg"><dt className="font-medium text-ink">Sale total</dt><dd className="font-semibold text-emerald-700">{money(total)}</dd></div>
+        <dl className="space-y-4 rounded-xl bg-slate-50 p-4">
+          {[
+            ['Animal', cow.id],
+            ...(perKg ? [['Weight', `${kg} kg × ${money(unit)}`]] : []),
+            ['Buyer', buyer.trim() || '—'],
+            ['Date', date],
+          ].map(([k, v]) => (
+            <div key={k} className="flex justify-between gap-3"><dt className="text-lg text-ink-muted">{k}</dt><dd className="text-lg font-semibold text-ink">{v}</dd></div>
+          ))}
+          <div className="flex justify-between gap-3 border-t border-slate-200 pt-4"><dt className="text-xl font-medium text-ink">Sale total</dt><dd className="text-xl font-semibold text-emerald-700">{money(total)}</dd></div>
           {cost > 0 && (
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between gap-3 text-base">
               <dt className="text-ink-muted">Bought for {money(cost)}</dt>
-              <dd className={`font-medium ${total - cost < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-                {total - cost < 0 ? 'Loss' : 'Profit'} {money(Math.abs(total - cost))}
-              </dd>
+              <dd className={`font-medium ${total - cost < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{total - cost < 0 ? 'Loss' : 'Profit'} {money(Math.abs(total - cost))}</dd>
             </div>
           )}
         </dl>
       )}
 
       {step === 'done' && lastSale && (
-        <div className="space-y-5 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-            <Check className="h-9 w-9" aria-hidden />
-          </div>
-          <p className="text-xl text-ink"><span className="font-semibold">{lastSale.cowId}</span> sold for <span className="font-semibold">{money(lastSale.total)}</span></p>
-          {soldCount > 1 && <p className="text-base text-ink-muted">{soldCount} animals sold this time</p>}
-          <div className="flex flex-col gap-3">
-            <Button type="button" size="lg" onClick={another}>Sell another animal</Button>
-            <Button type="button" size="lg" variant="secondary" onClick={onClose}>I&apos;m done</Button>
-          </div>
-        </div>
+        <FlowDone
+          message={<><span className="font-semibold">{lastSale.cowId}</span> sold for <span className="font-semibold">{money(lastSale.total)}</span></>}
+          detail={soldCount > 1 ? `${soldCount} animals sold this time` : undefined}
+          again="Sell another animal"
+          onAgain={another}
+          onClose={onClose}
+        />
       )}
-
-      {error && <p role="alert" className="text-base font-medium text-rose-700">{error}</p>}
-
-      {(step === 'price' || step === 'confirm') && (
-        <div className="flex gap-3">
-          {(step === 'confirm' || !preselectedCowId) && (
-            <Button type="button" variant="secondary" size="lg" aria-label="Go back" onClick={() => { setError(''); setStep(step === 'confirm' ? 'price' : 'pick'); }}>
-              <ArrowLeft />
-            </Button>
-          )}
-          {step === 'price'
-            ? <Button type="button" size="lg" className="flex-1" onClick={review}>Next</Button>
-            : <Button type="button" size="lg" className="flex-1" onClick={sell} disabled={saving}>{saving ? 'Saving…' : 'Record sale'}</Button>}
-        </div>
-      )}
-    </DialogContent>
+    </FlowShell>
   );
 }

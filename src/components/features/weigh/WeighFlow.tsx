@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, Check, Search, TrendingDown, TrendingUp } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Search, TrendingDown, TrendingUp } from 'lucide-react';
+import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { StockItem } from '@/lib/types';
 import type { WeightRecord } from '@/lib/xlsx-parser';
 import { weighSchedules, type WeighSchedule } from '@/lib/attention';
+import { Choice, FlowDone, FlowFooter, FlowShell, NUM, Question, RowButton, today } from '../flow/FlowShell';
 
 interface WeighFlowProps {
   isOpen: boolean;
@@ -21,9 +21,7 @@ interface WeighFlowProps {
   onSave: (cowId: string, weight: number, healthStatus: string, date: string) => Promise<void>;
 }
 
-type Step = 'pick' | 'weigh' | 'done';
-
-const today = () => new Date().toISOString().split('T')[0];
+type Step = 'pick' | 'kg' | 'check' | 'done';
 
 function dueLabel(s: WeighSchedule | undefined): string {
   if (!s || s.daysElapsed === 999) return 'Never weighed';
@@ -41,11 +39,14 @@ export default function WeighFlow(props: WeighFlowProps) {
 }
 
 function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, preselectedCowId, onSave }: WeighFlowProps) {
-  const [step, setStep] = useState<Step>(preselectedCowId ? 'weigh' : 'pick');
-  const [cowId, setCowId] = useState<string | null>(preselectedCowId ?? null);
+  const known = preselectedCowId ? cattle.find(c => c.id === preselectedCowId) : undefined;
+  const statuses = healthStatuses.length ? healthStatuses : ['Good', 'Fair', 'Poor'];
+
+  const [step, setStep] = useState<Step>(known ? 'kg' : 'pick');
+  const [cowId, setCowId] = useState<string | null>(known?.id ?? null);
   const [query, setQuery] = useState('');
   const [weight, setWeight] = useState('');
-  const [health, setHealth] = useState('');
+  const [health, setHealth] = useState(known?.healthStatus || statuses[0]);
   const [date, setDate] = useState(today());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -55,11 +56,9 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
   const schedules = useMemo(() => weighSchedules({ stock: cattle, weightTracking }), [cattle, weightTracking]);
   const scheduleById = useMemo(() => new Map(schedules.map(s => [s.cowId, s])), [schedules]);
   const cowById = useMemo(() => new Map(cattle.map(c => [c.id, c])), [cattle]);
-
   const cow = cowId ? cowById.get(cowId) : undefined;
-  const statuses = healthStatuses.length ? healthStatuses : ['Good', 'Fair', 'Poor'];
 
-  // Animals still to weigh come first; those already done recently go last.
+  // Animals still to weigh come first; those done recently only show when searched for.
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     return schedules
@@ -68,20 +67,20 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
       .filter(c => c && (!q || c.id.toLowerCase().includes(q) || c.breed?.toLowerCase().includes(q)));
   }, [schedules, cowById, query]);
 
+  const steps: Step[] = known ? ['kg', 'check'] : ['pick', 'kg', 'check'];
+  const kg = Number(weight);
+  const change = cow && kg > 0 && cow.weight ? Math.round((kg - cow.weight) * 10) / 10 : null;
+
   const choose = (c: StockItem) => {
     setCowId(c.id);
     setHealth(c.healthStatus || statuses[0]);
     setWeight('');
     setError('');
-    setStep('weigh');
+    setStep('kg');
   };
-
-  const kg = Number(weight);
-  const change = cow && kg > 0 && cow.weight ? kg - cow.weight : null;
 
   const save = async () => {
     if (!cow) return;
-    if (!(kg > 0)) { setError('Type the weight in kg.'); return; }
     setSaving(true);
     setError('');
     try {
@@ -96,153 +95,111 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
     }
   };
 
-  const another = () => {
-    setCowId(null);
-    setQuery('');
-    setWeight('');
-    setError('');
-    setStep('pick');
+  const next = () => {
+    if (step === 'kg') {
+      if (!(kg > 0)) { setError('Type the weight in kg.'); return; }
+      setError('');
+      setStep('check');
+    } else if (step === 'check') save();
   };
 
-  return (
-    <DialogContent className="max-w-md">
-      <DialogHeader>
-        <DialogTitle className="text-2xl font-semibold text-ink">
-          {step === 'pick' && 'Which animal?'}
-          {step === 'weigh' && `Weigh ${cow?.id ?? ''}`}
-          {step === 'done' && 'Saved'}
-        </DialogTitle>
-        <DialogDescription className="text-base text-ink-muted">
-          {step === 'pick' && 'Animals due for weighing are at the top.'}
-          {step === 'weigh' && [cow?.breed, cow?.location].filter(Boolean).join(' · ')}
-          {step === 'done' && 'The weight is on the record.'}
-        </DialogDescription>
-      </DialogHeader>
+  const back = () => { setError(''); setStep(step === 'check' ? 'kg' : 'pick'); };
 
+  const another = () => { setCowId(null); setQuery(''); setWeight(''); setError(''); setStep('pick'); };
+
+  const summary = cow && step !== 'done' && step !== 'pick'
+    ? [cow.id, kg > 0 && step === 'check' ? `${kg} kg` : ''].filter(Boolean).join(' · ')
+    : '';
+
+  const title = { pick: 'Which animal?', kg: `Weigh ${cow?.id ?? ''}`, check: 'How does it look?', done: 'Saved' }[step];
+  const subtitle = {
+    pick: 'Animals due for weighing are at the top.',
+    kg: [cow?.breed, cow?.location].filter(Boolean).join(' · '),
+    check: 'Pick one, then save.',
+    done: 'The weight is on the record.',
+  }[step];
+
+  return (
+    <FlowShell
+      steps={steps}
+      step={step}
+      title={title}
+      subtitle={subtitle}
+      summary={summary && step === 'check' ? summary : ''}
+      error={error}
+      onSubmit={step === 'pick' || step === 'done' ? undefined : next}
+      footer={step === 'kg' || step === 'check'
+        ? <FlowFooter onBack={step === 'kg' && known ? undefined : back} label={step === 'check' ? (saving ? 'Saving…' : 'Save weight') : 'Next'} busy={saving} />
+        : null}
+    >
       {step === 'pick' && (
-        <div className="space-y-3">
+        <>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
-            <Input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search tag number"
-              aria-label="Search tag number"
-              className="pl-10"
-            />
+            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search tag number" aria-label="Search tag number" className="h-14 pl-10 text-lg" />
           </div>
-          <ul className="max-h-[50vh] space-y-2 overflow-y-auto">
+          <ul className="space-y-3 pb-2">
             {list.map(c => {
               const s = scheduleById.get(c.id);
               return (
                 <li key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => choose(c)}
-                    className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-200 bg-white px-4 py-2 text-left hover:border-emerald-600"
-                  >
+                  <RowButton onClick={() => choose(c)}>
                     <span>
-                      <span className="block text-lg font-semibold text-ink">{c.id}</span>
-                      <span className="block text-sm text-ink-muted">{[c.breed, c.weight ? `${c.weight} kg` : null].filter(Boolean).join(' · ')}</span>
+                      <span className="block text-xl font-semibold text-ink">{c.id}</span>
+                      <span className="block text-base text-ink-muted">{[c.breed, c.weight ? `${c.weight} kg` : null].filter(Boolean).join(' · ')}</span>
                     </span>
-                    <span className={`text-sm font-medium ${s?.status === 'overdue' ? 'text-rose-700' : 'text-ink-muted'}`}>
-                      {dueLabel(s)}
-                    </span>
-                  </button>
+                    <span className={`text-base font-medium ${s?.status === 'overdue' ? 'text-rose-700' : 'text-ink-muted'}`}>{dueLabel(s)}</span>
+                  </RowButton>
                 </li>
               );
             })}
             {list.length === 0 && (
-              <li className="rounded-xl bg-slate-50 p-4 text-center text-base text-ink-muted">
+              <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">
                 {query ? 'No animal with that tag.' : 'Everyone has been weighed recently. Type a tag to weigh one anyway.'}
               </li>
             )}
           </ul>
-        </div>
+        </>
       )}
 
-      {step === 'weigh' && cow && (
-        <div className="space-y-5">
-          <div>
-            <label htmlFor="weigh-kg" className="mb-1 block text-base font-medium text-ink">Weight (kg)</label>
-            <Input
-              id="weigh-kg"
-              type="number"
-              inputMode="decimal"
-              autoFocus
-              value={weight}
-              onChange={e => { setWeight(e.target.value); setError(''); }}
-              onKeyDown={e => { if (e.key === 'Enter') save(); }}
-              className="h-16 text-center text-3xl font-semibold"
-            />
-            <p className="mt-2 text-base text-ink-muted">
-              {cow.weight ? `Last weight: ${cow.weight} kg` : 'No earlier weight on record'}
-              {change !== null && (
-                <span className={`ml-2 inline-flex items-center gap-1 font-medium ${change < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-                  {change < 0 ? <TrendingDown className="h-4 w-4" aria-hidden /> : <TrendingUp className="h-4 w-4" aria-hidden />}
-                  {change > 0 ? '+' : ''}{Math.round(change * 10) / 10} kg
-                </span>
-              )}
-            </p>
-          </div>
-
-          <div>
-            <p className="mb-2 text-base font-medium text-ink">How does it look?</p>
-            <div className="flex flex-wrap gap-2">
-              {statuses.map(h => (
-                <button
-                  key={h}
-                  type="button"
-                  onClick={() => setHealth(h)}
-                  aria-pressed={health === h}
-                  className={`min-h-12 rounded-xl border-2 px-4 text-base font-medium ${health === h ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-ink'}`}
-                >
-                  {h}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="weigh-date" className="mb-1 block text-base font-medium text-ink">Date</label>
-            <Input id="weigh-date" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} />
-          </div>
-
-          {error && <p role="alert" className="text-base font-medium text-rose-700">{error}</p>}
-
-          <div className="flex gap-3">
-            {!preselectedCowId && (
-              <Button type="button" variant="secondary" size="lg" onClick={another} aria-label="Back to the list">
-                <ArrowLeft />
-              </Button>
-            )}
-            <Button type="button" size="lg" className="flex-1" onClick={save} disabled={saving}>
-              {saving ? 'Saving…' : 'Save weight'}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {step === 'done' && lastSaved && (
-        <div className="space-y-5 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-            <Check className="h-9 w-9" aria-hidden />
-          </div>
-          <p className="text-xl text-ink">
-            <span className="font-semibold">{lastSaved.cowId}</span> weighs <span className="font-semibold">{lastSaved.weight} kg</span>
-            {lastSaved.change !== null && (
-              <span className="block text-base text-ink-muted">
-                {lastSaved.change >= 0 ? 'Up' : 'Down'} {Math.abs(Math.round(lastSaved.change * 10) / 10)} kg since last time
+      {step === 'kg' && cow && (
+        <Question label="Weight (kg)">
+          <Input aria-label="Weight in kg" type="number" inputMode="decimal" autoFocus value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
+          <p className="mt-3 text-lg text-ink-muted">
+            {cow.weight ? `Last weight: ${cow.weight} kg` : 'No earlier weight on record'}
+            {change !== null && (
+              <span className={`ml-2 inline-flex items-center gap-1 font-medium ${change < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                {change < 0 ? <TrendingDown className="h-5 w-5" aria-hidden /> : <TrendingUp className="h-5 w-5" aria-hidden />}
+                {change > 0 ? '+' : ''}{change} kg
               </span>
             )}
           </p>
-          {savedCount > 1 && <p className="text-base text-ink-muted">{savedCount} animals weighed this time</p>}
-          <div className="flex flex-col gap-3">
-            <Button type="button" size="lg" onClick={another}>Weigh another animal</Button>
-            <Button type="button" size="lg" variant="secondary" onClick={onClose}>I&apos;m done</Button>
-          </div>
-        </div>
+        </Question>
       )}
-    </DialogContent>
+
+      {step === 'check' && (
+        <>
+          <Question label="Health">
+            <div className="flex flex-wrap gap-3">{statuses.map(h => <Choice key={h} selected={health === h} onClick={() => setHealth(h)}>{h}</Choice>)}</div>
+          </Question>
+          <Question label="Date weighed">
+            <Input aria-label="Date weighed" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" />
+          </Question>
+        </>
+      )}
+
+      {step === 'done' && lastSaved && (
+        <FlowDone
+          message={<><span className="font-semibold">{lastSaved.cowId}</span> weighs <span className="font-semibold">{lastSaved.weight} kg</span></>}
+          detail={<>
+            {lastSaved.change !== null && <span className="block">{lastSaved.change >= 0 ? 'Up' : 'Down'} {Math.abs(lastSaved.change)} kg since last time</span>}
+            {savedCount > 1 && <span className="block">{savedCount} animals weighed this time</span>}
+          </>}
+          again="Weigh another animal"
+          onAgain={another}
+          onClose={onClose}
+        />
+      )}
+    </FlowShell>
   );
 }

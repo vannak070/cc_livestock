@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, Camera, Check } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Camera } from 'lucide-react';
+import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { MasterSetup, StockItem, UserRoleItem } from '@/lib/types';
+import { Choice, FlowDone, FlowFooter, FlowShell, NUM, Question, money as fmtMoney, today } from '../flow/FlowShell';
 
 export type NewCattle = Omit<StockItem, 'no' | 'status'> & { imageUrl?: string };
 
@@ -19,9 +20,8 @@ interface AddCattleFlowProps {
   onSave: (cow: NewCattle) => Promise<void>;
 }
 
-type Step = 'origin' | 'details' | 'price' | 'review' | 'done';
+type Step = 'origin' | 'tag' | 'kind' | 'where' | 'price' | 'review' | 'done';
 
-const today = () => new Date().toISOString().split('T')[0];
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 // Plain wording for the stored purchase types; unknown ones show as typed.
@@ -43,29 +43,6 @@ export default function AddCattleFlow(props: AddCattleFlowProps) {
   );
 }
 
-function Choice({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={`min-h-12 rounded-xl border-2 px-4 text-base font-medium ${selected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-ink'}`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Field({ label, htmlFor, hint, children }: { label: string; htmlFor?: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label htmlFor={htmlFor} className="mb-1 block text-base font-medium text-ink">{label}</label>
-      {children}
-      {hint && <p className="mt-1 text-sm text-ink-muted">{hint}</p>}
-    </div>
-  );
-}
-
 function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }: AddCattleFlowProps) {
   const lockedFarm = currentUser?.farmLocation && !['Super Admin', 'Admin', 'Company'].includes(currentUser.role)
     ? currentUser.farmLocation
@@ -76,6 +53,8 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }:
   );
   const origins = common.purchaseTypes?.length ? common.purchaseTypes : Object.keys(ORIGIN_TEXT);
   const sexes = common.sexes?.length ? common.sexes : ['Male', 'Female'];
+  const breeds = common.breeds ?? [];
+  const payments = (common.paymentMethods ?? []).filter(p => p !== 'N/A');
   const healthStatuses = common.healthStatuses?.length ? common.healthStatuses : ['Good', 'Fair', 'Poor'];
   const perKgType = common.buyTypes?.find(b => b === 'Weight') ?? 'Weight';
   const wholeType = common.buyTypes?.find(b => b !== 'Weight' && !ORIGIN_TEXT[b]) ?? 'Lumsum';
@@ -83,15 +62,16 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }:
   const [step, setStep] = useState<Step>('origin');
   const [origin, setOrigin] = useState('');
   const [tag, setTag] = useState('CC-');
-  const [sex, setSex] = useState(sexes[0]);
-  const [breed, setBreed] = useState(common.breeds?.[0] ?? '');
   const [weight, setWeight] = useState('');
+  // Sex, breed and payment start empty on purpose: a default could be saved unnoticed.
+  const [sex, setSex] = useState('');
+  const [breed, setBreed] = useState('');
   const [age, setAge] = useState('');
   const [date, setDate] = useState(today());
   const [farm, setFarm] = useState(lockedFarm ?? (farmNames.length === 1 ? farmNames[0] : ''));
   const [buyType, setBuyType] = useState(wholeType);
   const [price, setPrice] = useState('');
-  const [payment, setPayment] = useState(common.paymentMethods?.[0] ?? '');
+  const [payment, setPayment] = useState('');
   const [seller, setSeller] = useState('');
   const [phone, setPhone] = useState('');
   const [health, setHealth] = useState(healthStatuses[0]);
@@ -103,41 +83,46 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }:
   const [lastTag, setLastTag] = useState('');
 
   const paid = PAID_ORIGINS.includes(origin);
+  const steps: Step[] = paid ? ['origin', 'tag', 'kind', 'where', 'price', 'review'] : ['origin', 'tag', 'kind', 'where', 'review'];
+  const stepIndex = steps.indexOf(step);
   const kg = Number(weight);
   const unit = Number(price) || 0;
   const total = paid ? (buyType === perKgType ? kg * unit : unit) : 0;
-  const money = (n: number) => `៛ ${Math.round(n).toLocaleString()}`;
+  const money = fmtMoney;
 
   const fail = (msg: string) => { setError(msg); return false; };
 
-  const checkDetails = () => {
-    const id = tag.trim();
-    if (id.length <= 3) return fail('Type the tag number after CC-, for example CC-204.');
-    if (existingCattle.some(c => c.id.toLowerCase() === id.toLowerCase())) return fail(`${id} is already on the farm. Check the tag number.`);
-    if (!(kg > 0)) return fail('Type the weight in kg.');
-    if (!farm) return fail('Choose which farm the animal is on.');
-    if (!date) return fail('Choose the date it arrived.');
-    return true;
+  const valid: Record<string, () => boolean> = {
+    tag: () => {
+      const id = tag.trim();
+      if (id.length <= 3) return fail('Type the tag number after CC-, for example CC-204.');
+      if (existingCattle.some(c => c.id.toLowerCase() === id.toLowerCase())) return fail(`${id} is already on the farm. Check the tag number.`);
+      if (!(kg > 0)) return fail('Type the weight in kg.');
+      return true;
+    },
+    kind: () => {
+      if (!sex) return fail('Choose male or female.');
+      if (breeds.length > 0 && !breed) return fail('Choose the breed.');
+      return true;
+    },
+    where: () => {
+      if (!farm) return fail('Choose which farm the animal is on.');
+      if (!date) return fail('Choose the date it arrived.');
+      return true;
+    },
+    price: () => {
+      if (!(unit > 0)) return fail(buyType === perKgType ? 'Type the price for each kg.' : 'Type the price paid.');
+      if (origin === 'Purchase' && payments.length > 0 && !payment) return fail('Choose how it was paid.');
+      return true;
+    },
   };
 
-  const checkPrice = () => {
-    if (paid && !(unit > 0)) return fail(buyType === perKgType ? 'Type the price for each kg.' : 'Type the price paid.');
-    return true;
-  };
-
+  const go = (to: Step) => { setError(''); setStep(to); };
   const next = () => {
-    setError('');
-    if (step === 'origin') { if (!origin) return fail('Choose where the animal came from.'); setStep('details'); }
-    else if (step === 'details') { if (checkDetails()) setStep(paid ? 'price' : 'review'); }
-    else if (step === 'price') { if (checkPrice()) setStep('review'); }
+    if (valid[step] && !valid[step]()) return;
+    go(steps[stepIndex + 1]);
   };
-
-  const back = () => {
-    setError('');
-    if (step === 'details') setStep('origin');
-    else if (step === 'price') setStep('details');
-    else if (step === 'review') setStep(paid ? 'price' : 'details');
-  };
+  const back = () => go(steps[stepIndex - 1]);
 
   const onPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -151,7 +136,6 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }:
   const register = async () => {
     setSaving(true);
     setError('');
-    const born = origin === 'Born in Farm';
     try {
       await onSave({
         id: tag.trim(),
@@ -159,7 +143,7 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }:
         sex,
         age: age.trim() || 'N/A',
         weight: kg,
-        ownerName: born ? 'SNR Farm' : seller.trim(),
+        ownerName: origin === 'Born in Farm' ? 'SNR Farm' : seller.trim(),
         location: farm,
         phone: paid && phone.trim() ? phone.trim() : 'N/A',
         buyType: paid ? buyType : wholeType,
@@ -182,184 +166,176 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, onSave }:
     }
   };
 
-  // Keeps the origin, farm and date so a group arriving together is quick to enter.
+  // Keeps origin, farm, date and price type so a group arriving together is quick to enter.
   const addAnother = () => {
     setTag('CC-');
     setWeight('');
+    setSex('');
+    setBreed('');
     setAge('');
-    setPrice(paid && buyType === wholeType ? price : '');
     setNote('');
     setPhoto(null);
     setHealth(healthStatuses[0]);
-    setError('');
-    setStep('details');
+    go('tag');
   };
 
-  const stepNo = { origin: 1, details: 2, price: 3, review: paid ? 4 : 3, done: 0 }[step];
-  const stepTotal = paid ? 4 : 3;
-  const title = {
-    origin: 'Where did it come from?',
-    details: 'About the animal',
-    price: 'What was paid?',
-    review: 'Check and save',
-    done: 'Cattle added',
-  }[step];
+  const heading: Record<Step, { title: string; sub: string }> = {
+    origin: { title: 'Where did it come from?', sub: 'Choose one.' },
+    tag: { title: 'Tag and weight', sub: 'Read the ear tag and the scale.' },
+    kind: { title: 'What kind of animal?', sub: 'Tap one answer in each row.' },
+    where: { title: 'Where is it?', sub: 'Which farm, and when it arrived.' },
+    price: { title: 'What was paid?', sub: 'The price from the seller.' },
+    review: { title: 'Check and save', sub: 'Look it over, then save.' },
+    done: { title: 'Cattle added', sub: 'It is now in the cattle list.' },
+  };
+
+  // What has been entered so far, so the person always sees what they are adding.
+  const summary = [tag.trim().length > 3 ? tag.trim() : '', kg > 0 ? `${kg} kg` : '', sex, step === 'review' || step === 'where' || step === 'price' ? breed : '']
+    .filter(Boolean).join(' · ');
 
   return (
-    <DialogContent className="max-w-md">
-      <DialogHeader>
-        <DialogTitle className="text-2xl font-semibold text-ink">{title}</DialogTitle>
-        <DialogDescription className="text-base text-ink-muted">
-          {step === 'done' ? 'It is now in the cattle list.' : `Step ${stepNo} of ${stepTotal}`}
-        </DialogDescription>
-      </DialogHeader>
-
-      {step === 'origin' && (
-        <ul className="space-y-2">
-          {origins.map(o => (
-            <li key={o}>
-              <button
-                type="button"
-                onClick={() => { setOrigin(o); setError(''); setStep('details'); }}
-                className={`flex min-h-14 w-full flex-col items-start justify-center rounded-xl border-2 px-4 py-2 text-left hover:border-emerald-600 ${origin === o ? 'border-emerald-600' : 'border-slate-200'}`}
-              >
-                <span className="text-lg font-semibold text-ink">{ORIGIN_TEXT[o]?.title ?? o}</span>
-                {ORIGIN_TEXT[o] && <span className="text-sm text-ink-muted">{ORIGIN_TEXT[o].hint}</span>}
-              </button>
-            </li>
-          ))}
-        </ul>
+    <FlowShell
+      steps={steps}
+      step={step}
+      title={heading[step].title}
+      subtitle={heading[step].sub}
+      summary={step !== 'done' && step !== 'review' ? summary : ''}
+      error={error}
+      onSubmit={step === 'origin' || step === 'done' ? undefined : () => (step === 'review' ? register() : next())}
+      footer={step === 'origin' || step === 'done' ? null : (
+        <FlowFooter onBack={back} label={step === 'review' ? (saving ? 'Saving…' : 'Save cattle') : 'Next'} busy={saving} />
       )}
-
-      {step === 'details' && (
-        <div className="space-y-4">
-          <Field label="Tag number" htmlFor="add-tag" hint="The number on the ear tag, for example CC-204.">
-            <Input id="add-tag" value={tag} onChange={e => { setTag(e.target.value); setError(''); }} autoFocus className="h-14 text-xl font-semibold" />
-          </Field>
-          <Field label="Weight (kg)" htmlFor="add-weight">
-            <Input id="add-weight" type="number" inputMode="decimal" value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className="h-14 text-xl font-semibold" />
-          </Field>
-          <div>
-            <p className="mb-1 text-base font-medium text-ink">Sex</p>
-            <div className="flex flex-wrap gap-2">{sexes.map(s => <Choice key={s} selected={sex === s} onClick={() => setSex(s)}>{s}</Choice>)}</div>
-          </div>
-          {common.breeds?.length > 0 && (
-            <div>
-              <p className="mb-1 text-base font-medium text-ink">Breed</p>
-              <div className="flex flex-wrap gap-2">{common.breeds.map(b => <Choice key={b} selected={breed === b} onClick={() => setBreed(b)}>{b}</Choice>)}</div>
-            </div>
+    >
+          {step === 'origin' && (
+            <ul className="space-y-3">
+              {origins.map(o => (
+                <li key={o}>
+                  <button
+                    type="button"
+                    onClick={() => { setOrigin(o); go('tag'); }}
+                    className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600"
+                  >
+                    <span className="text-xl font-semibold text-ink">{ORIGIN_TEXT[o]?.title ?? o}</span>
+                    {ORIGIN_TEXT[o] && <span className="text-base text-ink-muted">{ORIGIN_TEXT[o].hint}</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
-          {lockedFarm ? (
-            <p className="text-base text-ink-muted">Farm: <span className="font-medium text-ink">{lockedFarm}</span></p>
-          ) : (
-            <div>
-              <p className="mb-1 text-base font-medium text-ink">Farm</p>
-              <div className="flex flex-wrap gap-2">{farmNames.map(f => <Choice key={f} selected={farm === f} onClick={() => setFarm(f)}>{f}</Choice>)}</div>
-            </div>
+
+          {step === 'tag' && (
+            <>
+              <Question label="Tag number" hint="The number on the ear tag, for example CC-204.">
+                <Input aria-label="Tag number" value={tag} onChange={e => { setTag(e.target.value); setError(''); }} autoFocus className="h-16 text-2xl font-semibold" />
+              </Question>
+              <Question label="Weight (kg)">
+                <Input aria-label="Weight in kg" type="number" inputMode="decimal" value={weight} onChange={e => { setWeight(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+              </Question>
+            </>
           )}
-          <Field label="Age (if you know it)" htmlFor="add-age">
-            <Input id="add-age" value={age} onChange={e => setAge(e.target.value)} placeholder="for example 18 months" />
-          </Field>
-          <Field label="Date it arrived" htmlFor="add-date">
-            <Input id="add-date" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} />
-          </Field>
-        </div>
-      )}
 
-      {step === 'price' && (
-        <div className="space-y-4">
-          <div>
-            <p className="mb-1 text-base font-medium text-ink">How was the price set?</p>
-            <div className="flex flex-wrap gap-2">
-              <Choice selected={buyType === wholeType} onClick={() => setBuyType(wholeType)}>One price for the animal</Choice>
-              <Choice selected={buyType === perKgType} onClick={() => setBuyType(perKgType)}>Price per kg</Choice>
-            </div>
-          </div>
-          <Field label={buyType === perKgType ? 'Price for each kg (៛)' : 'Price paid (៛)'} htmlFor="add-price">
-            <Input id="add-price" type="number" inputMode="numeric" value={price} onChange={e => { setPrice(e.target.value); setError(''); }} autoFocus className="h-14 text-xl font-semibold" />
-          </Field>
-          <p className="rounded-xl bg-slate-50 p-3 text-base text-ink">
-            Total: <span className="font-semibold">{money(total)}</span>
-            {buyType === perKgType && kg > 0 && <span className="text-ink-muted"> ({kg} kg × {money(unit)})</span>}
-          </p>
-          {origin === 'Purchase' && common.paymentMethods?.length > 0 && (
-            <div>
-              <p className="mb-1 text-base font-medium text-ink">How was it paid?</p>
-              <div className="flex flex-wrap gap-2">{common.paymentMethods.filter(p => p !== 'N/A').map(p => <Choice key={p} selected={payment === p} onClick={() => setPayment(p)}>{p}</Choice>)}</div>
-            </div>
+          {step === 'kind' && (
+            <>
+              <Question label="Sex">
+                <div className="flex flex-wrap gap-3">{sexes.map(s => <Choice key={s} selected={sex === s} onClick={() => { setSex(s); setError(''); }}>{s}</Choice>)}</div>
+              </Question>
+              {breeds.length > 0 && (
+                <Question label="Breed">
+                  <div className="flex flex-wrap gap-3">{breeds.map(b => <Choice key={b} selected={breed === b} onClick={() => { setBreed(b); setError(''); }}>{b}</Choice>)}</div>
+                </Question>
+              )}
+              <Question label="Age (if you know it)">
+                <Input aria-label="Age" value={age} onChange={e => setAge(e.target.value)} placeholder="for example 18 months" />
+              </Question>
+            </>
           )}
-          <Field label="Seller name (optional)" htmlFor="add-seller">
-            <Input id="add-seller" value={seller} onChange={e => setSeller(e.target.value)} />
-          </Field>
-          <Field label="Seller phone (optional)" htmlFor="add-phone">
-            <Input id="add-phone" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} />
-          </Field>
-        </div>
-      )}
 
-      {step === 'review' && (
-        <div className="space-y-4">
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-3 rounded-xl bg-slate-50 p-4 text-base">
-            <div><dt className="text-sm text-ink-muted">Tag</dt><dd className="font-semibold text-ink">{tag.trim()}</dd></div>
-            <div><dt className="text-sm text-ink-muted">Weight</dt><dd className="font-semibold text-ink">{kg} kg</dd></div>
-            <div><dt className="text-sm text-ink-muted">Sex · Breed</dt><dd className="font-semibold text-ink">{sex} · {breed || '—'}</dd></div>
-            <div><dt className="text-sm text-ink-muted">Farm</dt><dd className="font-semibold text-ink">{farm}</dd></div>
-            <div><dt className="text-sm text-ink-muted">Came from</dt><dd className="font-semibold text-ink">{ORIGIN_TEXT[origin]?.title ?? origin}</dd></div>
-            <div><dt className="text-sm text-ink-muted">Cost</dt><dd className="font-semibold text-ink">{paid ? money(total) : 'None'}</dd></div>
-          </dl>
+          {step === 'where' && (
+            <>
+              {lockedFarm ? (
+                <Question label="Farm"><p className="rounded-xl bg-slate-50 px-4 py-3 text-lg font-medium text-ink">{lockedFarm}</p></Question>
+              ) : (
+                <Question label="Which farm?">
+                  <div className="flex flex-wrap gap-3">{farmNames.map(f => <Choice key={f} selected={farm === f} onClick={() => { setFarm(f); setError(''); }}>{f}</Choice>)}</div>
+                </Question>
+              )}
+              <Question label="Date it arrived">
+                <Input aria-label="Date it arrived" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" />
+              </Question>
+            </>
+          )}
 
-          <div>
-            <p className="mb-1 text-base font-medium text-ink">How does it look?</p>
-            <div className="flex flex-wrap gap-2">{healthStatuses.map(h => <Choice key={h} selected={health === h} onClick={() => setHealth(h)}>{h}</Choice>)}</div>
-          </div>
+          {step === 'price' && (
+            <>
+              <Question label="How was the price set?">
+                <div className="flex flex-wrap gap-3">
+                  <Choice selected={buyType === wholeType} onClick={() => setBuyType(wholeType)}>One price for the animal</Choice>
+                  <Choice selected={buyType === perKgType} onClick={() => setBuyType(perKgType)}>Price per kg</Choice>
+                </div>
+              </Question>
+              <Question label={buyType === perKgType ? 'Price for each kg (៛)' : 'Price paid (៛)'}>
+                <Input aria-label="Price" type="number" inputMode="numeric" autoFocus value={price} onChange={e => { setPrice(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+                <p className="mt-3 rounded-xl bg-slate-50 p-3 text-lg text-ink">
+                  Total: <span className="font-semibold">{money(total)}</span>
+                  {buyType === perKgType && kg > 0 && <span className="text-ink-muted"> ({kg} kg × {money(unit)})</span>}
+                </p>
+              </Question>
+              {origin === 'Purchase' && payments.length > 0 && (
+                <Question label="How was it paid?">
+                  <div className="flex flex-wrap gap-3">{payments.map(p => <Choice key={p} selected={payment === p} onClick={() => { setPayment(p); setError(''); }}>{p}</Choice>)}</div>
+                </Question>
+              )}
+              <Question label="Seller name (optional)"><Input aria-label="Seller name" value={seller} onChange={e => setSeller(e.target.value)} /></Question>
+              <Question label="Seller phone (optional)"><Input aria-label="Seller phone" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} /></Question>
+            </>
+          )}
 
-          <Field label="Note (optional)" htmlFor="add-note">
-            <Input id="add-note" value={note} onChange={e => setNote(e.target.value)} />
-          </Field>
-
-          <div>
-            <input id="add-photo" type="file" accept="image/*" capture="environment" className="sr-only" onChange={onPhoto} />
-            {photo ? (
-              <div className="flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo} alt="Cattle" className="h-16 w-16 rounded-xl object-cover" />
-                <Button type="button" variant="secondary" size="sm" onClick={() => setPhoto(null)}>Remove photo</Button>
+          {step === 'review' && (
+            <>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-xl bg-slate-50 p-4">
+                {[
+                  ['Tag', tag.trim()],
+                  ['Weight', `${kg} kg`],
+                  ['Sex', sex],
+                  ['Breed', breed || '—'],
+                  ['Farm', farm],
+                  ['Came from', ORIGIN_TEXT[origin]?.title ?? origin],
+                  ['Cost', paid ? money(total) : 'None'],
+                  ['Arrived', date],
+                ].map(([k, v]) => (
+                  <div key={k}><dt className="text-sm text-ink-muted">{k}</dt><dd className="text-lg font-semibold text-ink">{v}</dd></div>
+                ))}
+              </dl>
+              <Question label="How does it look?">
+                <div className="flex flex-wrap gap-3">{healthStatuses.map(h => <Choice key={h} selected={health === h} onClick={() => setHealth(h)}>{h}</Choice>)}</div>
+              </Question>
+              <Question label="Note (optional)"><Input aria-label="Note" value={note} onChange={e => setNote(e.target.value)} /></Question>
+              <div>
+                <input id="add-photo" type="file" accept="image/*" capture="environment" className="sr-only" onChange={onPhoto} />
+                {photo ? (
+                  <div className="flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photo} alt="Cattle" className="h-16 w-16 rounded-xl object-cover" />
+                    <Button type="button" variant="secondary" size="sm" onClick={() => setPhoto(null)}>Remove photo</Button>
+                  </div>
+                ) : (
+                  <label htmlFor="add-photo" className="flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 text-lg font-medium text-ink hover:border-emerald-600">
+                    <Camera className="h-5 w-5" aria-hidden /> Add a photo (optional)
+                  </label>
+                )}
               </div>
-            ) : (
-              <label htmlFor="add-photo" className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 text-base font-medium text-ink hover:border-emerald-600">
-                <Camera className="h-5 w-5" aria-hidden /> Add a photo (optional)
-              </label>
-            )}
-          </div>
-        </div>
-      )}
-
-      {step === 'done' && (
-        <div className="space-y-5 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-            <Check className="h-9 w-9" aria-hidden />
-          </div>
-          <p className="text-xl text-ink"><span className="font-semibold">{lastTag}</span> is registered</p>
-          {addedCount > 1 && <p className="text-base text-ink-muted">{addedCount} animals added this time</p>}
-          <div className="flex flex-col gap-3">
-            <Button type="button" size="lg" onClick={addAnother}>Add another animal</Button>
-            <Button type="button" size="lg" variant="secondary" onClick={onClose}>I&apos;m done</Button>
-          </div>
-        </div>
-      )}
-
-      {error && <p role="alert" className="text-base font-medium text-rose-700">{error}</p>}
-
-      {(step === 'details' || step === 'price' || step === 'review') && (
-        <div className="flex gap-3">
-          <Button type="button" variant="secondary" size="lg" onClick={back} aria-label="Go back"><ArrowLeft /></Button>
-          {step === 'review' ? (
-            <Button type="button" size="lg" className="flex-1" onClick={register} disabled={saving}>{saving ? 'Saving…' : 'Save cattle'}</Button>
-          ) : (
-            <Button type="button" size="lg" className="flex-1" onClick={next}>Next</Button>
+            </>
           )}
-        </div>
-      )}
-    </DialogContent>
+
+          {step === 'done' && (
+            <FlowDone
+              message={<><span className="font-semibold">{lastTag}</span> is registered</>}
+              detail={addedCount > 1 ? `${addedCount} animals added this time` : undefined}
+              again="Add another animal"
+              onAgain={addAnother}
+              onClose={onClose}
+            />
+          )}
+    </FlowShell>
   );
 }
