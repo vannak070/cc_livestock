@@ -1,3 +1,4 @@
+import { localDay } from '../lib/local-day';
 import { query } from '../config/database';
 import { BatchItem } from '../lib/types';
 import { PoolClient, QueryResultRow } from 'pg';
@@ -24,7 +25,7 @@ export class BatchRepository {
       feedingProgram: row.feeding_program || undefined,
       farmLocation: row.farm_location || undefined,
       expectedSellingPrice: row.expected_selling_price ? Number(row.expected_selling_price) : undefined,
-      sellingTargetDate: row.selling_target_date ? new Date(row.selling_target_date).toISOString().split('T')[0] : undefined,
+      sellingTargetDate: localDay(row.selling_target_date),
       saleReview: row.sale_review || undefined
     };
   }

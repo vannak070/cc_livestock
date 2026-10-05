@@ -11,6 +11,8 @@ interface SaleReviewFlowProps {
   isOpen: boolean;
   onClose: () => void;
   row: SaleReviewRow | null;
+  /** Days before the selling date a batch is flagged, shown in the reminder note. */
+  windowDays: number;
   onSave: (batchId: string, input: SaleReviewInput) => Promise<void>;
 }
 
@@ -27,7 +29,7 @@ export default function SaleReviewFlow(props: SaleReviewFlowProps) {
 
 const when = (days: number) => (days < 0 ? `${-days} days past its selling date` : days === 0 ? 'selling date is today' : `selling date in ${days} days`);
 
-function SaleReviewBody({ onClose, row, onSave }: SaleReviewFlowProps & { row: SaleReviewRow }) {
+function SaleReviewBody({ onClose, row, onSave, windowDays }: SaleReviewFlowProps & { row: SaleReviewRow }) {
   const today = farmToday();
   const [step, setStep] = useState<Step>('decide');
   const [decision, setDecision] = useState<'ready' | 'extend' | null>(null);
@@ -98,10 +100,10 @@ function SaleReviewBody({ onClose, row, onSave }: SaleReviewFlowProps & { row: S
       {step === 'details' && (
         <>
           {decision === 'extend' && (
-            <Question label="New selling date" hint={`Now: ${batch.sellingTargetDate?.slice(0, 10) ?? 'none'}`}>
+            <Question label="New selling date" hint={`Now: ${batch.sellingTargetDate?.slice(0, 10) ?? 'none'}. You will be reminded ${windowDays} days before the new date.`}>
               <div className="flex flex-wrap gap-3">
-                {[14, 30, 60].map(n => (
-                  <Choice key={n} selected={newDate === addDays(today, n)} onClick={() => { setNewDate(addDays(today, n)); setError(''); }}>In {n === 14 ? '2 weeks' : n === 30 ? '1 month' : '2 months'}</Choice>
+                {[30, 60, 90].map(n => (
+                  <Choice key={n} selected={newDate === addDays(today, n)} onClick={() => { setNewDate(addDays(today, n)); setError(''); }}>In {n / 30} {n === 30 ? 'month' : 'months'}</Choice>
                 ))}
               </div>
               <Input aria-label="New selling date" type="date" min={addDays(today, 1)} value={newDate} onChange={e => { setNewDate(e.target.value); setError(''); }} className="mt-3 h-14 text-lg" />
@@ -116,7 +118,7 @@ function SaleReviewBody({ onClose, row, onSave }: SaleReviewFlowProps & { row: S
       {step === 'done' && (
         <FlowDone
           message={decision === 'ready' ? <><span className="font-semibold">{batch.name}</span> is marked ready to sell</> : <><span className="font-semibold">{batch.name}</span> will be fed until <span className="font-semibold">{newDate}</span></>}
-          detail={decision === 'ready' ? 'Sell its cattle on the Sales page.' : 'You will be reminded 15 days before the new date.'}
+          detail={decision === 'ready' ? 'Sell its cattle on the Sales page.' : `You will be reminded ${windowDays} days before the new date.`}
           again="Review another batch"
           onAgain={onClose}
           onClose={onClose}

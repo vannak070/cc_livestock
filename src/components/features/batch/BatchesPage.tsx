@@ -10,6 +10,10 @@ import BatchFlow from './BatchFlow';
 import AddToBatchFlow from './AddToBatchFlow';
 import WeighGroupFlow, { type GroupWeight } from './WeighGroupFlow';
 import BatchDetailPage from './BatchDetailPage';
+import SaleReviewPanel from './SaleReviewPanel';
+import SaleReviewFlow from './SaleReviewFlow';
+import { saleReviewCounts, saleReviewRows, saleWindowDays, type SaleReviewInput, type SaleReviewRow } from '@/lib/sale-review';
+import { FarmSelect } from '@/components/ui/listbox-select';
 
 interface BatchesPageProps {
   data: ERPLivestockData;
@@ -23,18 +27,22 @@ interface BatchesPageProps {
   onTreatGroup: (cowIds: string[]) => void;
   onMoveBatchFarm?: (batchId: string, farm: string, moveCattle: boolean) => Promise<void>;
   onMoveCow?: (cowId: string, fromBatchId: string, toBatchId: string) => Promise<void>;
+  /** Saves management's decision on a batch near its selling date. */
+  onReviewBatch?: (batchId: string, input: SaleReviewInput) => Promise<void>;
+  /** Which view to start on, for example when an alert links to the sale review. */
+  initialShow?: Show;
   currentUser?: UserRoleItem;
   farms?: FarmItem[];
 }
 
-type Show = 'Active' | 'Closed' | 'All';
+export type Show = 'Active' | 'Closed' | 'All' | 'Review';
 
-const SELECT = 'h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-base text-ink focus:border-emerald-600 focus:outline-none';
 const riel = (n: number) => `${Math.round(n).toLocaleString()} ៛`;
 
-export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemoveCow, onUpdateBatch, onRecordBatchWeights, onDeleteBatch, onTreatGroup, onMoveBatchFarm, onMoveCow, currentUser, farms = [] }: BatchesPageProps) {
+export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemoveCow, onUpdateBatch, onRecordBatchWeights, onDeleteBatch, onTreatGroup, onMoveBatchFarm, onMoveCow, onReviewBatch, initialShow, currentUser, farms = [] }: BatchesPageProps) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const [show, setShow] = useState<Show>('Active');
+  const [show, setShow] = useState<Show>(initialShow ?? 'Active');
+  const [reviewing, setReviewing] = useState<SaleReviewRow | null>(null);
   const [farm, setFarm] = useState('');
   const [flow, setFlow] = useState<null | { kind: 'start' } | { kind: 'edit'; batchId: string } | { kind: 'add'; batchId: string } | { kind: 'weigh'; batchId: string }>(null);
 
@@ -51,9 +59,12 @@ export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemov
   }, [data.batches, data.stock, effectiveFarm]);
 
   const free = useMemo(() => unassignedCattle(data.stock, data.batches), [data.stock, data.batches]);
-  const counts = { Active: visible.filter(b => b.status === 'Active').length, Closed: visible.filter(b => b.status !== 'Active').length, All: visible.length };
+  const windowDays = saleWindowDays(data.settings);
+  const reviewRows = useMemo(() => saleReviewRows(visible, data.stock, data.weightTracking, products, new Date(), windowDays), [visible, data.stock, data.weightTracking, products, windowDays]);
+  const canReview = !!onReviewBatch && hasPermission(currentUser, 'batch_review');
+  const counts = { Active: visible.filter(b => b.status === 'Active').length, Closed: visible.filter(b => b.status !== 'Active').length, All: visible.length, Review: saleReviewCounts(reviewRows).toReview };
   const list = visible
-    .filter(b => show === 'All' || (show === 'Active' ? b.status === 'Active' : b.status !== 'Active'))
+    .filter(b => show === 'Review' || show === 'All' || (show === 'Active' ? b.status === 'Active' : b.status !== 'Active'))
     .sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''));
 
   const opened = openId ? data.batches.find(b => b.id === openId) : undefined;
@@ -123,22 +134,21 @@ export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemov
 
       <div className="flex flex-wrap items-center gap-2">
         <div role="tablist" aria-label="Show" className="flex rounded-xl bg-slate-100 p-1">
-          {(['Active', 'Closed', 'All'] as Show[]).map(s => (
+          {(['Active', 'Closed', 'All', 'Review'] as Show[]).map(s => (
             <button key={s} role="tab" type="button" aria-selected={show === s} onClick={() => setShow(s)}
               className={`min-h-11 rounded-lg px-4 text-base font-medium ${show === s ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-              {s} ({counts[s]})
+              {s === 'Review' ? 'Sale review' : s} ({counts[s]})
             </button>
           ))}
         </div>
         {showFarmFilter && (
-          <select aria-label="Farm" value={farm} onChange={e => setFarm(e.target.value)} className={`${SELECT} ml-auto`}>
-            <option value="">All farms</option>
-            {farms.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
-          </select>
+          <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} size="compact" align="right" className="ml-auto" />
         )}
       </div>
 
-      {list.length === 0 ? (
+      {show === 'Review' ? (
+        <SaleReviewPanel rows={reviewRows} windowDays={windowDays} canReview={canReview} onReview={setReviewing} onOpen={id => setOpenId(id)} />
+      ) : list.length === 0 ? (
         <div className="space-y-4 rounded-2xl bg-slate-50 p-8 text-center">
           <p className="text-lg text-ink-muted">{visible.length === 0 ? 'No batches yet. A batch groups the cattle you feed together.' : 'No batches here.'}</p>
           {canCreate && visible.length === 0 && <Button size="lg" onClick={() => setFlow({ kind: 'start' })}><Plus /> Start a batch</Button>}
@@ -179,6 +189,7 @@ export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemov
           })}
         </ul>
       )}
+      {onReviewBatch && <SaleReviewFlow isOpen={!!reviewing} onClose={() => setReviewing(null)} row={reviewing} windowDays={windowDays} onSave={onReviewBatch} />}
       {dialogs}
     </div>
   );

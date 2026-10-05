@@ -8,6 +8,7 @@ import { composition, forecast, monthlyMoney, type Share } from '@/lib/report-st
 import { farmProfit, sumMonths } from '@/lib/farm-costs';
 import { Input } from '@/components/ui/input';
 import { NUM } from '../flow/FlowShell';
+import { FarmSelect } from '@/components/ui/listbox-select';
 
 interface ReportsPageProps {
   data: ERPLivestockData;
@@ -160,10 +161,7 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
           <p className="text-base text-ink-muted">How the herd and the money are doing.</p>
         </div>
         {showFarmFilter && (
-          <select aria-label="Farm" value={farm} onChange={e => setFarm(e.target.value)} className={SELECT}>
-            <option value="">All farms</option>
-            {farms.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
-          </select>
+          <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} size="compact" align="right" />
         )}
       </div>
 

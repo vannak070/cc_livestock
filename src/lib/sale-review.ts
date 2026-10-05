@@ -15,6 +15,23 @@ export const SALE_WEEK_DAYS = 7;
 /** The length of the standard cycle the app uses when nobody sets a selling date. */
 export const STANDARD_CYCLE_DAYS = 90;
 
+/** The smallest and largest warning an admin can choose. */
+export const SALE_REVIEW_MIN_DAYS = 1;
+export const SALE_REVIEW_MAX_DAYS = 60;
+
+/** The review window from settings: a whole number of days, 15 when unset or out of range. */
+export function saleWindowDays(settings: { saleReviewDays?: number } | null | undefined): number {
+  const n = settings?.saleReviewDays;
+  return Number.isInteger(n) && (n as number) >= SALE_REVIEW_MIN_DAYS && (n as number) <= SALE_REVIEW_MAX_DAYS ? (n as number) : SALE_REVIEW_DAYS;
+}
+
+/** Why a chosen window cannot be saved, or null. */
+export function saleWindowProblem(value: unknown): string | null {
+  return Number.isInteger(value) && (value as number) >= SALE_REVIEW_MIN_DAYS && (value as number) <= SALE_REVIEW_MAX_DAYS
+    ? null
+    : `Choose a whole number of days from ${SALE_REVIEW_MIN_DAYS} to ${SALE_REVIEW_MAX_DAYS}.`;
+}
+
 export type SaleTier = 'overdue' | 'week' | 'soon';
 
 export function saleTier(daysRemaining: number): SaleTier {

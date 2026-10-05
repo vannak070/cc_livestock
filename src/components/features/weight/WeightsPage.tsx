@@ -15,6 +15,7 @@ import { batchWeighIns } from '@/lib/batch-stats';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { Choice, NUM } from '../flow/FlowShell';
+import { FarmSelect } from '@/components/ui/listbox-select';
 
 interface WeightsPageProps {
   data: ERPLivestockData;
@@ -233,13 +234,10 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
       {showFilters && (
         <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
           {showFarmFilter && (
-            <label className="block">
+            <div className="block">
               <span className="mb-1 block text-base font-medium text-ink">Farm</span>
-              <select value={farm} onChange={e => setFarm(e.target.value)} className={SELECT}>
-                <option value="">All farms</option>
-                {farms.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
-              </select>
-            </label>
+              <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} />
+            </div>
           )}
           {batches.length > 0 && (
             <label className="block">

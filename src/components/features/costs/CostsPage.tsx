@@ -9,6 +9,7 @@ import { getErrorMessage, hasPermission } from '@/lib/utils';
 import { addDays, farmToday } from '@/lib/daily-feed';
 import { farmMatcher } from '@/lib/farm-scope';
 import { useCostText } from './useCostText';
+import { FarmSelect } from '@/components/ui/listbox-select';
 
 interface CostsPageProps {
   costs: FarmCostItem[];
@@ -25,7 +26,6 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'all', label: 'all' },
 ];
 
-const SELECT = 'h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-base text-ink focus:border-emerald-600 focus:outline-none';
 const PAGE = 30;
 const riel = (n: number) => `${Math.round(n).toLocaleString()} ៛`;
 
@@ -93,10 +93,7 @@ export default function CostsPage({ costs, currentUser, farms = [], onRecordCost
           ))}
         </div>
         {showFarmFilter && (
-          <select aria-label={text('farm')} value={farm} onChange={e => { setFarm(e.target.value); setVisible(PAGE); }} className={SELECT}>
-            <option value="">{text('allFarms')}</option>
-            {farms.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
-          </select>
+          <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={f => { setFarm(f); setVisible(PAGE); }} label={text('farm')} allLabel={text('allFarms')} size="compact" />
         )}
       </div>
 

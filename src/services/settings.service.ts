@@ -3,6 +3,8 @@ import { CustomRoleDefinition, MasterSetup, PermissionKey } from '../lib/types';
 import { withTransaction } from '../config/database';
 import { Actor, AuthzError, assertPermission, can, redactSettingsFor } from '../lib/authz';
 import { costCategoriesProblem } from '../lib/farm-costs';
+import { saleWindowProblem } from '../lib/sale-review';
+import { alertSettings, alertSettingsProblem } from '../lib/alerts';
 
 // Master settings is one document, but different screens own different
 // parts of it: the feed category dialog edits feedTypes, and Settings edits
@@ -20,7 +22,7 @@ interface RoleChanges {
 // Written only by their own operations, never by a settings save. `locations`
 // is the old copy of the farm names (removed by migration 005); an old screen
 // that still sends it is ignored.
-const OWNED_ELSEWHERE: string[] = ['users', 'farms', 'locations'];
+const OWNED_ELSEWHERE: string[] = ['users', 'farms', 'locations', 'alertStatus'];
 
 export class SettingsService {
   async getSettings(): Promise<MasterSetup> {
@@ -52,6 +54,17 @@ export class SettingsService {
       const problem = costCategoriesProblem(patch.costCategories);
       if (problem) throw new Error(problem);
       patch.costCategories = patch.costCategories.map(c => c.trim());
+    }
+
+    if (patch.saleReviewDays !== undefined) {
+      const problem = saleWindowProblem(patch.saleReviewDays);
+      if (problem) throw new Error(problem);
+    }
+
+    if (patch.alerts !== undefined) {
+      const problem = alertSettingsProblem(patch.alerts);
+      if (problem) throw new Error(problem);
+      patch.alerts = alertSettings({ alerts: patch.alerts });
     }
 
     let changes: RoleChanges = { renames: [], access: [] };

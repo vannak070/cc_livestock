@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import type { MasterSetup } from '@/types/settings.types';
 import { getErrorMessage } from '@/lib/utils';
 import { MAX_CATEGORY_LENGTH, costCategoriesFrom } from '@/lib/farm-costs';
+import { SALE_REVIEW_MAX_DAYS, SALE_REVIEW_MIN_DAYS, saleWindowDays, saleWindowProblem } from '@/lib/sale-review';
 
 type ListKey = 'breeds' | 'sexes' | 'healthStatuses' | 'vaccineTypes' | 'diseaseTypes' | 'feedTypes' | 'batchTypes' | 'weightUnits' | 'buyTypes' | 'purchaseTypes' | 'paymentMethods' | 'revenueTypes' | 'costCategories';
 
@@ -48,6 +49,9 @@ interface ListsPanelProps {
 
 export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
   const [open, setOpen] = useState<ListKey | null>(null);
+  const [days, setDays] = useState(String(saleWindowDays(settings)));
+  const [daysError, setDaysError] = useState('');
+  const [daysSaved, setDaysSaved] = useState(false);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger'; confirmText: string; onConfirm?: () => void }>(null);
@@ -66,6 +70,20 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
       setText('');
     } catch (e) {
       setError(getErrorMessage(e, 'Could not add it.'));
+    }
+  };
+
+  const saveDays = async () => {
+    const n = Number(days);
+    const problem = saleWindowProblem(n);
+    if (days.trim() === '' || problem) { setDaysError(problem ?? 'Type the number of days.'); setDaysSaved(false); return; }
+    setDaysError('');
+    try {
+      await onSettings({ saleReviewDays: n });
+      setDaysSaved(true);
+    } catch (e) {
+      setDaysSaved(false);
+      setDaysError(getErrorMessage(e, 'Could not save it.'));
     }
   };
 
@@ -119,6 +137,19 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
   return (
     <div className="space-y-5">
       <p className="text-base text-ink-muted">The choices people pick from in forms. Farm names are managed on the Farms page.</p>
+      <section className="space-y-3 rounded-2xl border-2 border-slate-200 bg-white p-4">
+        <div>
+          <h3 className="text-lg font-semibold text-ink">Selling reminder</h3>
+          <p className="text-base text-ink-muted">How many days before a batch&apos;s selling date it is flagged for management to review.</p>
+        </div>
+        <form noValidate onSubmit={e => { e.preventDefault(); saveDays(); }} className="flex flex-wrap items-center gap-2">
+          <Input aria-label="Days before the selling date" type="number" inputMode="numeric" min={SALE_REVIEW_MIN_DAYS} max={SALE_REVIEW_MAX_DAYS} value={days} onChange={e => { setDays(e.target.value); setDaysSaved(false); setDaysError(''); }} className="h-14 w-28 text-center text-xl font-semibold" />
+          <span className="text-lg text-ink">days before</span>
+          <Button type="submit" size="lg" className="ml-auto">Save</Button>
+        </form>
+        {daysError && <p role="alert" className="text-base font-medium text-rose-700">{daysError}</p>}
+        {daysSaved && <p role="status" className="text-base font-medium text-emerald-700">Saved. Batches are flagged {saleWindowDays({ saleReviewDays: Number(days) })} days before their selling date.</p>}
+      </section>
       {GROUPS.map(g => (
         <section key={g.title}>
           <h3 className="mb-2 text-lg font-semibold text-ink">{g.title}</h3>

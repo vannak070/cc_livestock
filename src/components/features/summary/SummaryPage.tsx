@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import type { ERPLivestockData } from '@/lib/types';
 import type { ActiveTabType } from '../../layout/SidebarLayout';
 import { batchesNearSelling, feedStockLevels, sickCattle, weighSchedules } from '@/lib/attention';
+import { saleWindowDays } from '@/lib/sale-review';
 import { farmToday, farmsToRecord, missedFeedDays } from '@/lib/daily-feed';
 import { batchSummary } from '@/lib/batch-stats';
 import { monthlyMoney } from '@/lib/report-stats';
@@ -14,6 +15,8 @@ import { farmProfit as computeFarmProfit, sumMonths } from '@/lib/farm-costs';
 interface SummaryPageProps {
   data: ERPLivestockData;
   onNavigateToTab: (tab: ActiveTabType) => void;
+  /** Opens the Batches page on the sale review. */
+  onOpenSaleReview?: () => void;
   /** Whether the profit box can open Reports (which has the breakdown); otherwise it opens Sales. */
   canSeeReports?: boolean;
 }
@@ -39,7 +42,7 @@ function Tile({ label, value, sub, tone, onClick }: { label: string; value: stri
     : <div className={cls}>{inner}</div>;
 }
 
-export default function SummaryPage({ data, onNavigateToTab, canSeeReports }: SummaryPageProps) {
+export default function SummaryPage({ data, onNavigateToTab, onOpenSaleReview, canSeeReports }: SummaryPageProps) {
   const active = useMemo(() => data.stock.filter(c => norm(c.status) === 'active'), [data.stock]);
   const soldCount = data.stock.filter(c => norm(c.status) === 'sold').length;
   const products = useMemo(() => data.feedProducts || [], [data.feedProducts]);
@@ -67,7 +70,8 @@ export default function SummaryPage({ data, onNavigateToTab, canSeeReports }: Su
   const levels = feedStockLevels(data);
   const lowFeed = levels.filter(l => l.isLow);
   const tightest = levels.filter(l => l.daysLeft !== null).sort((a, b) => (a.daysLeft ?? 0) - (b.daysLeft ?? 0))[0];
-  const nearSelling = batchesNearSelling(data);
+  const nearSelling = batchesNearSelling(data, saleWindowDays(data.settings));
+  const overdueSelling = nearSelling.filter(b => b.daysRemaining < 0).length;
 
   const activeBatches = data.batches.filter(b => b.status === 'Active');
   const nextSale = useMemo(() => {
@@ -84,13 +88,13 @@ export default function SummaryPage({ data, onNavigateToTab, canSeeReports }: Su
     .map(farm => ({ farm, days: missedFeedDays(farm, data.batches, data.stock, products, data.feedTransactions || [], feedToday) }))
     .filter(m => m.days.length > 0);
 
-  const needs: { key: string; text: string; sub?: string; tab: ActiveTabType; tone: 'bad' | 'warn' }[] = [
+  const needs: { key: string; text: string; sub?: string; tab: ActiveTabType; tone: 'bad' | 'warn'; onOpen?: () => void }[] = [
     missedFeed.length > 0 && { key: 'feed-missed', text: `Feed not written down: ${missedFeed.map(m => `${m.farm} (${plural(m.days.length, 'day', 'days')})`).join(', ')}`, sub: 'Open Feed, Daily, to record the missing days', tab: 'feed-inventory' as const, tone: 'bad' as const },
     sick.length > 0 && { key: 'sick', text: `${plural(sick.length, 'animal is', 'animals are')} sick`, sub: 'Open Health to treat them', tab: 'health-tracking' as const, tone: 'bad' as const },
     lowFeed.length > 0 && { key: 'feed', text: `${lowFeed[0].productName}${lowFeed.length > 1 ? ` and ${lowFeed.length - 1} more` : ''} running low`, sub: 'Order or record a delivery under Feed', tab: 'feed-inventory' as const, tone: 'warn' as const },
-    nearSelling.length > 0 && { key: 'sell', text: `${plural(nearSelling.length, 'batch is', 'batches are')} near the sell date`, sub: nearSelling[0].daysRemaining < 0 ? `${nearSelling[0].batchName} is ${-nearSelling[0].daysRemaining} days past it` : `${nearSelling[0].batchName} in ${nearSelling[0].daysRemaining} days`, tab: 'batch-management' as const, tone: 'warn' as const },
+    nearSelling.length > 0 && { key: 'sell', text: `${plural(nearSelling.length, 'batch is', 'batches are')} near the sell date`, sub: `${overdueSelling > 0 ? `${overdueSelling} past it. ` : ''}${nearSelling[0].daysRemaining < 0 ? `${nearSelling[0].batchName} is ${-nearSelling[0].daysRemaining} days past it` : `${nearSelling[0].batchName} in ${nearSelling[0].daysRemaining} days`}`, tab: 'batch-management' as const, tone: overdueSelling > 0 ? 'bad' as const : 'warn' as const, onOpen: onOpenSaleReview },
     dueToWeigh.length > 0 && { key: 'weigh', text: `${plural(dueToWeigh.length, 'animal is', 'animals are')} due for weighing`, sub: 'Open Weights', tab: 'weight-tracking' as const, tone: 'warn' as const },
-  ].filter(Boolean) as { key: string; text: string; sub?: string; tab: ActiveTabType; tone: 'bad' | 'warn' }[];
+  ].filter(Boolean) as { key: string; text: string; sub?: string; tab: ActiveTabType; tone: 'bad' | 'warn'; onOpen?: () => void }[];
 
   const recentSales = [...data.salesTracking].sort((a, b) => (b.salesDate ?? '').localeCompare(a.salesDate ?? '')).slice(0, 5);
   const recentCattle = [...data.stock].sort((a, b) => (b.purchaseDate ?? '').localeCompare(a.purchaseDate ?? '')).slice(0, 5);
@@ -125,7 +129,7 @@ export default function SummaryPage({ data, onNavigateToTab, canSeeReports }: Su
           <ul className="space-y-2">
             {needs.map(n => (
               <li key={n.key}>
-                <button type="button" onClick={() => onNavigateToTab(n.tab)} className={`flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border-2 bg-white px-4 py-3 text-left hover:border-emerald-600 ${n.tone === 'bad' ? 'border-rose-300' : 'border-amber-300'}`}>
+                <button type="button" onClick={() => (n.onOpen ? n.onOpen() : onNavigateToTab(n.tab))} className={`flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl border-2 bg-white px-4 py-3 text-left hover:border-emerald-600 ${n.tone === 'bad' ? 'border-rose-300' : 'border-amber-300'}`}>
                   <span>
                     <span className="block text-lg font-semibold text-ink">{n.text}</span>
                     {n.sub && <span className="block text-base text-ink-muted">{n.sub}</span>}

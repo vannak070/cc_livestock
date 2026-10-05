@@ -14,6 +14,7 @@ import { feedShares } from '@/lib/farm-costs';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { Choice, NUM } from '../flow/FlowShell';
+import { FarmSelect } from '@/components/ui/listbox-select';
 
 interface SalesPageProps {
   data: ERPLivestockData;
@@ -26,7 +27,6 @@ interface SalesPageProps {
 }
 
 const PAGE = 15;
-const SELECT = 'h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-3 text-lg text-ink focus:border-emerald-600 focus:outline-none';
 const norm = (s?: string) => (s ?? '').toLowerCase().trim();
 const riel = (n: number) => `${Math.round(n).toLocaleString()} ៛`;
 const day = (d: string | null | undefined) => (d ? d.slice(0, 10) : '—');
@@ -193,13 +193,10 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
         {showFilters && (
           <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
             {showFarmFilter && (
-              <label className="block sm:col-span-2">
+              <div className="block sm:col-span-2">
                 <span className="mb-1 block text-base font-medium text-ink">Farm</span>
-                <select value={farm} onChange={e => setFarm(e.target.value)} className={SELECT}>
-                  <option value="">All farms</option>
-                  {farms.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
-                </select>
-              </label>
+                <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} />
+              </div>
             )}
             <label className="block"><span className="mb-1 block text-base font-medium text-ink">Sold from</span><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-12 text-lg" /></label>
             <label className="block"><span className="mb-1 block text-base font-medium text-ink">Sold until</span><Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-12 text-lg" /></label>

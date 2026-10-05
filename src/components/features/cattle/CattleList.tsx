@@ -11,6 +11,7 @@ import { sickCattle, weighSchedules } from '@/lib/attention';
 import { growth, weighPoints } from '@/lib/cattle-stats';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
+import { FarmSelect } from '@/components/ui/listbox-select';
 
 interface CattleListProps {
   stock: StockItem[];
@@ -192,13 +193,10 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
         {showFilters && (
           <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
             {showFarmFilter && (
-              <label className="block">
+              <div className="block">
                 <span className="mb-1 block text-base font-medium text-ink">Farm</span>
-                <select value={farm} onChange={e => setFarm(e.target.value)} className={SELECT}>
-                  <option value="">All farms</option>
-                  {farms.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
-                </select>
-              </label>
+                <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} />
+              </div>
             )}
             <label className="block">
               <span className="mb-1 block text-base font-medium text-ink">Breed</span>

@@ -12,8 +12,8 @@ import {
   sickCattle,
   weighSchedules,
   WEIGH_INTERVAL_DAYS,
-  SELL_WARNING_DAYS
 } from '@/lib/attention';
+import { SALE_WEEK_DAYS, saleWindowDays } from '@/lib/sale-review';
 import { farmToday, farmsToRecord, missedFeedDays, todayNotRecorded, unlinkedRationFeeds } from '@/lib/daily-feed';
 import { dayLabel } from './features/feed/DailyFeedFlow';
 import type { ActiveTabType, RecordAction } from './layout/SidebarLayout';
@@ -23,6 +23,8 @@ interface TodayTabProps {
   currentUser: UserRoleItem;
   recordActions: RecordAction[];
   onNavigate: (tab: ActiveTabType) => void;
+  /** Opens the Batches page on the sale review. */
+  onOpenSaleReview?: () => void;
   /** Opens the feed record for a farm and day (today when no day); only for people who may record feed. */
   onRecordFeed?: (farm: string, day?: string) => void;
 }
@@ -50,7 +52,7 @@ function greeting(now: Date): string {
  * today, each with one clear button, then big buttons to record things.
  * Every rule lives in src/lib/attention.ts so the pages behind it agree.
  */
-export default function TodayTab({ data, currentUser, recordActions, onNavigate, onRecordFeed }: TodayTabProps) {
+export default function TodayTab({ data, currentUser, recordActions, onNavigate, onOpenSaleReview, onRecordFeed }: TodayTabProps) {
   const can = (key: Parameters<typeof hasPermission>[1]) => hasPermission(currentUser, key);
   const now = new Date();
   const onFarm = activeCattle(data.stock).length;
@@ -160,16 +162,29 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
   }
 
   if (can('batch_view')) {
-    for (const b of batchesNearSelling(data, SELL_WARNING_DAYS, now).slice(0, 3)) {
+    const near = batchesNearSelling(data, saleWindowDays(data.settings), now);
+    const openReview = () => (onOpenSaleReview ? onOpenSaleReview() : onNavigate('batch-management'));
+    const label = can('batch_review') ? 'Review' : 'Open batches';
+    for (const b of near.slice(0, 3)) {
       items.push({
         key: `sell-${b.batchId}`,
         severity: b.daysRemaining < 0 ? 'urgent' : 'attention',
-        title: `Batch ${b.batchName}: ${b.daysRemaining < 0 ? 'selling date has passed' : 'selling date is near'}`,
+        title: `Batch ${b.batchName}: ${b.daysRemaining < 0 ? 'selling date has passed' : b.daysRemaining <= SALE_WEEK_DAYS ? 'selling date is this week' : 'selling date is coming up'}`,
         detail: b.daysRemaining < 0
           ? `${plural(-b.daysRemaining, 'day', 'days')} overdue`
           : b.daysRemaining === 0 ? 'Planned for today' : `In ${plural(b.daysRemaining, 'day', 'days')}`,
-        actionLabel: 'Open batch',
-        onAction: () => onNavigate('batch-management')
+        actionLabel: label,
+        onAction: openReview
+      });
+    }
+    if (near.length > 3) {
+      items.push({
+        key: 'sell-more',
+        severity: near.some(b => b.daysRemaining < 0) ? 'urgent' : 'attention',
+        title: `${plural(near.length - 3, 'more batch', 'more batches')} near the selling date`,
+        detail: 'See them all on the sale review',
+        actionLabel: label,
+        onAction: openReview
       });
     }
   }

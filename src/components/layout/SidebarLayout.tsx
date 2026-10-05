@@ -366,9 +366,10 @@ export default function SidebarLayout({
             <h1 className="text-xl md:text-2xl font-bold text-ink truncate">{tabLabels[activeTab]}</h1>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
-            {workingOn && <div className="hidden md:block">{workingOn}</div>}
+            {/* Room for the title comes first: the farm picker joins the bar from 1024px, the date from 1280px. */}
+            {workingOn && <div className="hidden lg:block">{workingOn}</div>}
             <LanguageSwitcher />
-            <div className="hidden lg:flex text-sm text-ink-muted bg-slate-50 py-2 px-3.5 rounded-full border border-slate-200 items-center gap-2">
+            <div className="hidden xl:flex text-sm text-ink-muted bg-slate-50 py-2 px-3.5 rounded-full border border-slate-200 items-center gap-2">
               <Calendar className="h-4 w-4 text-emerald-700" />
               {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
@@ -377,7 +378,7 @@ export default function SidebarLayout({
 
         {/* Page Content (extra space at the bottom on phones for the bottom bar) */}
         <div className="p-4 sm:p-6 pb-28 md:pb-6 flex-1 min-w-0">
-          {workingOn && <div className="mb-4 md:hidden">{workingOn}</div>}
+          {workingOn && <div className="mb-4 lg:hidden">{workingOn}</div>}
           {children}
         </div>
       </main>

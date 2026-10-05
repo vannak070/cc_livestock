@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { addDaysToDay, saleReviewCounts, saleReviewProblem, saleReviewRows, saleTier } from './sale-review';
+import { addDaysToDay, saleReviewCounts, saleReviewProblem, saleReviewRows, saleTier, saleWindowDays, saleWindowProblem } from './sale-review';
 import type { BatchItem } from './types';
 import type { StockItem, WeightRecord } from './xlsx-parser';
 
@@ -66,5 +66,26 @@ describe('saleReviewProblem', () => {
     expect(saleReviewProblem({ decision: 'extend', newTargetDate: '2028-01-01' }, today)).toMatch(/year/);
     expect(saleReviewProblem({ decision: 'ready', note: 'x'.repeat(501) }, today)).toMatch(/too long/);
     expect(saleReviewProblem({ decision: 'nope' as never }, today)).toMatch(/Choose/);
+  });
+});
+
+describe('review window setting', () => {
+  it('uses the saved number of days, else 15', () => {
+    expect(saleWindowDays({ saleReviewDays: 30 })).toBe(30);
+    expect(saleWindowDays({})).toBe(15);
+    expect(saleWindowDays(undefined)).toBe(15);
+    expect(saleWindowDays({ saleReviewDays: 0 })).toBe(15);
+    expect(saleWindowDays({ saleReviewDays: 99 })).toBe(15);
+    expect(saleWindowDays({ saleReviewDays: 7.5 })).toBe(15);
+  });
+  it('accepts 1 to 60 whole days only', () => {
+    expect(saleWindowProblem(1)).toBeNull();
+    expect(saleWindowProblem(60)).toBeNull();
+    for (const bad of [0, 61, 2.5, '15', null, NaN]) expect(saleWindowProblem(bad)).toMatch(/whole number/);
+  });
+  it('a wider window lists more batches', () => {
+    const b = batch('in25', day(25));
+    expect(saleReviewRows([b], stock, weights, [], NOW).length).toBe(0);
+    expect(saleReviewRows([b], stock, weights, [], NOW, 30).length).toBe(1);
   });
 });

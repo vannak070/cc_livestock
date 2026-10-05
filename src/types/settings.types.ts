@@ -204,6 +204,12 @@ export interface MasterSetup {
   purchaseTypes: string[];
   /** Kinds of farm running cost (Costs page). Missing in older settings: the defaults are used. */
   costCategories?: string[];
+  /** How many days before a batch's selling date it is flagged for sale review. Missing: 15. */
+  saleReviewDays?: number;
+  /** Alerts sent outside the app (Telegram). The bot token is in the server environment, not here. */
+  alerts?: { telegramEnabled?: boolean; chatId?: string; sendHour?: number };
+  /** What the alert job last did; written by the server, never by a settings save. */
+  alertStatus?: { lastRunAt?: string; lastSentAt?: string; lastSentCount?: number; lastError?: string | null };
   users: UserRoleItem[];
   roles?: CustomRoleDefinition[];
   farms?: FarmItem[];

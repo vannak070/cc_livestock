@@ -13,6 +13,7 @@ import {
   removeCowFromBatchAction, 
   updateBatchAction, 
   recordBatchWeightsAction, 
+  reviewBatchSaleAction,
   deleteStockItemAction,
   deleteBatchAction,
   deleteHealthLogAction,
@@ -37,7 +38,8 @@ import { useRouter } from 'next/navigation';
 import SidebarLayout, { ActiveTabType, RecordAction } from './layout/SidebarLayout';
 import TodayTab from './TodayTab';
 import SummaryPage from './features/summary/SummaryPage';
-import BatchesPage from './features/batch/BatchesPage';
+import BatchesPage, { type Show as BatchesShow } from './features/batch/BatchesPage';
+import type { SaleReviewInput } from '@/lib/sale-review';
 import FeedPage from './features/feed/FeedPage';
 import HealthPage from './features/health/HealthPage';
 import WeightsPage from './features/weight/WeightsPage';
@@ -91,6 +93,10 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   const [quickEntryTab, setQuickEntryTab] = useState<'add' | 'weight' | 'sale' | 'treat' | 'feed'>('add');
   const [preselectedCowId, setPreselectedCowId] = useState<string | null>(null);
   const [weighBatchId, setWeighBatchId] = useState<string | null>(null);
+  // Alerts link straight to the sale review; any other way into Batches starts on the usual list.
+  const [batchesShow, setBatchesShow] = useState<BatchesShow>('Active');
+  const changeTab = (tab: ActiveTabType) => { setBatchesShow('Active'); setActiveTab(tab); };
+  const openSaleReview = () => { setBatchesShow('Review'); setActiveTab('batch-management'); };
   // The day's feed dialog: optionally for one farm (the office helping a farm) and/or a missed day.
   const [dailyFeed, setDailyFeed] = useState<null | { farm?: string; day?: string }>(null);
   // Several animals chosen up front for Treat, for example a whole batch.
@@ -226,6 +232,17 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       const res = await recordBatchWeightsAction(records);
       if (!res.success) throw new Error(res.error);
       return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+    }
+  });
+
+  const reviewBatchSaleMutation = useMutation({
+    mutationFn: async ({ batchId, input }: { batchId: string; input: SaleReviewInput }) => {
+      const res = await reviewBatchSaleAction(batchId, input);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['livestock'] });
@@ -484,7 +501,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   return (
     <SidebarLayout
       activeTab={activeTab}
-      setActiveTab={setActiveTab}
+      setActiveTab={changeTab}
       recordActions={recordActions}
       healthAlertsCount={healthAlertsCount}
       vaccineAlertsCount={vaccineAlertsCount}
@@ -498,7 +515,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           data={dbData}
           currentUser={pageUser}
           recordActions={recordActions}
-          onNavigate={setActiveTab}
+          onNavigate={changeTab}
+          onOpenSaleReview={openSaleReview}
           onRecordFeed={hasPermission(currentUser, 'feed_record') ? (farm, day) => setDailyFeed({ farm, day }) : undefined}
         />
       )}
@@ -506,7 +524,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       {activeTab === 'dashboard' && (
         <SummaryPage
           data={dbData}
-          onNavigateToTab={(tab) => setActiveTab(tab)}
+          onNavigateToTab={changeTab}
+          onOpenSaleReview={openSaleReview}
           canSeeReports={hasPermission(currentUser, 'analytics_view')}
         />
       )}
@@ -545,6 +564,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       {activeTab === 'batch-management' && (
         <BatchesPage
           data={dbData}
+          initialShow={batchesShow}
+          onReviewBatch={async (batchId, input) => { await reviewBatchSaleMutation.mutateAsync({ batchId, input }); }}
           onCreateBatch={async (batch) => {
             const batchWithLoc = {
               ...batch,

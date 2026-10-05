@@ -53,6 +53,10 @@ import { farmGuard } from '@/lib/farm-guard';
 import { assertPlanningAccess } from '@/lib/authz';
 import { feedProductService } from '@/services/feed-product.service';
 import { saleReviewService } from '@/services/sale-review.service';
+import { telegramService } from '@/services/telegram.service';
+import { saleAlertService } from '@/services/sale-alert.service';
+import { alertSettings, escapeHtml } from '@/lib/alerts';
+import { settingsRepository } from '@/repositories/settings.repository';
 import type { SaleReviewInput } from '@/lib/sale-review';
 
 // Every action below is a public endpoint as far as the network is
@@ -333,4 +337,35 @@ export async function deleteProposalPlanAction(slot: number) {
     assertPlanningAccess(actor);
     return deleteProposalPlan(slot);
   });
+}
+
+// ─── Telegram alerts ────────────────────────────────────────────────────────
+// Only people who manage settings; the bot token never leaves the server.
+export async function telegramStatusAction() {
+  return runAction('Failed to check Telegram', ['settings_manage'], async () => {
+    if (!telegramService.isConfigured()) return { configured: false as const };
+    try {
+      return { configured: true as const, bot: await telegramService.bot() };
+    } catch (err) {
+      return { configured: true as const, error: err instanceof Error ? err.message : 'Telegram could not be reached.' };
+    }
+  }, { revalidate: false });
+}
+
+export async function findTelegramChatsAction() {
+  return runAction('Failed to look for Telegram groups', ['settings_manage'], () => telegramService.chats(), { revalidate: false });
+}
+
+export async function sendTelegramTestAction() {
+  return runAction('Failed to send the test message', ['settings_manage'], async actor => {
+    const { chatId } = alertSettings(await settingsRepository.getSettings());
+    if (!chatId) throw new Error('Choose and save the Telegram group first.');
+    await telegramService.send(chatId, `✅ <b>CC Livestock</b>\nThis is a test message, sent by ${escapeHtml(actor.name)}. Alerts are connected.`);
+    return { sent: true as const };
+  }, { revalidate: false });
+}
+
+// Checks for alerts right now, ignoring the send hour. Anything already sent is not sent again.
+export async function runSaleAlertsAction() {
+  return runAction('Failed to check for alerts', ['settings_manage'], () => saleAlertService.run({ force: true }), { revalidate: true });
 }

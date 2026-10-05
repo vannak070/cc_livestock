@@ -8,6 +8,7 @@ import { isFarmOwner } from '@/lib/user-admin';
 import PeoplePanel from './PeoplePanel';
 import RolesPanel from './RolesPanel';
 import ListsPanel from './ListsPanel';
+import AlertsPanel from './AlertsPanel';
 
 interface SettingsPageProps {
   settings: MasterSetup;
@@ -16,11 +17,12 @@ interface SettingsPageProps {
   onOpenFarms?: () => void;
 }
 
-type Tab = 'people' | 'roles' | 'lists';
+type Tab = 'people' | 'roles' | 'lists' | 'alerts';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'people', label: 'People' },
   { key: 'roles', label: 'Roles' },
   { key: 'lists', label: 'Lists' },
+  { key: 'alerts', label: 'Alerts' },
 ];
 
 export default function SettingsPage({ settings, currentUser, onOpenFarms }: SettingsPageProps) {
@@ -64,6 +66,7 @@ export default function SettingsPage({ settings, currentUser, onOpenFarms }: Set
       {(ownerOnly || tab === 'people') && <PeoplePanel settings={settings} actor={currentUser} onChanged={onChanged} onOpenFarms={onOpenFarms} />}
       {!ownerOnly && tab === 'roles' && <RolesPanel settings={settings} actor={currentUser} onSettings={onSettings} />}
       {!ownerOnly && tab === 'lists' && <ListsPanel settings={settings} onSettings={onSettings} />}
+      {!ownerOnly && tab === 'alerts' && <AlertsPanel settings={settings} onSettings={onSettings} />}
     </div>
   );
 }
