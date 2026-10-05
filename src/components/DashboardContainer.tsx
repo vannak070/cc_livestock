@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   getLivestockDataAction, 
   addStockItemAction, 
-  updateStockItemAction,
   addWeightRecordAction, 
   recordSaleAction, 
   createBatchAction, 
@@ -33,7 +32,6 @@ import { useRouter } from 'next/navigation';
 import SidebarLayout, { ActiveTabType, RecordAction } from './layout/SidebarLayout';
 import TodayTab from './TodayTab';
 import DashboardHome from './DashboardHome';
-import InventoryTable from './InventoryTable';
 import BatchTab from './BatchTab';
 import FeedInventoryTab from './FeedInventoryTab';
 import HealthTab from './HealthTab';
@@ -43,7 +41,9 @@ import AnalyticsTab from './AnalyticsTab';
 import ProposalPlanTab from './ProposalPlanTab';
 import SettingsTab from './SettingsTab';
 import FarmsTab from './FarmsTab';
-import CowDetails from './CowDetails';
+import { useOnChange } from '@/hooks/useOnChange';
+import CattleList from './features/cattle/CattleList';
+import CattleDetailPage from './features/cattle/CattleDetailPage';
 import FeedInFlow from './features/feed/FeedInFlow';
 import TreatFlow from './features/health/TreatFlow';
 import SellFlow from './features/sales/SellFlow';
@@ -76,7 +76,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   const [preselectedCowId, setPreselectedCowId] = useState<string | null>(null);
 
   const [selectedCowDetailsId, setSelectedCowDetailsId] = useState<string | null>(null);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  // Leaving the Cattle page closes the animal that was open.
+  useOnChange(activeTab, () => setSelectedCowDetailsId(null));
 
   // TanStack Query for dynamic data fetching
   const { data: rawDbData } = useQuery<ERPLivestockData>({
@@ -363,7 +364,6 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
 
   const handleViewDetails = (cowId: string) => {
     setSelectedCowDetailsId(cowId);
-    setIsDetailsOpen(true);
   };
 
   const handleLogout = async () => {
@@ -420,16 +420,29 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         />
       )}
 
-      {activeTab === 'cow-inventory' && (
-        <InventoryTable
+      {activeTab === 'cow-inventory' && selectedCowDetailsId && (
+        <CattleDetailPage
+          cowId={selectedCowDetailsId}
+          stock={dbData.stock}
+          weightTracking={dbData.weightTracking}
+          salesTracking={dbData.salesTracking}
+          healthLogs={dbData.healthLogs}
+          currentUser={currentUser}
+          onBack={() => setSelectedCowDetailsId(null)}
+          onWeigh={cowId => handleOpenQuickEntry('weight', cowId)}
+          onTreat={cowId => handleOpenQuickEntry('treat', cowId)}
+          onSell={cowId => handleOpenQuickEntry('sale', cowId)}
+          onDelete={async cowId => {
+            await deleteStockItemMutation.mutateAsync(cowId);
+          }}
+        />
+      )}
+
+      {activeTab === 'cow-inventory' && !selectedCowDetailsId && (
+        <CattleList
           stock={dbData.stock}
           weightTracking={dbData.weightTracking}
           onViewDetails={handleViewDetails}
-          onEditCow={(cowId) => handleOpenQuickEntry('weight', cowId)}
-          onRecordSale={(cowId) => handleOpenQuickEntry('sale', cowId)}
-          onDeleteCow={async (cowId) => {
-            await deleteStockItemMutation.mutateAsync(cowId);
-          }}
           onAddCowClick={() => handleOpenQuickEntry('add', null)}
           currentUser={currentUser}
           farms={dbData.settings?.farms ?? []}
@@ -568,20 +581,6 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         />
       )}
 
-      {/* View Details Modal */}
-      <CowDetails
-        cowId={selectedCowDetailsId}
-        isOpen={isDetailsOpen}
-        onClose={() => setIsDetailsOpen(false)}
-        stock={dbData.stock}
-        weightTracking={dbData.weightTracking}
-        salesTracking={dbData.salesTracking}
-        healthLogs={dbData.healthLogs}
-        onUpdateCowImage={async (cowId, imageUrl) => {
-          await updateStockItemAction(cowId, { imageUrl });
-          queryClient.invalidateQueries({ queryKey: ['livestock'] });
-        }}
-      />
 
       {/* Quick Entry / Action Modal */}
       <WeighFlow
