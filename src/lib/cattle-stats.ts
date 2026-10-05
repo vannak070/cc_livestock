@@ -24,13 +24,24 @@ export interface WeighPoint {
   change: number | null;
 }
 
-/** Weigh-ins for one animal, oldest first. Several on one day keep the last. */
-export function weighPoints(cowId: string, records: WeightRecord[]): WeighPoint[] {
+/**
+ * Weigh-ins for one animal, oldest first. Several on one day keep the last.
+ * Registering an animal does not write a weigh-in, but its first weigh-in keeps
+ * the weight it had before (`oldWeight`); when an arrival date is given, that
+ * becomes the starting point, so one weigh-in already shows growth since arrival.
+ */
+export function weighPoints(cowId: string, records: WeightRecord[], arrival?: string | null): WeighPoint[] {
   const byDay = new Map<string, number>();
+  let firstDay = '';
+  let firstOld = 0;
   for (const r of records) {
     if (r.cowId !== cowId || !r.trackingDate || !(r.currentWeight > 0)) continue;
-    byDay.set(r.trackingDate.slice(0, 10), r.currentWeight);
+    const d = r.trackingDate.slice(0, 10);
+    byDay.set(d, r.currentWeight);
+    if (!firstDay || d < firstDay) { firstDay = d; firstOld = r.oldWeight > 0 ? r.oldWeight : 0; }
   }
+  const arrivalDay = arrival ? arrival.slice(0, 10) : '';
+  if (firstOld > 0 && arrivalDay && arrivalDay < firstDay && !byDay.has(arrivalDay)) byDay.set(arrivalDay, firstOld);
   const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
   return days.map(([date, weight], i) => ({
     date,
@@ -43,19 +54,19 @@ export interface Growth {
   startWeight: number;
   currentWeight: number;
   gain: number;
-  /** Days between arrival (or first weigh-in) and the latest weigh-in. */
+  /** Days between the first and the latest point. */
   days: number;
   /** Average daily gain in kg, null until there are two separate dates. */
   perDay: number | null;
 }
 
-export function growth(cow: Pick<StockItem, 'weight' | 'purchaseDate'>, points: WeighPoint[]): Growth {
+export function growth(cow: Pick<StockItem, 'weight'>, points: WeighPoint[]): Growth {
   const first = points[0];
   const last = points[points.length - 1];
   const startWeight = first?.weight ?? cow.weight ?? 0;
   const currentWeight = last?.weight ?? cow.weight ?? 0;
   const gain = Math.round((currentWeight - startWeight) * 10) / 10;
-  const from = dayNumber(cow.purchaseDate) ?? dayNumber(first?.date);
+  const from = dayNumber(first?.date);
   const to = dayNumber(last?.date);
   const days = from !== null && to !== null ? Math.max(0, to - from) : 0;
   return { startWeight, currentWeight, gain, days, perDay: days > 0 && points.length > 1 ? Math.round((gain / days) * 100) / 100 : null };

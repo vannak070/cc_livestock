@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { weighPoints, growth, daysOnFarm, money } from './cattle-stats';
 import type { WeightRecord } from './xlsx-parser';
 
-const rec = (cowId: string, trackingDate: string | null, currentWeight: number): WeightRecord =>
-  ({ cowId, trackingDate, currentWeight, oldWeight: 0, breed: '', age: '', gainLoss: 0, healthStatus: 'Good', status: 'Active' });
+const rec = (cowId: string, trackingDate: string | null, currentWeight: number, oldWeight = 0): WeightRecord =>
+  ({ cowId, trackingDate, currentWeight, oldWeight, breed: '', age: '', gainLoss: 0, healthStatus: 'Good', status: 'Active' });
 
 describe('weighPoints', () => {
   it('keeps one animal, oldest first, with the change since the last weigh-in', () => {
@@ -18,19 +18,27 @@ describe('weighPoints', () => {
   });
 });
 
-describe('growth', () => {
-  it('works out gain and daily gain from arrival to the last weigh-in', () => {
-    const pts = weighPoints('A', [rec('A', '2026-09-01', 300), rec('A', '2026-10-01', 360)]);
-    const g = growth({ weight: 360, purchaseDate: '2026-08-22' }, pts);
-    expect(g).toMatchObject({ startWeight: 300, currentWeight: 360, gain: 60, days: 40, perDay: 1.5 });
+describe('arrival weight', () => {
+  it('starts from the weight before the first weigh-in, on the arrival date', () => {
+    const pts = weighPoints('A', [rec('A', '2026-09-01', 330, 300)], '2026-08-22');
+    expect(pts.map(p => [p.date, p.weight, p.change])).toEqual([['2026-08-22', 300, null], ['2026-09-01', 330, 30]]);
   });
-  it('has no daily gain with a single weigh-in', () => {
-    const g = growth({ weight: 300, purchaseDate: '2026-09-01' }, weighPoints('A', [rec('A', '2026-09-10', 300)]));
-    expect(g.perDay).toBeNull();
+  it('adds nothing when the old weight is unknown or the arrival is not earlier', () => {
+    expect(weighPoints('A', [rec('A', '2026-09-01', 330)], '2026-08-22')).toHaveLength(1);
+    expect(weighPoints('A', [rec('A', '2026-09-01', 330, 300)], '2026-09-01')).toHaveLength(1);
+  });
+});
+
+describe('growth', () => {
+  it('works out gain and daily gain between the first and last point', () => {
+    const pts = weighPoints('A', [rec('A', '2026-10-01', 360, 300)], '2026-08-22');
+    expect(growth({ weight: 360 }, pts)).toMatchObject({ startWeight: 300, currentWeight: 360, gain: 60, days: 40, perDay: 1.5 });
+  });
+  it('has no daily gain with a single point', () => {
+    expect(growth({ weight: 300 }, weighPoints('A', [rec('A', '2026-09-10', 300)])).perDay).toBeNull();
   });
   it('falls back to the registered weight when never weighed', () => {
-    const g = growth({ weight: 250, purchaseDate: null }, []);
-    expect(g).toMatchObject({ startWeight: 250, currentWeight: 250, gain: 0, perDay: null });
+    expect(growth({ weight: 250 }, [])).toMatchObject({ startWeight: 250, currentWeight: 250, gain: 0, perDay: null });
   });
 });
 

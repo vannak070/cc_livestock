@@ -100,7 +100,7 @@ export default function WeightsPage({ data, onOpenLogWeight, onDeleteWeightRecor
 
   const growthRows = useMemo(() => {
     return activeScoped
-      .map(c => ({ cow: c, g: growth(c, weighPoints(c.id, byCow.get(c.id) ?? [])) }))
+      .map(c => ({ cow: c, g: growth(c, weighPoints(c.id, byCow.get(c.id) ?? [], c.purchaseDate)) }))
       .filter(x => x.g.perDay !== null);
   }, [activeScoped, byCow]);
 

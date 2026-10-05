@@ -1,0 +1,117 @@
+import type { BatchItem, FeedProductItem, FeedingProgramConfig } from './types';
+import type { StockItem, WeightRecord } from './xlsx-parser';
+import { growth, weighPoints } from './cattle-stats';
+
+/**
+ * Numbers for the batch (feeding group) screens, kept pure so the screens only
+ * display them. A "batch" feeds its cattle that are still on the farm; sold or
+ * dead cattle can stay listed on it for history and are never counted.
+ */
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function dayNumber(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  const t = (m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(value)).getTime();
+  return Number.isNaN(t) ? null : Math.round(t / DAY_MS);
+}
+
+const today = (now: Date) => Math.round(new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / DAY_MS);
+
+/** The batch's cattle that are still on the farm. */
+export function batchCattle(batch: Pick<BatchItem, 'cowIds'>, stock: StockItem[]): StockItem[] {
+  const ids = new Set(batch.cowIds || []);
+  return stock.filter(c => ids.has(c.id) && c.status.toLowerCase() === 'active');
+}
+
+/** Active cattle that are not in any active batch, so free to enrol. */
+export function unassignedCattle(stock: StockItem[], batches: Pick<BatchItem, 'status' | 'cowIds'>[]): StockItem[] {
+  const taken = new Set(batches.filter(b => b.status === 'Active').flatMap(b => b.cowIds || []));
+  return stock.filter(c => c.status.toLowerCase() === 'active' && !taken.has(c.id));
+}
+
+export interface Sample { cowId: string; weight: number }
+
+/**
+ * Weigh three animals (a good, an average and a poor grower) and estimate the
+ * rest: every other animal gets its last weight plus the samples' average gain.
+ */
+export function estimateFromSamples(cattle: Pick<StockItem, 'id' | 'weight'>[], samples: Sample[]): { avgGain: number; records: { cowId: string; currentWeight: number }[] } {
+  const bySample = new Map(samples.map(s => [s.cowId, s.weight]));
+  const gains = samples.map(s => s.weight - (cattle.find(c => c.id === s.cowId)?.weight ?? 0));
+  const avgGain = gains.length ? gains.reduce((a, b) => a + b, 0) / gains.length : 0;
+  return {
+    avgGain,
+    records: cattle.map(c => ({
+      cowId: c.id,
+      currentWeight: bySample.has(c.id) ? bySample.get(c.id)! : Math.round((c.weight + avgGain) * 10) / 10,
+    })),
+  };
+}
+
+/** The catalogue feed an ingredient refers to: by id, then by name either way round. No fallback. */
+export function matchFeedProduct(name: string, products: FeedProductItem[], productId?: string): FeedProductItem | null {
+  if (productId) {
+    const byId = products.find(p => p.id === productId);
+    if (byId) return byId;
+  }
+  const n = name.toLowerCase().trim();
+  if (!n) return null;
+  return products.find(p => p.id.toLowerCase() === n || p.name.toLowerCase() === n || p.name.toLowerCase().includes(n) || n.includes(p.name.toLowerCase())) ?? null;
+}
+
+export interface FeedLine {
+  name: string;
+  kgPerHead: number;
+  /** ៛ per kg: the catalogue price when the feed is in the list, otherwise the price saved with the ingredient. */
+  unitCost: number;
+  costPerHead: number;
+  /** False when the ingredient is not in the feed list, so stock cannot be deducted for it. */
+  inCatalogue: boolean;
+}
+
+export function feedLines(program: FeedingProgramConfig | undefined, products: FeedProductItem[]): FeedLine[] {
+  return (program?.ingredients ?? []).map(ing => {
+    const p = matchFeedProduct(ing.name, products);
+    const unitCost = p ? p.unitCost : ing.unitCost || 0;
+    const kgPerHead = ing.portionPerHead || 0;
+    return { name: ing.name, kgPerHead, unitCost, costPerHead: kgPerHead * unitCost, inCatalogue: !!p };
+  });
+}
+
+export interface BatchSummary {
+  head: number;
+  avgWeight: number;
+  /** Average daily gain in kg across animals with two weigh-ins; null until there is one. */
+  perDay: number | null;
+  /** Days since the batch started; null without a start date. */
+  daysIn: number | null;
+  /** Days until the planned sell date; negative when it has passed; null if none set. */
+  daysToTarget: number | null;
+  feedCostPerDay: number;
+  feedKgPerDay: number;
+}
+
+export function batchSummary(batch: BatchItem, stock: StockItem[], weightTracking: WeightRecord[], products: FeedProductItem[], now: Date = new Date()): BatchSummary {
+  const cattle = batchCattle(batch, stock);
+  const byCow = new Map<string, WeightRecord[]>();
+  for (const r of weightTracking) {
+    const list = byCow.get(r.cowId);
+    if (list) list.push(r); else byCow.set(r.cowId, [r]);
+  }
+  const stats = cattle.map(c => growth(c, weighPoints(c.id, byCow.get(c.id) ?? [], c.purchaseDate)));
+  const withGain = stats.filter(s => s.perDay !== null);
+  const lines = batch.feedingProgram?.status === 'Active' || !batch.feedingProgram?.status ? feedLines(batch.feedingProgram, products) : [];
+  const start = dayNumber(batch.startDate);
+  const target = dayNumber(batch.sellingTargetDate);
+  return {
+    head: cattle.length,
+    avgWeight: cattle.length ? stats.reduce((s, x) => s + x.currentWeight, 0) / cattle.length : 0,
+    perDay: withGain.length ? Math.round((withGain.reduce((s, x) => s + (x.perDay ?? 0), 0) / withGain.length) * 100) / 100 : null,
+    daysIn: start === null ? null : Math.max(0, today(now) - start),
+    daysToTarget: target === null ? null : target - today(now),
+    feedCostPerDay: lines.reduce((s, l) => s + l.costPerHead, 0) * cattle.length,
+    feedKgPerDay: lines.reduce((s, l) => s + l.kgPerHead, 0) * cattle.length,
+  };
+}

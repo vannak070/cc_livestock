@@ -18,6 +18,8 @@ interface TreatFlowProps {
   currentUser?: UserRoleItem;
   /** Skips step 1 when the caller already knows which animal. */
   preselectedCowId?: string | null;
+  /** Several animals already chosen, for example a whole batch. */
+  preselectedCowIds?: string[];
   onSave: (log: Omit<HealthLogItem, 'id'>) => Promise<void>;
 }
 
@@ -42,8 +44,11 @@ export default function TreatFlow(props: TreatFlowProps) {
   );
 }
 
-function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, onSave }: TreatFlowProps) {
-  const initial = preselectedCowId && cattle.some(c => c.id === preselectedCowId) ? [preselectedCowId] : [];
+function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, preselectedCowIds, onSave }: TreatFlowProps) {
+  const known = new Set(cattle.map(c => c.id));
+  const initial = preselectedCowIds?.length
+    ? preselectedCowIds.filter(id => known.has(id))
+    : preselectedCowId && known.has(preselectedCowId) ? [preselectedCowId] : [];
   const [step, setStep] = useState<Step>(initial.length ? 'what' : 'pick');
   const [picked, setPicked] = useState<string[]>(initial);
   const [query, setQuery] = useState('');

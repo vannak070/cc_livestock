@@ -65,7 +65,10 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger' | 'success'; confirmText: string; onConfirm?: () => void }>(null);
 
   const cow = stock.find(c => c.id?.trim().toLowerCase() === cowId.trim().toLowerCase());
-  const points = useMemo(() => weighPoints(cowId, weightTracking), [cowId, weightTracking]);
+  const points = useMemo(
+    () => weighPoints(cowId, weightTracking, stock.find(c => c.id?.trim().toLowerCase() === cowId.trim().toLowerCase())?.purchaseDate),
+    [cowId, weightTracking, stock]
+  );
   const logs = useMemo(() => healthLogs.filter(l => l.cowId === cowId).sort((a, b) => b.date.localeCompare(a.date)), [healthLogs, cowId]);
   const sale = salesTracking.find(s => s.cowId === cowId);
 

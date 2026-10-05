@@ -13,7 +13,6 @@ import {
   removeCowFromBatchAction, 
   updateBatchAction, 
   recordBatchWeightsAction, 
-  recordBatchHealthLogAction, 
   deleteStockItemAction,
   deleteBatchAction,
   deleteHealthLogAction,
@@ -32,7 +31,7 @@ import { useRouter } from 'next/navigation';
 import SidebarLayout, { ActiveTabType, RecordAction } from './layout/SidebarLayout';
 import TodayTab from './TodayTab';
 import DashboardHome from './DashboardHome';
-import BatchTab from './BatchTab';
+import BatchesPage from './features/batch/BatchesPage';
 import FeedPage from './features/feed/FeedPage';
 import HealthPage from './features/health/HealthPage';
 import WeightsPage from './features/weight/WeightsPage';
@@ -74,6 +73,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   const [isQuickEntryOpen, setIsQuickEntryOpen] = useState(false);
   const [quickEntryTab, setQuickEntryTab] = useState<'add' | 'weight' | 'sale' | 'treat' | 'feed'>('add');
   const [preselectedCowId, setPreselectedCowId] = useState<string | null>(null);
+  // Several animals chosen up front for Treat, for example a whole batch.
+  const [treatCowIds, setTreatCowIds] = useState<string[] | undefined>(undefined);
 
   const [selectedCowDetailsId, setSelectedCowDetailsId] = useState<string | null>(null);
   // Leaving the Cattle page closes the animal that was open.
@@ -191,17 +192,6 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       const res = await recordBatchWeightsAction(records);
       if (!res.success) throw new Error(res.error);
       return res;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
-    }
-  });
-
-  const recordBatchHealthLogMutation = useMutation({
-    mutationFn: async ({ batchId, log }: { batchId: string; log: Parameters<typeof recordBatchHealthLogAction>[1] }) => {
-      const res = await recordBatchHealthLogAction(batchId, log);
-      if (!res.success) throw new Error(res.error);
-      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['livestock'] });
@@ -349,6 +339,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   const handleOpenQuickEntry = (tabType: 'add' | 'weight' | 'sale' | 'treat' | 'feed' = 'add', cowId: string | null = null) => {
     setQuickEntryTab(tabType);
     setPreselectedCowId(cowId);
+    setTreatCowIds(undefined);
     setIsQuickEntryOpen(true);
   };
 
@@ -450,7 +441,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       )}
 
       {activeTab === 'batch-management' && (
-        <BatchTab
+        <BatchesPage
           data={dbData}
           onCreateBatch={async (batch) => {
             const batchWithLoc = {
@@ -471,11 +462,14 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           onRecordBatchWeights={async (records) => {
             await recordBatchWeightsMutation.mutateAsync(records);
           }}
-          onRecordBatchHealthLog={async (batchId, log) => {
-            await recordBatchHealthLogMutation.mutateAsync({ batchId, log });
-          }}
           onDeleteBatch={async (batchId) => {
             await deleteBatchMutation.mutateAsync(batchId);
+          }}
+          onTreatGroup={(cowIds) => {
+            setQuickEntryTab('treat');
+            setPreselectedCowId(null);
+            setTreatCowIds(cowIds);
+            setIsQuickEntryOpen(true);
           }}
           currentUser={currentUser}
           farms={dbData.settings?.farms ?? []}
@@ -618,6 +612,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         common={dbData.settings}
         currentUser={currentUser}
         preselectedCowId={preselectedCowId}
+        preselectedCowIds={treatCowIds}
         onSave={async log => {
           await addHealthLogMutation.mutateAsync(log);
         }}

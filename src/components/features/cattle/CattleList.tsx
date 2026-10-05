@@ -61,7 +61,7 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
 
   const stats = useMemo(() => {
     const map = new Map<string, ReturnType<typeof growth>>();
-    for (const c of stock) map.set(c.id, growth(c, weighPoints(c.id, byCow.get(c.id) ?? [])));
+    for (const c of stock) map.set(c.id, growth(c, weighPoints(c.id, byCow.get(c.id) ?? [], c.purchaseDate)));
     return map;
   }, [stock, byCow]);
 
