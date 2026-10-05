@@ -1,64 +1,17 @@
 import { settingsRepository } from '../repositories/settings.repository';
-import { MasterSetup, PermissionKey, UserRoleItem, DEFAULT_ROLE_PERMISSIONS } from '../lib/types';
-import { Actor, AuthzError, assertPermission, can, canManageUsers, redactSettingsFor } from '../lib/authz';
+import { CustomRoleDefinition, MasterSetup, PermissionKey } from '../lib/types';
+import { withTransaction } from '../config/database';
+import { Actor, AuthzError, assertPermission, can, redactSettingsFor } from '../lib/authz';
 
 // Master settings is one document, but different screens own different
-// parts of it: the Farms screen edits farms/locations (and creates farm
-// owner accounts), the feed category dialog edits feedTypes, and Settings
-// edits everything else. Each changed section is checked on its own.
+// parts of it: the feed category dialog edits feedTypes, and Settings edits
+// the other lists and roles. Each changed section is checked on its own.
 const SECTION_PERMISSIONS: Partial<Record<keyof MasterSetup, PermissionKey[]>> = {
-  farms: ['farms_manage', 'settings_manage'],
-  locations: ['farms_manage', 'settings_manage'],
   feedTypes: ['feed_manage', 'settings_manage']
 };
 
-const PRIVILEGED_ROLES = ['Super Admin', 'Admin'];
-
-function effectivePermissions(u: UserRoleItem): PermissionKey[] {
-  return u.permissions && u.permissions.length > 0 ? u.permissions : DEFAULT_ROLE_PERMISSIONS[u.role] || [];
-}
-
-function userChanged(before: UserRoleItem | undefined, after: UserRoleItem): boolean {
-  if (!before) return true;
-  return before.name !== after.name
-    || before.email !== after.email
-    || before.role !== after.role
-    || (before.status || 'Active') !== (after.status || 'Active')
-    || (before.farmLocation || '') !== (after.farmLocation || '')
-    || JSON.stringify(effectivePermissions(before)) !== JSON.stringify(effectivePermissions(after))
-    || !!(after.password || '').trim()
-    || !!(after.pin || '').trim()
-    || !!after.clearPin;
-}
-
-// Stops anyone from using the account roster to give themselves (or a
-// stooge account) more than they already have.
-function assertUserChangesAllowed(actor: Actor, current: UserRoleItem[], next: UserRoleItem[]): void {
-  const before = new Map(current.map(u => [u.id, u]));
-  const nextIds = new Set(next.map(u => u.id));
-
-  const touched: { before?: UserRoleItem; after?: UserRoleItem }[] = [
-    ...current.filter(u => !nextIds.has(u.id)).map(u => ({ before: u })),
-    ...next.filter(u => userChanged(before.get(u.id), u)).map(u => ({ before: before.get(u.id), after: u }))
-  ];
-
-  for (const { before: b, after: a } of touched) {
-    const roles = [b?.role, a?.role];
-    if (roles.includes('Super Admin') && actor.role !== 'Super Admin') {
-      throw new AuthzError('Only a Super Admin can create, change or remove Super Admin accounts.', 403);
-    }
-    if (roles.some(r => r && PRIVILEGED_ROLES.includes(r)) && !PRIVILEGED_ROLES.includes(actor.role)) {
-      throw new AuthzError('Only an Admin can create, change or remove Admin accounts.', 403);
-    }
-    if (a) {
-      const granted = effectivePermissions(a).filter(p => !b || !effectivePermissions(b).includes(p));
-      const notHeld = granted.filter(p => !can(actor, p));
-      if (notHeld.length > 0) {
-        throw new AuthzError(`You cannot grant permissions you do not have yourself (${notHeld.join(', ')}).`, 403);
-      }
-    }
-  }
-}
+// Written only by their own operations, never by a settings save.
+const OWNED_ELSEWHERE: (keyof MasterSetup)[] = ['users', 'farms', 'locations'];
 
 export class SettingsService {
   async getSettings(): Promise<MasterSetup> {
@@ -69,30 +22,59 @@ export class SettingsService {
     return redactSettingsFor(actor, await settingsRepository.getSettings());
   }
 
-  async updateSettings(payload: MasterSetup, actor: Actor): Promise<MasterSetup> {
+  /**
+   * Saves the master lists and roles. People, farms and the location list have
+   * their own operations (user-admin.service, farm.service), so anything sent
+   * for them here is ignored: an out-of-date screen can never delete a person
+   * or put back a farm name.
+   */
+  async updateSettings(payload: Partial<MasterSetup>, actor: Actor): Promise<MasterSetup> {
     const current = await settingsRepository.getSettings();
+    const patch: Partial<MasterSetup> = {};
 
-    // Sections the caller left out keep their stored value, so a partial
-    // payload can never blank out a list by omission.
-    const next: MasterSetup = { ...current, ...payload };
-
-    for (const key of Object.keys(next) as (keyof MasterSetup)[]) {
-      if (key === 'users') continue;
-      if (JSON.stringify(current[key]) === JSON.stringify(next[key])) continue;
+    for (const key of Object.keys(payload) as (keyof MasterSetup)[]) {
+      if (OWNED_ELSEWHERE.includes(key)) continue;
+      if (JSON.stringify(current[key]) === JSON.stringify(payload[key])) continue;
       assertPermission(actor, ...(SECTION_PERMISSIONS[key] || ['settings_manage']));
+      (patch as Record<string, unknown>)[key] = payload[key];
     }
 
-    if (canManageUsers(actor) && Array.isArray(payload.users)) {
-      assertUserChangesAllowed(actor, current.users, payload.users);
-    } else {
-      // Callers who can't manage accounts were sent an empty roster, so what
-      // comes back is not an instruction to delete everyone — leave the
-      // `users` table exactly as it is.
-      delete (next as Partial<MasterSetup>).users;
-    }
+    let renames: { from: string; to: string }[] = [];
+    if (patch.roles) renames = await this.checkRoleChanges(actor, current.roles ?? [], patch.roles);
 
-    const saved = await settingsRepository.updateSettings(next);
-    return redactSettingsFor(actor, saved);
+    if (Object.keys(patch).length > 0) {
+      await withTransaction(async client => {
+        await settingsRepository.updateSettings(patch, client);
+        for (const r of renames) await settingsRepository.renameRole(r.from, r.to, client);
+      });
+    }
+    return redactSettingsFor(actor, await settingsRepository.getSettings());
+  }
+
+  /** Roles: built-in ones keep their names, a role people still hold cannot be removed, and nobody hands a role access they lack. */
+  private async checkRoleChanges(actor: Actor, before: CustomRoleDefinition[], after: CustomRoleDefinition[]): Promise<{ from: string; to: string }[]> {
+    const renames: { from: string; to: string }[] = [];
+    const afterById = new Map(after.map(r => [r.id, r]));
+    for (const old of before) {
+      const now = afterById.get(old.id);
+      if (!now) {
+        if (old.isSystem) throw new Error('The built-in roles cannot be deleted.');
+        const people = await settingsRepository.countUsersWithRole(old.name);
+        if (people > 0) throw new Error(`${people} ${people === 1 ? 'person has' : 'people have'} the ${old.name} role. Change their role first.`);
+      } else if (now.name !== old.name) {
+        if (old.isSystem) throw new Error('A built-in role keeps its name.');
+        renames.push({ from: old.name, to: now.name });
+      }
+    }
+    const names = new Set<string>();
+    for (const r of after) {
+      if (names.has(r.name.trim().toLowerCase())) throw new Error(`There is already a role called "${r.name}".`);
+      names.add(r.name.trim().toLowerCase());
+      const old = before.find(b => b.id === r.id);
+      const notHeld = (r.permissions || []).filter(p => !(old?.permissions ?? []).includes(p) && !can(actor, p));
+      if (notHeld.length > 0) throw new AuthzError(`You cannot give a role access you do not have yourself (${notHeld.join(', ')}).`, 403);
+    }
+    return renames;
   }
 }
 

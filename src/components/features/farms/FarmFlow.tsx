@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Check } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { FarmItem, MasterSetup } from '@/lib/types';
-import { farmOwner, validateFarm, type FarmErrors, type FarmInput } from '@/lib/farm-settings';
+import { validateFarm, type FarmErrors, type FarmInput } from '@/lib/farm-settings';
 import { FlowFooter, FlowShell, NUM, Question } from '../flow/FlowShell';
 
 interface FarmFlowProps {
@@ -13,11 +15,13 @@ interface FarmFlowProps {
   /** The farm being edited; leave empty to add a new one. */
   farm?: FarmItem | null;
   settings: MasterSetup;
-  onSave: (input: FarmInput) => Promise<void>;
+  /** Saves and returns the saved farm. */
+  onSave: (input: FarmInput) => Promise<FarmItem>;
+  /** After a new farm is saved, the person may go straight on to add its owner. */
+  onAddOwner?: (farm: FarmItem) => void;
 }
 
-type Step = 'farm' | 'owner' | 'more';
-const STEPS: Step[] = ['farm', 'owner', 'more'];
+type Step = 'farm' | 'more' | 'done';
 
 export default function FarmFlow(props: FarmFlowProps) {
   // Remount on every open so each add or edit starts from the right values.
@@ -28,38 +32,33 @@ export default function FarmFlow(props: FarmFlowProps) {
   );
 }
 
-function FarmBody({ onClose, farm, settings, onSave }: FarmFlowProps) {
+function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps) {
   const edit = !!farm;
-  const owner = farm ? farmOwner(settings, farm.name) : undefined;
-
   const [step, setStep] = useState<Step>('farm');
   const [name, setName] = useState(farm?.name ?? '');
   const [capacity, setCapacity] = useState(farm?.capacity ? String(farm.capacity) : '');
-  const [ownerName, setOwnerName] = useState(owner?.name ?? farm?.ownerName ?? '');
-  const [ownerEmail, setOwnerEmail] = useState(owner?.email ?? farm?.ownerEmail ?? '');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [address, setAddress] = useState(farm?.address ?? '');
   const [notes, setNotes] = useState(farm?.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [saved, setSaved] = useState<FarmItem | null>(null);
 
-  const at = STEPS.indexOf(step);
-  const input = (): FarmInput => ({ name, address, capacity: Number(capacity), ownerName, ownerEmail, ownerPassword: password, notes });
-  const fieldsOf: Record<Step, (keyof FarmErrors)[]> = { farm: ['name', 'capacity'], owner: ['ownerName', 'ownerEmail', 'ownerPassword'], more: [] };
+  const steps: Step[] = ['farm', 'more'];
+  const input = (): FarmInput => ({ name, address, capacity: Number(capacity), notes });
 
-  const firstError = (s: Step): string | null => {
-    const errors = validateFarm(settings, input(), farm ?? null);
-    for (const key of fieldsOf[s]) if (errors[key]) return errors[key]!;
-    return null;
+  const problem = (): string | null => {
+    const errors: FarmErrors = validateFarm(settings, input(), farm ?? null);
+    return errors.name ?? errors.capacity ?? null;
   };
 
   const save = async () => {
     setSaving(true);
     setError('');
     try {
-      await onSave(input());
-      onClose();
+      const result = await onSave(input());
+      if (edit) { onClose(); return; }
+      setSaved(result);
+      setStep('done');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save. Please try again.');
     } finally {
@@ -68,30 +67,24 @@ function FarmBody({ onClose, farm, settings, onSave }: FarmFlowProps) {
   };
 
   const next = () => {
-    const problem = firstError(step);
-    if (problem) { setError(problem); return; }
-    if (step === 'more') { save(); return; }
-    setError('');
-    setStep(STEPS[at + 1]);
-  };
-  const back = () => { setError(''); setStep(STEPS[at - 1]); };
-
-  const heading: Record<Step, { title: string; sub: string }> = {
-    farm: { title: edit ? 'Edit farm' : 'Add a farm', sub: 'Its name, and how many cattle it can hold.' },
-    owner: { title: 'The owner\'s login', sub: edit ? 'Change the owner, or leave the password empty to keep it.' : 'The owner signs in with this email and password.' },
-    more: { title: 'A few more details', sub: 'Both are optional.' },
+    if (step === 'farm') {
+      const p = problem();
+      if (p) { setError(p); return; }
+      setError('');
+      setStep('more');
+    } else if (step === 'more') save();
   };
 
   return (
     <FlowShell
-      steps={STEPS}
+      steps={steps}
       step={step}
-      title={heading[step].title}
-      subtitle={heading[step].sub}
-      summary={step === 'farm' ? '' : name.trim()}
+      title={step === 'done' ? 'Farm added' : edit ? 'Edit farm' : 'Add a farm'}
+      subtitle={step === 'farm' ? 'Its name, and how many cattle it can hold.' : step === 'more' ? 'Both are optional.' : 'It is ready to use.'}
+      summary={step === 'more' ? name.trim() : ''}
       error={error}
-      onSubmit={next}
-      footer={<FlowFooter onBack={at === 0 ? undefined : back} label={step === 'more' ? (saving ? 'Saving…' : 'Save farm') : 'Next'} busy={saving} />}
+      onSubmit={step === 'done' ? undefined : next}
+      footer={step === 'done' ? null : <FlowFooter onBack={step === 'more' ? () => { setError(''); setStep('farm'); } : undefined} label={step === 'more' ? (saving ? 'Saving…' : 'Save farm') : 'Next'} busy={saving} />}
     >
       {step === 'farm' && (
         <>
@@ -104,24 +97,25 @@ function FarmBody({ onClose, farm, settings, onSave }: FarmFlowProps) {
         </>
       )}
 
-      {step === 'owner' && (
-        <>
-          <Question label="Owner's name"><Input aria-label="Owner's name" autoFocus value={ownerName} onChange={e => { setOwnerName(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
-          <Question label="Login email"><Input aria-label="Login email" type="email" inputMode="email" autoComplete="off" value={ownerEmail} onChange={e => { setOwnerEmail(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
-          <Question label={owner ? 'New password (optional)' : 'Password'} hint={owner ? 'Leave empty to keep the current password.' : undefined}>
-            <div className="flex gap-2">
-              <Input aria-label="Password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={password} onChange={e => { setPassword(e.target.value); setError(''); }} className="h-14 text-lg" />
-              <button type="button" onClick={() => setShowPassword(v => !v)} className="min-h-14 shrink-0 rounded-xl border-2 border-slate-200 px-4 text-base font-medium text-ink hover:border-emerald-600">{showPassword ? 'Hide' : 'Show'}</button>
-            </div>
-          </Question>
-        </>
-      )}
-
       {step === 'more' && (
         <>
           <Question label="Address (optional)"><Input aria-label="Address" autoFocus value={address} onChange={e => setAddress(e.target.value)} placeholder="District, province" className="h-14 text-lg" /></Question>
           <Question label="Notes (optional)"><Input aria-label="Notes" value={notes} onChange={e => setNotes(e.target.value)} className="h-14 text-lg" /></Question>
         </>
+      )}
+
+      {step === 'done' && saved && (
+        <div className="flex h-full flex-col justify-between gap-6">
+          <div className="space-y-5 pt-4 text-center">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-11 w-11" aria-hidden /></div>
+            <p className="text-2xl text-ink"><span className="font-semibold">{saved.name}</span> was added</p>
+            <p className="text-lg text-ink-muted">Next, add the person who owns and runs it. They sign in with their own email and password.</p>
+          </div>
+          <div className="flex flex-col gap-3">
+            {onAddOwner && <Button type="button" size="lg" onClick={() => { onAddOwner(saved); onClose(); }}>Add the owner</Button>}
+            <Button type="button" size="lg" variant="secondary" onClick={onClose}>Later</Button>
+          </div>
+        </div>
       )}
     </FlowShell>
   );

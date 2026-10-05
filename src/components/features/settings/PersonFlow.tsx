@@ -21,6 +21,10 @@ interface PersonFlowProps {
   actor: UserRoleItem;
   /** Saves and returns a temporary password when one was made. */
   onSave: (input: PersonInput) => Promise<string | undefined>;
+  /** Start with this farm already chosen and locked, for example when adding to a farm. */
+  presetFarm?: string;
+  /** Only these roles can be chosen; when there is just one it is chosen for you. */
+  onlyRoles?: string[];
 }
 
 type Step = 'who' | 'role' | 'farm' | 'signin' | 'access' | 'done';
@@ -37,27 +41,29 @@ export default function PersonFlow(props: PersonFlowProps) {
   );
 }
 
-function PersonBody({ onClose, person, settings, actor, onSave }: PersonFlowProps) {
+function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, onlyRoles }: PersonFlowProps) {
   const edit = !!person;
-  const lockedFarm = isFarmOwner(actor) ? actor.farmLocation ?? '' : null;
+  const lockedFarm = isFarmOwner(actor) ? actor.farmLocation ?? '' : presetFarm ?? null;
   const roles = useMemo(() => rolesOf(settings), [settings]);
-  const options = useMemo(() => [...assignableRoles(roles, actor)].sort((a, b) => {
+  const options = useMemo(() => [...assignableRoles(roles, actor)].filter(r => !onlyRoles || onlyRoles.includes(r.name)).sort((a, b) => {
     const rank = (n: string) => (ORDER.includes(n) ? ORDER.indexOf(n) : ORDER.indexOf('Management') + 0.5);
     return rank(a.name) - rank(b.name);
-  }), [roles, actor]);
+  }), [roles, actor, onlyRoles]);
   const farmNames = (settings.farms || []).map(f => f.name);
   const allowed = useMemo(() => grantable(actor), [actor]);
 
   const [step, setStep] = useState<Step>('who');
   const [name, setName] = useState(person?.name ?? '');
   const [email, setEmail] = useState(person?.email ?? '');
-  const [role, setRole] = useState(person?.role ?? (isFarmOwner(actor) ? 'Farm Staff' : ''));
+  // With only one role to choose from there is nothing to ask.
+  const soleRole = !person && options.length === 1 ? options[0].name : '';
+  const [role, setRole] = useState(person?.role ?? (soleRole || (isFarmOwner(actor) ? 'Farm Staff' : '')));
   const [farm, setFarm] = useState(person?.farmLocation ?? lockedFarm ?? (farmNames.length === 1 ? farmNames[0] : ''));
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [pin, setPin] = useState('');
   const [clearPin, setClearPin] = useState(false);
-  const [permissions, setPermissions] = useState<PermissionKey[]>(() => (person ? effectivePermissions(person, roles) : isFarmOwner(actor) ? effectivePermissions({ role: 'Farm Staff' }, roles) : []));
+  const [permissions, setPermissions] = useState<PermissionKey[]>(() => (person ? effectivePermissions(person, roles) : soleRole ? effectivePermissions({ role: soleRole }, roles) : isFarmOwner(actor) ? effectivePermissions({ role: 'Farm Staff' }, roles) : []));
   const [fineTune, setFineTune] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -66,7 +72,7 @@ function PersonBody({ onClose, person, settings, actor, onSave }: PersonFlowProp
 
   const needsFarm = FARM_ROLES.includes(role) && !lockedFarm && farmNames.length > 0;
   const steps: Step[] = [
-    'who', 'role',
+    'who', ...(soleRole ? [] : ['role' as Step]),
     ...(needsFarm ? ['farm' as Step] : []),
     'signin',
     ...(isFarmOwner(actor) ? [] : ['access' as Step]),
@@ -74,7 +80,7 @@ function PersonBody({ onClose, person, settings, actor, onSave }: PersonFlowProp
   const at = steps.indexOf(step);
   const last = steps[steps.length - 1];
 
-  const input = (): PersonInput => ({ name, email, role, farmLocation: lockedFarm ?? farm, password, pin, clearPin, permissions });
+  const input = (): PersonInput => ({ name, email, role, farmLocation: lockedFarm || farm, password, pin, clearPin, permissions });
   const stepFields: Record<Step, (keyof PersonErrors)[]> = { who: ['name', 'email'], role: ['role'], farm: ['farmLocation'], signin: ['password', 'pin'], access: ['permissions'], done: [] };
   const problem = (s: Step): string | null => {
     if (s === 'role' && !role) return 'Choose a role.';

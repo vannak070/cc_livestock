@@ -12,7 +12,7 @@ import RoleFlow from './RoleFlow';
 interface RolesPanelProps {
   settings: MasterSetup;
   actor: UserRoleItem;
-  onSettings: (next: MasterSetup) => Promise<void>;
+  onSettings: (patch: Partial<MasterSetup>) => Promise<void>;
 }
 
 const newId = () => Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -31,14 +31,14 @@ export default function RolesPanel({ settings, actor, onSettings }: RolesPanelPr
       description: 'No one has this role, so no one loses access. It cannot be undone.',
       type: 'danger',
       confirmText: 'Delete role',
-      onConfirm: async () => { try { await onSettings(deleteRole(settings, role.id)); } catch (e) { setConfirm({ title: 'Could not delete', description: getErrorMessage(e, 'Something went wrong.'), type: 'danger', confirmText: 'OK' }); } },
+      onConfirm: async () => { try { await onSettings({ roles: deleteRole(settings, role.id) }); } catch (e) { setConfirm({ title: 'Could not delete', description: getErrorMessage(e, 'Something went wrong.'), type: 'danger', confirmText: 'OK' }); } },
     });
   };
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-base text-ink-muted">A role is a set of access you give to people. Change a role and everyone who has it follows, unless you gave them custom access.</p>
+        <p className="text-base text-ink-muted">A role is a set of access you give to people. Changing a role does not change the people who already have it. It applies to people you add or edit next.</p>
         <Button size="lg" onClick={() => setFlow({ role: null })}><Plus /> Make a role</Button>
       </div>
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -64,7 +64,7 @@ export default function RolesPanel({ settings, actor, onSettings }: RolesPanelPr
         role={flow?.role ?? null}
         settings={settings}
         actor={actor}
-        onSave={async (input: RoleInput) => { await onSettings(saveRole(settings, input, flow?.role ?? null, newId)); }}
+        onSave={async (input: RoleInput) => { await onSettings({ roles: saveRole(settings, input, flow?.role ?? null, newId) }); }}
       />
 
       {confirm && (

@@ -12,6 +12,10 @@ import { settingsService } from '../services/settings.service';
 import { feedRepository } from '../repositories/feed.repository';
 import { proposalPlanRepository } from '../repositories/proposal-plan.repository';
 import { proposalPlanService } from '../services/proposal-plan.service';
+import { userAdminService } from '../services/user-admin.service';
+import { farmService } from '../services/farm.service';
+import type { PersonInput } from './user-admin';
+import type { FarmInput } from './farm-settings';
 import { FeedProductItem, FeedStockTransaction, ProposalPlanParams, ProposalPlanRecord } from './types';
 
 import { Actor, AuthzError } from './authz';
@@ -177,10 +181,6 @@ export async function deleteStockItem(cowId: string): Promise<void> {
   await requireDb('delete cattle record', () => stockService.deleteStock(cowId));
 }
 
-export async function updateStockLocation(oldLocation: string, newLocation: string): Promise<void> {
-  await requireDb('move cattle to another farm', () => stockService.updateStockLocation(oldLocation, newLocation));
-}
-
 // ─── 2. Weight Tracking ─────────────────────────────────────────────────────
 export async function addWeightRecord(cowId: string, currentWeight: number, healthStatus: string, trackingDate?: string): Promise<WeightRecord> {
   return requireDb('record weight', () => weightService.addWeightRecord(cowId, currentWeight, healthStatus, trackingDate));
@@ -255,6 +255,32 @@ export async function deleteHealthLog(logId: string): Promise<void> {
 
 
 // ─── 7. Master Setup / Settings ─────────────────────────────────────────────
-export async function updateSettings(settings: MasterSetup, actor: Actor): Promise<MasterSetup> {
+export async function updateSettings(settings: Partial<MasterSetup>, actor: Actor): Promise<MasterSetup> {
   return requireDb('save settings', () => settingsService.updateSettings(settings, actor));
+}
+
+// People and farms: one account or one farm at a time (see user-admin.service and farm.service).
+export async function createUser(actor: Actor, input: PersonInput) {
+  return requireDb('add person', () => userAdminService.createUser(actor, input));
+}
+export async function updateUser(actor: Actor, id: string, input: PersonInput) {
+  return requireDb('change person', () => userAdminService.updateUser(actor, id, input));
+}
+export async function setUserStatus(actor: Actor, id: string, status: 'Active' | 'Inactive') {
+  return requireDb('turn person on or off', () => userAdminService.setStatus(actor, id, status));
+}
+export async function resetUserPassword(actor: Actor, id: string) {
+  return requireDb('reset password', () => userAdminService.resetPassword(actor, id));
+}
+export async function deleteUser(actor: Actor, id: string) {
+  return requireDb('remove person', () => userAdminService.deleteUser(actor, id));
+}
+export async function saveFarm(actor: Actor, input: FarmInput, farmId: string | null) {
+  return requireDb('save farm', () => farmService.saveFarm(actor, input, farmId));
+}
+export async function deleteFarm(actor: Actor, farmId: string) {
+  return requireDb('delete farm', () => farmService.deleteFarm(actor, farmId));
+}
+export async function setFarmOwner(actor: Actor, farmId: string, userId: string) {
+  return requireDb('choose farm owner', () => farmService.setOwner(actor, farmId, userId));
 }

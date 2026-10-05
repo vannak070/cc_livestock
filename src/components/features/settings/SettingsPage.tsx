@@ -12,6 +12,8 @@ import ListsPanel from './ListsPanel';
 interface SettingsPageProps {
   settings: MasterSetup;
   currentUser?: UserRoleItem;
+  /** Open with the people of this farm, when coming from the Farms page. */
+  initialFarm?: string;
 }
 
 type Tab = 'people' | 'roles' | 'lists';
@@ -21,19 +23,21 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'lists', label: 'Lists' },
 ];
 
-export default function SettingsPage({ settings, currentUser }: SettingsPageProps) {
+export default function SettingsPage({ settings, currentUser, initialFarm }: SettingsPageProps) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('people');
 
   const save = useMutation({
-    mutationFn: async (next: MasterSetup) => {
-      const res = await updateSettingsAction(next);
+    mutationFn: async (patch: Partial<MasterSetup>) => {
+      const res = await updateSettingsAction(patch);
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); },
   });
-  const onSettings = async (next: MasterSetup) => { await save.mutateAsync(next); };
+  // Lists and roles are saved as just the part that changed; people have their own requests.
+  const onSettings = async (patch: Partial<MasterSetup>) => { await save.mutateAsync(patch); };
+  const onChanged = () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); };
 
   if (!currentUser) return null;
   // A farm owner only looks after the people on their own farm.
@@ -57,7 +61,7 @@ export default function SettingsPage({ settings, currentUser }: SettingsPageProp
         </div>
       )}
 
-      {(ownerOnly || tab === 'people') && <PeoplePanel settings={settings} actor={currentUser} onSettings={onSettings} />}
+      {(ownerOnly || tab === 'people') && <PeoplePanel settings={settings} actor={currentUser} onChanged={onChanged} initialFarm={initialFarm} />}
       {!ownerOnly && tab === 'roles' && <RolesPanel settings={settings} actor={currentUser} onSettings={onSettings} />}
       {!ownerOnly && tab === 'lists' && <ListsPanel settings={settings} onSettings={onSettings} />}
     </div>

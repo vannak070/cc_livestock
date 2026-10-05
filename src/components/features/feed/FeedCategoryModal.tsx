@@ -51,7 +51,7 @@ function KindsBody({ onClose, settings, onSettingsUpdated }: FeedCategoryModalPr
     setSaving(true);
     setError('');
     try {
-      const res = await updateSettingsAction({ ...settings, feedTypes: kinds });
+      const res = await updateSettingsAction({ feedTypes: kinds });
       if (res.success) { onSettingsUpdated?.(); onClose(); } else setError(res.error || 'Could not save the list.');
     } catch (e) {
       setError(getErrorMessage(e, 'Could not save the list.'));

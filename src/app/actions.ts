@@ -23,13 +23,22 @@ import {
   updateWeightRecord,
   deleteSalesRecord,
   updateSalesRecord,
-  updateStockLocation,
   saveFeedProduct,
   deleteFeedProduct,
   addFeedTransaction,
   saveProposalPlan,
-  deleteProposalPlan
+  deleteProposalPlan,
+  createUser,
+  updateUser,
+  setUserStatus,
+  resetUserPassword,
+  deleteUser,
+  saveFarm,
+  deleteFarm,
+  setFarmOwner
 } from '@/lib/db';
+import type { PersonInput } from '@/lib/user-admin';
+import type { FarmInput } from '@/lib/farm-settings';
 import { StockItem, WeightRecord, SalesRecord } from '@/lib/xlsx-parser';
 import { MasterSetup, BatchItem, HealthLogItem, FeedProductItem, FeedStockTransaction, ProposalPlanParams } from '@/lib/types';
 import { runAction } from '@/lib/run-action';
@@ -77,13 +86,6 @@ export async function updateStockItemAction(id: string, updates: Partial<StockIt
     await farmGuard.cows(actor, [id]);
     farmGuard.location(actor, updates.location);
     return updateStockItem(id, updates);
-  });
-}
-
-export async function updateStockLocationAction(oldLocation: string, newLocation: string) {
-  return runAction('Failed to update stock location', ['farms_manage', 'settings_manage'], async actor => {
-    farmGuard.notFarmBound(actor);
-    return updateStockLocation(oldLocation, newLocation);
   });
 }
 
@@ -238,8 +240,43 @@ export async function addFeedTransactionAction(tx: FeedStockTransaction) {
 // ─── Settings & planning ────────────────────────────────────────────────────
 // Which parts of settings this user may change is checked section by section
 // inside the settings service, so no blanket permission is required here.
-export async function updateSettingsAction(settings: MasterSetup) {
+export async function updateSettingsAction(settings: Partial<MasterSetup>) {
   return runAction('Failed to update setup configurations', [], actor => updateSettings(settings, actor));
+}
+
+// People and farms are changed one at a time, so a screen that is out of date can never delete anyone else.
+export async function createUserAction(input: PersonInput) {
+  return runAction('Failed to add the person', [], actor => createUser(actor, input));
+}
+export async function updateUserAction(id: string, input: PersonInput) {
+  return runAction('Failed to save the person', [], actor => updateUser(actor, id, input));
+}
+export async function setUserStatusAction(id: string, status: 'Active' | 'Inactive') {
+  return runAction('Failed to change the person', [], actor => setUserStatus(actor, id, status));
+}
+export async function resetUserPasswordAction(id: string) {
+  return runAction('Failed to make a new password', [], actor => resetUserPassword(actor, id));
+}
+export async function deleteUserAction(id: string) {
+  return runAction('Failed to remove the person', [], actor => deleteUser(actor, id));
+}
+export async function saveFarmAction(input: FarmInput, farmId: string | null) {
+  return runAction('Failed to save the farm', ['farms_manage', 'settings_manage'], actor => {
+    farmGuard.notFarmBound(actor);
+    return saveFarm(actor, input, farmId);
+  });
+}
+export async function setFarmOwnerAction(farmId: string, userId: string) {
+  return runAction('Failed to choose the owner', ['farms_manage', 'settings_manage'], actor => {
+    farmGuard.notFarmBound(actor);
+    return setFarmOwner(actor, farmId, userId);
+  });
+}
+export async function deleteFarmAction(farmId: string) {
+  return runAction('Failed to delete the farm', ['farms_manage', 'settings_manage'], actor => {
+    farmGuard.notFarmBound(actor);
+    return deleteFarm(actor, farmId);
+  });
 }
 
 export async function saveProposalPlanAction(slot: number, name: string, params: ProposalPlanParams) {

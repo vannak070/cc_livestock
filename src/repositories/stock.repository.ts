@@ -141,11 +141,6 @@ export class StockRepository {
     const res = await this.executeQuery('DELETE FROM stock WHERE id = $1 RETURNING id', [id], client);
     return res.rows.length > 0;
   }
-
-  async updateLocation(oldLocation: string, newLocation: string, client?: PoolClient): Promise<void> {
-    const sql = `UPDATE stock SET location = $1 WHERE location = $2 OR location = $3`;
-    await this.executeQuery(sql, [newLocation, oldLocation, oldLocation], client);
-  }
 }
 
 export const stockRepository = new StockRepository();

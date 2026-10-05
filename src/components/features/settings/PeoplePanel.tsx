@@ -7,25 +7,33 @@ import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { MasterSetup, UserRoleItem } from '@/types/settings.types';
-import { canChangeUser, removePerson, resetPassword, rolesOf, savePerson, setPersonStatus, visibleUsers, type PersonInput } from '@/lib/user-admin';
-import { generateTempPassword } from '@/lib/generate-temp-password';
+import { canChangeUser, rolesOf, visibleUsers, type PersonInput } from '@/lib/user-admin';
+import { createUserAction, deleteUserAction, resetUserPasswordAction, setUserStatusAction, updateUserAction } from '@/app/actions';
 import { getErrorMessage } from '@/lib/utils';
 import PersonFlow from './PersonFlow';
 
 interface PeoplePanelProps {
   settings: MasterSetup;
   actor: UserRoleItem;
-  /** Saves the whole settings document; rejects with a readable message when the server refuses. */
-  onSettings: (next: MasterSetup) => Promise<void>;
+  /** Called after a change has been saved, so the lists reload. */
+  onChanged: () => void;
+  /** Start with the list limited to one farm. */
+  initialFarm?: string;
+}
+
+/** Each change is one request for one person, so another admin's changes are never overwritten. */
+async function ok<T>(res: { success: true; data: T } | { success: false; error: string }): Promise<T> {
+  if (!res.success) throw new Error(res.error);
+  return res.data;
 }
 
 const SELECT = 'h-11 rounded-xl border-2 border-slate-200 bg-white px-3 text-base text-ink focus:border-emerald-600 focus:outline-none';
 const norm = (s?: string) => (s ?? '').trim().toLowerCase();
-const newId = () => Math.random().toString(36).slice(2, 11).toUpperCase();
 
-export default function PeoplePanel({ settings, actor, onSettings }: PeoplePanelProps) {
+export default function PeoplePanel({ settings, actor, onChanged, initialFarm = '' }: PeoplePanelProps) {
   const [query, setQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [farmFilter, setFarmFilter] = useState(initialFarm);
   const [status, setStatus] = useState<'All' | 'Active' | 'Inactive'>('All');
   const [flow, setFlow] = useState<null | { person: UserRoleItem | null }>(null);
   const [shown, setShown] = useState<null | { name: string; email: string; password: string }>(null);
@@ -41,17 +49,23 @@ export default function PeoplePanel({ settings, actor, onSettings }: PeoplePanel
     return all
       .filter(u => (status === 'All' ? true : status === 'Active' ? u.status === 'Active' : u.status !== 'Active'))
       .filter(u => !roleFilter || u.role === roleFilter)
+      .filter(u => !farmFilter || u.farmLocation === farmFilter)
       .filter(u => !q || norm(u.name).includes(q) || norm(u.email).includes(q))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [all, query, roleFilter, status]);
+  }, [all, query, roleFilter, farmFilter, status]);
 
   const fail = (e: unknown) => setConfirm({ title: 'That did not work', description: getErrorMessage(e, 'The change could not be saved.'), type: 'danger', confirmText: 'OK' });
 
   const savePersonFromFlow = async (input: PersonInput): Promise<string | undefined> => {
     const editing = flow?.person ?? null;
-    const { settings: next, tempPassword } = savePerson(settings, input, editing, newId, generateTempPassword);
-    await onSettings(next);
-    return tempPassword;
+    if (editing) {
+      await ok(await updateUserAction(editing.id, input));
+      onChanged();
+      return undefined;
+    }
+    const created = await ok(await createUserAction(input));
+    onChanged();
+    return created.tempPassword;
   };
 
   const askStatus = (u: UserRoleItem) => {
@@ -61,7 +75,7 @@ export default function PeoplePanel({ settings, actor, onSettings }: PeoplePanel
       description: turnOff ? 'They will not be able to sign in until you turn them on again. Their records stay.' : 'They will be able to sign in again.',
       type: 'warning',
       confirmText: turnOff ? 'Turn off' : 'Turn on',
-      onConfirm: async () => { try { await onSettings(setPersonStatus(settings, u.id, turnOff ? 'Inactive' : 'Active')); } catch (e) { fail(e); } },
+      onConfirm: async () => { try { await ok(await setUserStatusAction(u.id, turnOff ? 'Inactive' : 'Active')); onChanged(); } catch (e) { fail(e); } },
     });
   };
 
@@ -72,8 +86,8 @@ export default function PeoplePanel({ settings, actor, onSettings }: PeoplePanel
     confirmText: 'Make a new password',
     onConfirm: async () => {
       try {
-        const r = resetPassword(settings, u.id, generateTempPassword);
-        await onSettings(r.settings);
+        const r = await ok(await resetUserPasswordAction(u.id));
+        onChanged();
         setCopied(false);
         setShown({ name: u.name, email: u.email, password: r.password });
       } catch (e) { fail(e); }
@@ -85,7 +99,7 @@ export default function PeoplePanel({ settings, actor, onSettings }: PeoplePanel
     description: 'They lose all access and cannot sign in. Records they made stay. This cannot be undone. To keep the person but stop their access, turn them off instead.',
     type: 'danger',
     confirmText: 'Remove',
-    onConfirm: async () => { try { await onSettings(removePerson(settings, u.id)); } catch (e) { fail(e); } },
+    onConfirm: async () => { try { await ok(await deleteUserAction(u.id)); onChanged(); } catch (e) { fail(e); } },
   });
 
   const copy = async () => {
@@ -114,10 +128,18 @@ export default function PeoplePanel({ settings, actor, onSettings }: PeoplePanel
             ))}
           </div>
           {actor.role !== 'Farm Owner' && (
-            <select aria-label="Role" value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className={`${SELECT} ml-auto`}>
-              <option value="">All roles</option>
-              {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-            </select>
+            <div className="ml-auto flex flex-wrap gap-2">
+              {(settings.farms || []).length > 0 && (
+                <select aria-label="Farm" value={farmFilter} onChange={e => setFarmFilter(e.target.value)} className={SELECT}>
+                  <option value="">All farms</option>
+                  {(settings.farms || []).map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
+                </select>
+              )}
+              <select aria-label="Role" value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className={SELECT}>
+                <option value="">All roles</option>
+                {roles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+              </select>
+            </div>
           )}
         </div>
       </div>

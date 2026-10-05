@@ -79,7 +79,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
 
   const [selectedCowDetailsId, setSelectedCowDetailsId] = useState<string | null>(null);
   // Leaving the Cattle page closes the animal that was open.
-  useOnChange(activeTab, () => setSelectedCowDetailsId(null));
+  const [peopleFarm, setPeopleFarm] = useState('');
+  useOnChange(activeTab, () => { setSelectedCowDetailsId(null); if (activeTab !== 'settings') setPeopleFarm(''); });
 
   // TanStack Query for dynamic data fetching
   const { data: rawDbData } = useQuery<ERPLivestockData>({
@@ -575,6 +576,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         <SettingsPage
           settings={dbData.settings}
           currentUser={currentUser}
+          initialFarm={peopleFarm}
         />
       )}
 
@@ -584,6 +586,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           currentUser={currentUser}
           stock={dbData.stock}
           batches={dbData.batches}
+          onOpenPeople={hasPermission(currentUser, 'settings_manage') ? (farmName) => { setPeopleFarm(farmName); setActiveTab('settings'); } : undefined}
         />
       )}
 

@@ -95,6 +95,11 @@ export function validatePerson(settings: Pick<MasterSetup, 'users' | 'roles' | '
   const farms = settings.farms || [];
   if (FARM_ROLES.includes(input.role) && farms.length > 0 && !input.farmLocation.trim()) errors.farmLocation = 'Choose which farm this person works on.';
 
+  if (!errors.farmLocation && input.role === 'Farm Owner' && input.farmLocation.trim()) {
+    const other = (settings.users || []).find(u => u.role === 'Farm Owner' && u.farmLocation === input.farmLocation.trim() && u.id !== editing?.id);
+    if (other) errors.farmLocation = `${input.farmLocation.trim()} already has an owner (${other.name}). A farm has one owner: change their role first, or choose another farm.`;
+  }
+
   const password = input.password.trim();
   if (password && password.length < MIN_PASSWORD_LENGTH) errors.password = `A password needs at least ${MIN_PASSWORD_LENGTH} characters.`;
 
@@ -108,59 +113,6 @@ export function validatePerson(settings: Pick<MasterSetup, 'users' | 'roles' | '
   const notHeld = input.permissions.filter(p => !before.includes(p) && !hasPermission(actor, p));
   if (notHeld.length > 0) errors.permissions = `You cannot give access you do not have yourself (${notHeld.join(', ')}).`;
   return errors;
-}
-
-/** The users after adding or changing one. `tempPassword` is set when a password was made for a new person. */
-export function savePerson(settings: MasterSetup, input: PersonInput, editing: UserRoleItem | null, newId: () => string, makePassword: () => string): { settings: MasterSetup; tempPassword?: string } {
-  const name = input.name.trim();
-  const email = input.email.trim();
-  const password = input.password.trim();
-  const pin = input.pin.trim();
-  const farmLocation = input.farmLocation.trim() || undefined;
-  const users = [...(settings.users || [])];
-
-  if (editing) {
-    return {
-      settings: {
-        ...settings,
-        users: users.map(u => u.id !== editing.id ? u : {
-          ...u,
-          name, email, role: input.role,
-          // Left out when nothing was typed, so the saved password and PIN are kept.
-          ...(password ? { password } : {}),
-          ...(pin ? { pin } : {}),
-          ...(input.clearPin ? { clearPin: true } : {}),
-          permissions: input.permissions,
-          farmLocation,
-        }),
-      },
-    };
-  }
-
-  const assigned = password || makePassword();
-  users.push({
-    id: `USR-${newId()}`,
-    name, email, role: input.role, status: 'Active',
-    password: assigned,
-    ...(pin ? { pin } : {}),
-    permissions: input.permissions,
-    farmLocation,
-  });
-  return { settings: { ...settings, users }, ...(password ? {} : { tempPassword: assigned }) };
-}
-
-export function setPersonStatus(settings: MasterSetup, id: string, status: 'Active' | 'Inactive'): MasterSetup {
-  return { ...settings, users: (settings.users || []).map(u => (u.id === id ? { ...u, status } : u)) };
-}
-
-export function removePerson(settings: MasterSetup, id: string): MasterSetup {
-  return { ...settings, users: (settings.users || []).filter(u => u.id !== id) };
-}
-
-/** A new random password for someone who is locked out. */
-export function resetPassword(settings: MasterSetup, id: string, makePassword: () => string): { settings: MasterSetup; password: string } {
-  const password = makePassword();
-  return { settings: { ...settings, users: (settings.users || []).map(u => (u.id === id ? { ...u, password } : u)) }, password };
 }
 
 export interface RoleInput { name: string; description: string; permissions: PermissionKey[] }
@@ -178,20 +130,15 @@ export function validateRole(settings: Pick<MasterSetup, 'roles'>, input: RoleIn
   return errors;
 }
 
-/** The settings after adding or changing a role; renaming a custom role renames it on the people who have it. */
-export function saveRole(settings: MasterSetup, input: RoleInput, editing: CustomRoleDefinition | null, newId: () => string): MasterSetup {
+/** The roles after adding or changing one. A renamed custom role is renamed on its people by the server. */
+export function saveRole(settings: Pick<MasterSetup, 'roles'>, input: RoleInput, editing: CustomRoleDefinition | null, newId: () => string): CustomRoleDefinition[] {
   const roles = rolesOf(settings);
   const name = input.name.trim();
   const description = input.description.trim();
   if (editing) {
-    const renamed = !editing.isSystem && editing.name !== name;
-    return {
-      ...settings,
-      roles: roles.map(r => (r.id === editing.id ? { ...r, name: editing.isSystem ? r.name : name, description, permissions: input.permissions } : r)),
-      users: renamed ? (settings.users || []).map(u => (u.role === editing.name ? { ...u, role: name } : u)) : settings.users,
-    };
+    return roles.map(r => (r.id === editing.id ? { ...r, name: editing.isSystem ? r.name : name, description, permissions: input.permissions } : r));
   }
-  return { ...settings, roles: [...roles, { id: `ROLE-${newId()}`, name, description: description || 'Custom role', permissions: input.permissions, isSystem: false }] };
+  return [...roles, { id: `ROLE-${newId()}`, name, description: description || 'Custom role', permissions: input.permissions, isSystem: false }];
 }
 
 /** Why a role cannot be deleted, or null when it can. */
@@ -201,6 +148,6 @@ export function roleDeleteBlock(settings: Pick<MasterSetup, 'users' | 'roles'>, 
   return people > 0 ? `${people} ${people === 1 ? 'person has' : 'people have'} this role. Change ${people === 1 ? 'their' : 'their'} role first.` : null;
 }
 
-export function deleteRole(settings: MasterSetup, roleId: string): MasterSetup {
-  return { ...settings, roles: rolesOf(settings).filter(r => r.id !== roleId) };
+export function deleteRole(settings: Pick<MasterSetup, 'roles'>, roleId: string): CustomRoleDefinition[] {
+  return rolesOf(settings).filter(r => r.id !== roleId);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assignableRoles, canChangeUser, deleteRole, grantable, removePerson, resetPassword, roleDeleteBlock, rolesOf, savePerson, saveRole, setPersonStatus, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
+import { assignableRoles, canChangeUser, deleteRole, grantable, roleDeleteBlock, rolesOf, saveRole, validatePerson, validateRole, visibleUsers, SYSTEM_ROLES, type PersonInput } from './user-admin';
 import { ALL_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS, type MasterSetup, type UserRoleItem } from '@/types/settings.types';
 
 const user = (id: string, role: string, farmLocation?: string, email = `${id}@x.com`): UserRoleItem => ({ id, name: id, email, role, status: 'Active', farmLocation });
@@ -56,43 +56,18 @@ describe('validatePerson', () => {
     expect(validatePerson(settings(), input({ farmLocation: '' }), null, sa).farmLocation).toBeTruthy();
     expect(validatePerson(settings(), input({ role: 'Management', farmLocation: '', permissions: DEFAULT_ROLE_PERMISSIONS['Management'] }), null, sa)).toEqual({});
   });
+  it('allows one owner per farm', () => {
+    const ownerInput = (over: Partial<PersonInput> = {}) => input({ role: 'Farm Owner', permissions: DEFAULT_ROLE_PERMISSIONS['Farm Owner'], ...over });
+    // Farm A already has 'own'; Farm B has none.
+    expect(validatePerson(settings(), ownerInput({ farmLocation: 'Farm A' }), null, sa).farmLocation).toMatch(/already has an owner \(own\)/);
+    expect(validatePerson(settings(), ownerInput({ farmLocation: 'Farm B' }), null, sa)).toEqual({});
+    const s = settings();
+    const own = s.users.find(u => u.id === 'own')!;
+    expect(validatePerson(s, ownerInput({ farmLocation: 'Farm A', email: 'own@x.com' }), own, sa)).toEqual({}); // editing the owner themselves
+  });
   it('refuses a role or access the person cannot give', () => {
     expect(validatePerson(settings(), input({ role: 'Admin', farmLocation: '' }), null, owner).role).toBeTruthy();
     expect(validatePerson(settings(), input({ permissions: [...DEFAULT_ROLE_PERMISSIONS['Farm Staff'], 'settings_manage'] }), null, owner).permissions).toMatch(/settings_manage/);
-  });
-});
-
-describe('savePerson', () => {
-  it('adds a person with a made password and reports it once', () => {
-    const { settings: s, tempPassword } = savePerson(settings(), input(), null, id, () => 'tmp-pass-123');
-    expect(tempPassword).toBe('tmp-pass-123');
-    expect(s.users.at(-1)).toMatchObject({ name: 'New Person', role: 'Farm Staff', status: 'Active', password: 'tmp-pass-123', farmLocation: 'Farm A' });
-  });
-  it('keeps a typed password and reports none', () => {
-    const { tempPassword, settings: s } = savePerson(settings(), input({ password: 'chosen-pass' }), null, id, () => 'unused');
-    expect(tempPassword).toBeUndefined();
-    expect(s.users.at(-1)!.password).toBe('chosen-pass');
-  });
-  it('edits without touching the password or PIN unless asked', () => {
-    const s = settings();
-    const st = { ...s.users.find(u => u.id === 'st')!, hasPin: true };
-    s.users = s.users.map(u => (u.id === 'st' ? st : u));
-    const kept = savePerson(s, input({ name: 'Renamed', email: 'st@x.com' }), st, id, () => 'x').settings.users.find(u => u.id === 'st')!;
-    expect(kept.name).toBe('Renamed');
-    expect('password' in kept).toBe(false);
-    expect('pin' in kept).toBe(false);
-    const changed = savePerson(s, input({ email: 'st@x.com', password: 'brand-new-1', pin: '482913', clearPin: false }), st, id, () => 'x').settings.users.find(u => u.id === 'st')!;
-    expect(changed).toMatchObject({ password: 'brand-new-1', pin: '482913' });
-    const cleared = savePerson(s, input({ email: 'st@x.com', clearPin: true }), st, id, () => 'x').settings.users.find(u => u.id === 'st')!;
-    expect(cleared.clearPin).toBe(true);
-  });
-  it('turns a person off and on, removes them, and resets a password', () => {
-    const s = settings();
-    expect(setPersonStatus(s, 'st', 'Inactive').users.find(u => u.id === 'st')!.status).toBe('Inactive');
-    expect(removePerson(s, 'st').users.map(u => u.id)).not.toContain('st');
-    const r = resetPassword(s, 'st', () => 'newpass-9');
-    expect(r.password).toBe('newpass-9');
-    expect(r.settings.users.find(u => u.id === 'st')!.password).toBe('newpass-9');
   });
 });
 
@@ -103,24 +78,23 @@ describe('roles', () => {
     expect(validateRole(settings(), { name: 'farm staff', description: '', permissions: ['feed_view'] }, null, sa).name).toMatch(/already/);
     expect(validateRole(settings(), { name: 'Accountant', description: '', permissions: ['sales_view'] }, null, sa)).toEqual({});
   });
-  it('adds a role and renames a custom role on the people who have it', () => {
-    const s = saveRole(settings(), { name: 'Feed Manager', description: 'x', permissions: ['feed_view'] }, null, id);
-    const role = s.roles!.find(r => r.name === 'Feed Manager')!;
+  it('adds a role and renames a custom one in place', () => {
+    const added = saveRole(settings(), { name: 'Feed Manager', description: 'x', permissions: ['feed_view'] }, null, id);
+    const role = added.find(r => r.name === 'Feed Manager')!;
     expect(role.isSystem).toBe(false);
-    const withPerson = { ...s, users: [...s.users, user('fm', 'Feed Manager', 'Farm A')] };
-    const renamed = saveRole(withPerson, { name: 'Feed Lead', description: 'x', permissions: ['feed_view'] }, role, id);
-    expect(renamed.users.find(u => u.id === 'fm')!.role).toBe('Feed Lead');
+    const renamed = saveRole({ roles: added }, { name: 'Feed Lead', description: 'x', permissions: ['feed_view'] }, role, id);
+    expect(renamed.find(r => r.id === role.id)!.name).toBe('Feed Lead');
   });
   it('never renames a built-in role', () => {
     const staff = SYSTEM_ROLES.find(r => r.name === 'Farm Staff')!;
-    const s = saveRole(settings(), { name: 'Something Else', description: 'd', permissions: ['feed_view'] }, staff, id);
-    expect(s.roles!.find(r => r.id === staff.id)).toMatchObject({ name: 'Farm Staff', permissions: ['feed_view'] });
+    const roles = saveRole(settings(), { name: 'Something Else', description: 'd', permissions: ['feed_view'] }, staff, id);
+    expect(roles.find(r => r.id === staff.id)).toMatchObject({ name: 'Farm Staff', permissions: ['feed_view'] });
   });
   it('blocks deleting a built-in role or one that people still have', () => {
     expect(roleDeleteBlock(settings(), SYSTEM_ROLES[0])).toMatch(/built-in/);
     const s = { ...settings(), roles: [...SYSTEM_ROLES, custom], users: [...settings().users, user('fm', 'Feed Manager', 'Farm A')] } as MasterSetup;
     expect(roleDeleteBlock(s, custom)).toMatch(/1 person has/);
     expect(roleDeleteBlock({ ...s, users: settings().users }, custom)).toBeNull();
-    expect(deleteRole({ ...s, users: settings().users }, 'ROLE-X').roles!.map(r => r.id)).not.toContain('ROLE-X');
+    expect(deleteRole(s, 'ROLE-X').map(r => r.id)).not.toContain('ROLE-X');
   });
 });

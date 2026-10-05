@@ -33,7 +33,7 @@ const GROUPS: { title: string; lists: { key: ListKey; label: string; hint: strin
 
 interface ListsPanelProps {
   settings: MasterSetup;
-  onSettings: (next: MasterSetup) => Promise<void>;
+  onSettings: (patch: Partial<MasterSetup>) => Promise<void>;
 }
 
 export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
@@ -51,7 +51,7 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
     if (items.some(i => i.toLowerCase() === value.toLowerCase())) { setError(`"${value}" is already in the list.`); return; }
     setError('');
     try {
-      await onSettings({ ...settings, [open]: [...items, value] });
+      await onSettings({ [open]: [...items, value] });
       setText('');
     } catch (e) {
       setError(getErrorMessage(e, 'Could not add it.'));
@@ -68,7 +68,7 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
       type: 'danger',
       confirmText: 'Remove',
       onConfirm: async () => {
-        try { await onSettings({ ...settings, [open]: items.filter(i => i !== item) }); } catch (e) { setConfirm({ title: 'Could not remove', description: getErrorMessage(e, 'Something went wrong.'), type: 'danger', confirmText: 'OK' }); }
+        try { await onSettings({ [open]: items.filter(i => i !== item) }); } catch (e) { setConfirm({ title: 'Could not remove', description: getErrorMessage(e, 'Something went wrong.'), type: 'danger', confirmText: 'OK' }); }
       },
     });
   };

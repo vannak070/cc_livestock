@@ -215,107 +215,138 @@ export class SettingsRepository {
     };
   }
 
-  async updateSettings(settings: MasterSetup, client?: PoolClient): Promise<MasterSetup> {
-
-    // Never persist plaintext/hash secrets inside the master_settings JSON
-    // blob — the `users` table (password column) and per-user hashing below
-    // are the single source of truth for credentials.
-    const sanitizedForBlob: MasterSetup = {
-      ...settings,
-      users: stripUserSecrets(settings.users),
-      farms: stripFarmSecrets(settings.farms)
-    };
-
-    const sql = `
-      INSERT INTO master_settings (key, data, updated_at)
-      VALUES ('master_setup', $1, CURRENT_TIMESTAMP)
-      ON CONFLICT (key) DO UPDATE SET data = $1, updated_at = CURRENT_TIMESTAMP
-    `;
-    await this.executeQuery(sql, [JSON.stringify(sanitizedForBlob)], client);
-
-    if (settings.users) {
-      if (settings.users.length > 0) {
-        const userIds = settings.users.map(u => u.id);
-        await this.executeQuery(
-          `DELETE FROM users WHERE id NOT IN (${userIds.map((_, idx) => `$${idx + 1}`).join(', ')})`,
-          userIds,
-          client
-        );
-      } else {
-        await this.executeQuery(`DELETE FROM users`, [], client);
-      }
-
-      for (const u of settings.users) {
-        const permsToSave = u.permissions || DEFAULT_ROLE_PERMISSIONS[u.role] || [];
-
-        // Password resolution rules:
-        //  - admin typed a new password (u.password non-empty) -> hash & store it
-        //  - editing an existing user, nothing typed -> KEEP their current hash
-        //    (never silently reset a password just because the client didn't
-        //    have it to send back — GET /settings no longer returns it)
-        //  - brand-new user, nothing typed -> generate + hash a temp password
-        let passwordToStore: string;
-        const typed = (u.password || '').trim();
-        if (typed) {
-          passwordToStore = await hashPassword(typed);
-        } else {
-          const existing = await this.executeQuery('SELECT password FROM users WHERE id = $1', [u.id], client);
-          if (existing.rows.length > 0 && existing.rows[0].password) {
-            passwordToStore = existing.rows[0].password;
-          } else {
-            const temp = generateTempPassword();
-            passwordToStore = await hashPassword(temp);
-            console.log(`[Settings] New user ${u.email} (${u.role}) assigned temporary password: ${temp}`);
-            console.log('[Settings] Share this with the user — it will not be shown again.');
-          }
-        }
-
-        // PIN resolution rules mirror the password rules just above, with
-        // one addition: an admin can tick "Remove PIN sign-in" to clear an
-        // existing PIN outright (there's no way to type your way to "empty"
-        // when blank already means "leave unchanged").
-        //  - clearPin -> NULL, regardless of anything typed in `pin`
-        //  - u.pin typed -> validate strength + uniqueness, then hash & store
-        //  - nothing typed, not clearing -> KEEP the existing hash
-        let pinHashToStore: string | null;
-        const typedPin = (u.pin || '').trim();
-        if (u.clearPin) {
-          pinHashToStore = null;
-        } else if (typedPin) {
-          const problem = validatePinStrength(typedPin);
-          if (problem) throw new Error(`PIN for ${u.email}: ${problem}`);
-
-          // A PIN both identifies and authenticates on the mobile app's
-          // PIN sign-in, so two accounts sharing one would be ambiguous at
-          // login — refuse it the same way the CLI's set-pin script does.
-          const others = await this.executeQuery(
-            "SELECT id, email, pin_hash FROM users WHERE pin_hash IS NOT NULL AND pin_hash <> '' AND id <> $1",
-            [u.id],
-            client
-          );
-          for (const row of others.rows) {
-            if (await verifyPassword(typedPin, row.pin_hash)) {
-              throw new Error(`That PIN is already used by ${row.email}. Every PIN must be unique.`);
-            }
-          }
-
-          pinHashToStore = await hashPassword(typedPin);
-        } else {
-          const existingPin = await this.executeQuery('SELECT pin_hash FROM users WHERE id = $1', [u.id], client);
-          pinHashToStore = existingPin.rows.length > 0 ? existingPin.rows[0].pin_hash : null;
-        }
-
-        await this.executeQuery(
-          `INSERT INTO users (id, name, email, role, status, password, permissions, farm_location, pin_hash)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           ON CONFLICT (id) DO UPDATE SET name=$2, email=$3, role=$4, status=$5, password=$6, permissions=$7, farm_location=$8, pin_hash=$9`,
-          [u.id, u.name, u.email, u.role, u.status || 'Active', passwordToStore, JSON.stringify(permsToSave), u.farmLocation || null, pinHashToStore],
-          client
-        );
-      }
-    }
-
+  /**
+   * Saves the master lists and roles. People live in the `users` table and
+   * farms in their own operations, so they are never written here: a screen
+   * that was open before someone else added a person cannot delete them.
+   */
+  async updateSettings(settings: Partial<MasterSetup>, client?: PoolClient): Promise<MasterSetup> {
+    const { users: _users, ...rest } = settings as MasterSetup;
+    void _users;
+    await this.patchBlob(rest, client);
     return this.getSettings();
+  }
+
+  /** Merges some sections into the stored settings document, locking it so two saves cannot overwrite each other. */
+  async patchBlob(patch: Partial<MasterSetup>, client?: PoolClient): Promise<void> {
+    const res = await this.executeQuery("SELECT data FROM master_settings WHERE key = 'master_setup' FOR UPDATE", [], client);
+    // On a brand-new database there is no document yet: start from the built-in defaults.
+    const current = (res.rows.length > 0 ? res.rows[0].data : await this.getSettings()) as Partial<MasterSetup>;
+    const merged: Partial<MasterSetup> = { ...current, ...patch, users: [] };
+    if (merged.farms) merged.farms = stripFarmSecrets(merged.farms);
+    await this.executeQuery(
+      `INSERT INTO master_settings (key, data, updated_at)
+       VALUES ('master_setup', $1, CURRENT_TIMESTAMP)
+       ON CONFLICT (key) DO UPDATE SET data = $1, updated_at = CURRENT_TIMESTAMP`,
+      [JSON.stringify(merged)],
+      client
+    );
+  }
+
+  // ── People: one row at a time ──────────────────────────────────────────
+
+  private rowToUser(row: Record<string, unknown>): UserRoleItem {
+    let perms = row.permissions as unknown;
+    if (typeof perms === 'string') {
+      try { perms = JSON.parse(perms); } catch { perms = []; }
+    }
+    if (!perms || (Array.isArray(perms) && perms.length === 0)) perms = DEFAULT_ROLE_PERMISSIONS[row.role as string] || [];
+    return {
+      id: row.id as string,
+      name: row.name as string,
+      email: row.email as string,
+      role: row.role as string,
+      status: row.status as UserRoleItem['status'],
+      permissions: perms as UserRoleItem['permissions'],
+      farmLocation: (row.farm_location as string) || undefined,
+      hasPin: !!row.pin_hash,
+    };
+  }
+
+  async findUserById(id: string, client?: PoolClient): Promise<UserRoleItem | null> {
+    const res = await this.executeQuery('SELECT * FROM users WHERE id = $1', [id], client);
+    return res.rows.length ? this.rowToUser(res.rows[0]) : null;
+  }
+
+  private async assertPinFree(pin: string, exceptId: string, client?: PoolClient): Promise<void> {
+    const problem = validatePinStrength(pin);
+    if (problem) throw new Error(`PIN: ${problem}`);
+    // A PIN both identifies and authenticates on the PIN sign-in, so two accounts sharing one would be ambiguous.
+    const others = await this.executeQuery("SELECT email, pin_hash FROM users WHERE pin_hash IS NOT NULL AND pin_hash <> '' AND id <> $1", [exceptId], client);
+    for (const row of others.rows) {
+      if (await verifyPassword(pin, row.pin_hash)) throw new Error(`That PIN is already used by ${row.email}. Every PIN must be unique.`);
+    }
+  }
+
+  private mapUserWriteError(e: unknown): never {
+    if ((e as { code?: string })?.code === '23505') throw new Error('Someone else already uses that email.');
+    throw e;
+  }
+
+  /** Adds a person. A password is made when none is given; the plaintext is returned once so it can be handed over. */
+  async createUser(user: UserRoleItem & { pin?: string }, client?: PoolClient): Promise<{ user: UserRoleItem; tempPassword?: string }> {
+    const typed = (user.password || '').trim();
+    const tempPassword = typed ? undefined : generateTempPassword();
+    const passwordHash = await hashPassword(typed || (tempPassword as string));
+    const pin = (user.pin || '').trim();
+    let pinHash: string | null = null;
+    if (pin) {
+      await this.assertPinFree(pin, user.id, client);
+      pinHash = await hashPassword(pin);
+    }
+    const perms = user.permissions && user.permissions.length > 0 ? user.permissions : DEFAULT_ROLE_PERMISSIONS[user.role] || [];
+    try {
+      await this.executeQuery(
+        `INSERT INTO users (id, name, email, role, status, password, permissions, farm_location, pin_hash)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [user.id, user.name, user.email, user.role, user.status || 'Active', passwordHash, JSON.stringify(perms), user.farmLocation || null, pinHash],
+        client
+      );
+    } catch (e) { this.mapUserWriteError(e); }
+    return { user: (await this.findUserById(user.id, client))!, tempPassword };
+  }
+
+  /** Changes a person. A password or PIN is only touched when one is given (or the PIN is cleared). */
+  async updateUser(id: string, fields: { name: string; email: string; role: string; permissions: UserRoleItem['permissions']; farmLocation?: string; password?: string; pin?: string; clearPin?: boolean }, client?: PoolClient): Promise<UserRoleItem> {
+    const sets = ['name = $1', 'email = $2', 'role = $3', 'permissions = $4', 'farm_location = $5'];
+    const params: unknown[] = [fields.name, fields.email, fields.role, JSON.stringify(fields.permissions || []), fields.farmLocation || null];
+    const typedPassword = (fields.password || '').trim();
+    if (typedPassword) { params.push(await hashPassword(typedPassword)); sets.push(`password = $${params.length}`); }
+    const typedPin = (fields.pin || '').trim();
+    if (fields.clearPin) { sets.push('pin_hash = NULL'); }
+    else if (typedPin) { await this.assertPinFree(typedPin, id, client); params.push(await hashPassword(typedPin)); sets.push(`pin_hash = $${params.length}`); }
+    params.push(id);
+    try {
+      const res = await this.executeQuery(`UPDATE users SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`, params, client);
+      if (res.rows.length === 0) throw new Error('That person no longer exists.');
+      return this.rowToUser(res.rows[0]);
+    } catch (e) { return this.mapUserWriteError(e); }
+  }
+
+  async setUserRole(id: string, role: string, permissions: UserRoleItem['permissions'], client?: PoolClient): Promise<void> {
+    await this.executeQuery('UPDATE users SET role = $1, permissions = $2 WHERE id = $3', [role, JSON.stringify(permissions || []), id], client);
+  }
+
+  async setUserStatus(id: string, status: 'Active' | 'Inactive', client?: PoolClient): Promise<void> {
+    await this.executeQuery('UPDATE users SET status = $1 WHERE id = $2', [status, id], client);
+  }
+
+  async setUserPassword(id: string, plain: string, client?: PoolClient): Promise<void> {
+    await this.executeQuery('UPDATE users SET password = $1 WHERE id = $2', [await hashPassword(plain), id], client);
+  }
+
+  async deleteUser(id: string, client?: PoolClient): Promise<boolean> {
+    const res = await this.executeQuery('DELETE FROM users WHERE id = $1 RETURNING id', [id], client);
+    return res.rows.length > 0;
+  }
+
+  async countUsersWithRole(role: string, client?: PoolClient): Promise<number> {
+    const res = await this.executeQuery('SELECT COUNT(*)::int AS n FROM users WHERE role = $1', [role], client);
+    return res.rows[0].n as number;
+  }
+
+  async renameRole(oldName: string, newName: string, client?: PoolClient): Promise<void> {
+    await this.executeQuery('UPDATE users SET role = $1 WHERE role = $2', [newName, oldName], client);
   }
 }
 
