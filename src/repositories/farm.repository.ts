@@ -43,7 +43,6 @@ export class FarmRepository {
     await this.run('UPDATE farm_limit_requests SET farm_location = $1 WHERE farm_location = $2', [newName, oldName], client);
     await this.run('UPDATE farm_limit_changes SET farm_location = $1 WHERE farm_location = $2', [newName, oldName], client);
     await this.run('UPDATE cattle_registrations SET farm_location = $1 WHERE farm_location = $2', [newName, oldName], client);
-    await this.run('UPDATE capacity_alert_log SET farm_location = $1 WHERE farm_location = $2', [newName, oldName], client);
   }
 }
 

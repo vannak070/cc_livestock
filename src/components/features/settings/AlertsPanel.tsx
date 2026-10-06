@@ -86,7 +86,6 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
     if (!res.success) { say('bad', res.error); return; }
     const parts = [
       res.data.dailySent > 0 ? tx('sentDaily', { n: res.data.dailySent }) : '',
-      res.data.capacitySent > 0 ? tx('sentForLimits', { n: res.data.capacitySent }) : '',
       res.data.lowFeedSent > 0 ? tx('sentLowFeed', { n: res.data.lowFeedSent }) : '',
     ].filter(Boolean);
     say('ok', parts.length > 0 ? parts.join(' ') : tx('nothingNew'));
@@ -168,7 +167,6 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
           <li>{tx('sent2')}</li>
           <li>{tx('sent3', { n: saleWindowDays(settings) })}</li>
           <li>{tx('sent4', { months: longStayMonths(settings) })}</li>
-          <li>{tx('sent6')}</li>
         </ul>
         <p className="text-base text-ink-muted">{tx('changeDays')}</p>
         {last?.lastSentAt && <p className="text-base text-ink">{tx('lastAlert', { time: last.lastSentAt.slice(0, 16).replace('T', ' '), what: txn(last.lastSentCount ?? 0, 'messageOne', 'messageMany') })}</p>}

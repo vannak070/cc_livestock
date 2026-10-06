@@ -5,7 +5,6 @@ import { StockItem, WeightRecord } from '../lib/xlsx-parser';
 import type { FarmScope } from '../lib/farm-scope';
 import { farmLimitService } from './farm-limit.service';
 import { registrationRepository } from '../repositories/registration.repository';
-import { capacityAlertService } from './capacity-alert.service';
 import { Actor, AuthzError } from '../lib/authz';
 import { canSetLimits } from '../lib/farm-limit';
 
@@ -23,9 +22,6 @@ export class StockService {
    */
   async createStock(item: Omit<StockItem, 'no'>, registeredBy = ''): Promise<StockItem> {
     const created = await this.createStockRecord(item, registeredBy);
-    // A farm that just reached 80%, 90% or 100% of its limit is warned straight away (best effort; the
-    // scheduler checks again every few minutes, and the log stops anything going out twice).
-    void capacityAlertService.run().catch(() => undefined);
     return created;
   }
 

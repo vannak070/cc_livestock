@@ -1,4 +1,3 @@
-import { capacityAlertService } from '../services/capacity-alert.service';
 import { lowFeedAlertService } from '../services/low-feed-alert.service';
 import { settingsRepository } from '../repositories/settings.repository';
 import { dailyAlertService } from '../services/daily-alert.service';
@@ -49,13 +48,6 @@ export function startAlertScheduler(): void {
       if (lowFeed.sent > 0) console.log(`[alerts] Sent ${lowFeed.sent} low-feed alert(s).`);
     } catch (err) {
       console.error('[alerts] Low-feed check failed:', err instanceof Error ? err.message : err);
-    }
-    // Cattle-limit warnings are independent of the sale alerts: one failing must not stop the other.
-    try {
-      const capacity = await capacityAlertService.run();
-      if (capacity.sent > 0) console.log(`[alerts] Sent ${capacity.sent} cattle-limit warning(s).`);
-    } catch (err) {
-      console.error('[alerts] Cattle-limit check failed:', err instanceof Error ? err.message : err);
     } finally {
       running = false;
     }
