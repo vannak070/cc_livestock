@@ -32,8 +32,6 @@ import {
   deleteProposalPlanAction,
   addFarmCostAction,
   deleteFarmCostAction,
-  saveFarmLoanAction,
-  deleteFarmLoanAction,
   logoutAction
 } from '@/app/actions';
 import { useRouter } from 'next/navigation';
@@ -68,7 +66,7 @@ import { costCategoriesFrom, type FarmCostInput } from '@/lib/farm-costs';
 import { ERPLivestockData, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import { ProposalPlanParams } from '@/types';
 import { SalesRecord } from '@/lib/xlsx-parser';
-import { canSeeOwnLoan, canUsePlanning, hasPermission } from '@/lib/utils';
+import { canUsePlanning, hasPermission } from '@/lib/utils';
 import { canOpenPeople } from '@/lib/user-admin';
 import { scopeDataToFarm } from '@/lib/farm-view';
 import { readFocus, saveFocus, validFocus } from '@/lib/working-on';
@@ -383,24 +381,6 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     }
   });
 
-  const saveFarmLoanMutation = useMutation({
-    mutationFn: async ({ farm, terms, assumptions, notes }: { farm: string; terms: Parameters<typeof saveFarmLoanAction>[1]; assumptions: Parameters<typeof saveFarmLoanAction>[2]; notes: string }) => {
-      const res = await saveFarmLoanAction(farm, terms, assumptions, notes);
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
-  });
-
-  const deleteFarmLoanMutation = useMutation({
-    mutationFn: async (farm: string) => {
-      const res = await deleteFarmLoanAction(farm);
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
-  });
-
   const addFeedTransactionMutation = useMutation({
     mutationFn: async (tx: FeedStockTransaction) => {
       const res = await addFeedTransactionAction(tx);
@@ -511,7 +491,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
 
     // Settings is also a farm owner's People page, and Planning is for a few roles only, so they have their own rules.
     const blocked = activeTab === 'settings' ? !canOpenPeople(currentUser)
-      : activeTab === 'proposal-plan' ? !(canUsePlanning(currentUser) || canSeeOwnLoan(currentUser))
+      : activeTab === 'proposal-plan' ? !canUsePlanning(currentUser)
       : !!permissionKey && !hasPermission(currentUser, permissionKey);
     if (blocked && activeTab !== 'today') {
       setActiveTab('today');
@@ -712,7 +692,6 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
 
       {activeTab === 'proposal-plan' && (
         <PlanningPage
-          ownFarm={!canUsePlanning(currentUser) && canSeeOwnLoan(currentUser) ? currentUser.farmLocation : undefined}
           plans={dbData.proposalPlans ?? []}
           onSavePlan={async (slot, name, params) => {
             await saveProposalPlanMutation.mutateAsync({ slot, name, params });
@@ -720,15 +699,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           onDeletePlan={async (slot) => {
             await deleteProposalPlanMutation.mutateAsync(slot);
           }}
-          farms={dbData.settings?.farms ?? []}
-          loans={dbData.farmLoans ?? []}
           data={dbData}
-          onSaveLoan={async (farm, terms, assumptions, notes) => {
-            await saveFarmLoanMutation.mutateAsync({ farm, terms, assumptions, notes });
-          }}
-          onDeleteLoan={async farm => {
-            await deleteFarmLoanMutation.mutateAsync(farm);
-          }}
         />
       )}
 

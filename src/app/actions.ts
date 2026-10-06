@@ -43,8 +43,6 @@ import { runAction } from '@/lib/run-action';
 import { authService } from '@/services/auth.service';
 import { dailyFeedService } from '@/services/daily-feed.service';
 import { farmCostService } from '@/services/farm-cost.service';
-import { farmLoanService } from '@/services/farm-loan.service';
-import type { FarmLoanAssumptions, FarmLoanTerms } from '@/lib/types';
 import type { FarmCostInput } from '@/lib/farm-costs';
 import { batchMoveService } from '@/services/batch-move.service';
 import type { DailyFeedInput } from '@/lib/daily-feed';
@@ -285,15 +283,6 @@ export async function deleteFarmCostAction(id: string) {
   return runAction('Failed to delete the cost', ['costs_delete'], actor => farmCostService.remove(actor, id));
 }
 
-// ─── Farm loans (Planning) ──────────────────────────────────────────────────
-// Only Super Admin, Admin and Management (checked in the service).
-export async function saveFarmLoanAction(farm: string, terms: FarmLoanTerms, assumptions: FarmLoanAssumptions, notes: string) {
-  return runAction('Failed to save the loan', [], actor => farmLoanService.save(actor, farm, terms, assumptions, notes));
-}
-
-export async function deleteFarmLoanAction(farm: string) {
-  return runAction('Failed to remove the loan', [], actor => farmLoanService.remove(actor, farm));
-}
 
 // ─── Settings & planning ────────────────────────────────────────────────────
 // Which parts of settings this user may change is checked section by section

@@ -4,14 +4,12 @@ import React, { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ArrowLeft, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import type { FeedProductItem, ProposalPlanParams, ProposalPlanRecord } from '@/types';
-import { DEFAULT_PLAN, calculatePlan, feedForPeriod } from '@/lib/proposal-plan';
+import { DEFAULT_PLAN, calculatePlan } from '@/lib/proposal-plan';
 import { bankSchedule, ccTrades, simulateLoan } from '@/lib/farm-loan';
 import { planLoanInputs } from '@/lib/plan-loan';
 import { BUY_PLAN_LABEL, buyingSentence } from './LoanParts';
-import { BankPaymentsTable, CcTradesTable, exportBankPlan, exportTrades, monthLabel } from './LoanTables';
-import { NUM } from '../flow/FlowShell';
+import { BankPaymentsTable, CcTradesTable, FeedNeedsTable, exportBankPlan, exportFeedNeeds, exportTrades, monthLabel } from './LoanTables';
 import PlanFlow from './PlanFlow';
 
 interface PlanEditorProps {
@@ -33,7 +31,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'bank', label: 'Bank loan' },
   { key: 'months', label: 'Months' },
   { key: 'batches', label: 'Batches' },
-  { key: 'feed', label: 'Feed' },
+  { key: 'feed', label: 'Feed needs' },
   { key: 'numbers', label: 'The numbers' },
 ];
 
@@ -65,7 +63,6 @@ const COSTS = '#2B6CB0';
 const riel = (n: number) => `${Math.round(n).toLocaleString()} ៛`;
 const signedRiel = (n: number) => `${n < 0 ? '−' : ''}${riel(Math.abs(n))}`;
 const mil = (v: number) => (v === 0 ? '0' : Math.abs(v) >= 1_000_000 ? `${Math.round(v / 100_000) / 10}M` : `${Math.round(v / 1000)}k`);
-const SELECT_INPUT = 'h-12 text-lg';
 
 function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'good' | 'bad' }) {
   const style = tone === 'bad' ? 'border-rose-300 bg-rose-50' : tone === 'good' ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white';
@@ -100,8 +97,6 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, prod
   // A new plan (not saved yet) opens the dialog straight away.
   const [editing, setEditing] = useState(!plan);
   const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [feedHead, setFeedHead] = useState('');
-  const [feedDays, setFeedDays] = useState('30');
 
   const params = useMemo<ProposalPlanParams>(() => ({ ...DEFAULT_PLAN, ...(plan?.params ?? startFrom ?? {}) }), [plan, startFrom]);
   const name = plan?.name ?? `Plan ${slot}`;
@@ -113,7 +108,6 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, prod
     return { ...x, sim, payments: bankSchedule(sim), trades: ccTrades(sim) };
   }, [params]);
   const [loanView, setLoanView] = useState<'payments' | 'trades'>('payments');
-  const feed = useMemo(() => feedForPeriod(params, Number(feedHead) || params.targetStockLevel, Number(feedDays) || 0), [params, feedHead, feedDays]);
 
   const save = async (n: string, p: ProposalPlanParams) => {
     await onSave(n, p);
@@ -273,19 +267,11 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, prod
       )}
 
       {tab === 'feed' && (
-        <div className="space-y-4">
-          <section className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
-            <label className="block"><span className="mb-1 block text-base font-medium text-ink">How many animals?</span><Input type="number" inputMode="numeric" value={feedHead} placeholder={String(params.targetStockLevel)} onChange={e => setFeedHead(e.target.value)} className={`${SELECT_INPUT} ${NUM}`} /></label>
-            <label className="block">
-              <span className="mb-1 block text-base font-medium text-ink">For how many days?</span>
-              <Input type="number" inputMode="numeric" value={feedDays} onChange={e => setFeedDays(e.target.value)} className={`${SELECT_INPUT} ${NUM}`} />
-            </label>
-          </section>
-          <Rows
-            rows={feed.lines.map(l => [l.name, `${l.kg.toLocaleString()} kg · ${riel(l.costKhr)}`] as [string, string])}
-            total={['Feed cost', riel(feed.totalCostKhr)]}
-          />
-        </div>
+        <FeedNeedsTable
+          lines={loan.assumptions.feedLines ?? []}
+          months={loan.sim.months}
+          onDownload={() => exportFeedNeeds(name, loan.terms.startMonth, loan.assumptions.feedLines ?? [], loan.sim.months)}
+        />
       )}
 
       {tab === 'numbers' && (

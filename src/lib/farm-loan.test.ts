@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ASSUMPTIONS, addMonths, bankSchedule, ccTrades, defaultTerms, farmActuals, herdPlan, parseLoanAssumptions, parseLoanTerms, simulateLoan } from './farm-loan';
+import { DEFAULT_ASSUMPTIONS, addMonths, bankSchedule, ccTrades, defaultTerms, herdPlan, parseLoanAssumptions, parseLoanTerms, simulateLoan } from './farm-loan';
 import type { FarmLoanAssumptions, FarmLoanTerms } from './types';
-import type { SalesRecord, StockItem, WeightRecord } from './xlsx-parser';
 
 // Cattle-only loans keep the numbers simple; "cattle, feed and interest" has its own tests.
 const terms: FarmLoanTerms = { ...defaultTerms('2026-01'), bank: 'Bank', annualRatePct: 12, loanCovers: 'cattle' };
@@ -124,51 +123,6 @@ describe('parse', () => {
     expect(parseLoanAssumptions(a)).toEqual(a);
     expect(parseLoanAssumptions({ ...a, herdTarget: 0 })).toMatch(/how many cattle/);
     expect(parseLoanAssumptions({ ...a, lastBuyMonth: 13 })).toMatch(/last month/);
-  });
-});
-
-describe('farmActuals', () => {
-  const stock = [
-    { id: 'A', location: 'SNR Farm', status: 'Sold', buyType: 'Weight', unitPrice: 11000, totalPrice: 3_300_000, weight: 300, purchaseDate: '2026-06-01' },
-    { id: 'B', location: 'SNR Farm', status: 'Active', buyType: 'Weight', unitPrice: 13000, totalPrice: 3_900_000, weight: 300, purchaseDate: '2026-06-01' },
-    { id: 'X', location: 'Other', status: 'Active', buyType: 'Weight', unitPrice: 99999, totalPrice: 1, weight: 1, purchaseDate: '2026-06-01' },
-  ] as StockItem[];
-  const weights = [
-    { cowId: 'B', currentWeight: 300, trackingDate: '2026-06-01' },
-    { cowId: 'B', currentWeight: 400, trackingDate: '2026-09-09' },
-  ] as WeightRecord[];
-  const sales = [{ cowId: 'A', salesDate: '2026-09-29', saleType: 'Scale', unitPrice: 12300, totalPrice: 5_000_000 }] as SalesRecord[];
-  const feed = [
-    { id: '1', date: '2026-09-20T00:00:00.000Z', type: 'STOCK_OUT', totalCost: 600_000, sourceFarm: 'SNR Farm' },
-    { id: '2', date: '2026-05-01T00:00:00.000Z', type: 'STOCK_OUT', totalCost: 9_999_999, sourceFarm: 'SNR Farm' },
-  ] as never;
-
-  it('fills in what the farm’s records can tell, and only for that farm', () => {
-    const { values, basis } = farmActuals({ name: 'SNR Farm', capacity: 100 }, { stock, weightTracking: weights, salesTracking: sales, feedTransactions: feed, batches: [] }, '2026-10-05');
-    expect(values).toMatchObject({ herdTarget: 100, buyPricePerKgKhr: 12000, initialWeightKg: 300, sellPricePerKgKhr: 12300, fatteningDays: 120, dailyGainKg: 1 });
-    // 600,000 ៛ over 60 days for 1 animal on the farm now.
-    expect(values.feedCostPerHeadDayKhr).toBe(10000);
-    expect(basis.sellPricePerKgKhr).toMatch(/1 sales/);
-  });
-
-  it('splits the recorded feed by feed: kg per animal a day, at the feed list price', () => {
-    const tx = [
-      { id: '1', date: '2026-09-20T00:00:00.000Z', type: 'STOCK_OUT', productId: 'DSR', productName: 'DSR-16', quantityKg: 360, totalCost: 492_120, sourceFarm: 'SNR Farm' },
-      { id: '2', date: '2026-09-21T00:00:00.000Z', type: 'STOCK_OUT', productId: 'STRAW', productName: 'Straw', quantityKg: 180, totalCost: 0, sourceFarm: 'SNR Farm' },
-    ] as never;
-    const products = [{ id: 'DSR', name: 'DSR-16 Cow Feed', unitCost: 1367 }, { id: 'STRAW', name: 'Rice straw', unitCost: 0, trackStock: false }] as never;
-    const { feedLines, feedBasis } = farmActuals({ name: 'SNR Farm' }, { stock, weightTracking: [], salesTracking: [], feedTransactions: tx, feedProducts: products, batches: [] }, '2026-10-05');
-    // 1 animal on the farm over 60 days: 360 kg = 6 kg a day, 180 kg = 3 kg a day.
-    expect(feedLines).toEqual([
-      { productId: 'DSR', name: 'DSR-16 Cow Feed', kgPerHeadDay: 6, pricePerKgKhr: 1367 },
-      { productId: 'STRAW', name: 'Rice straw', kgPerHeadDay: 3, pricePerKgKhr: 0 },
-    ]);
-    expect(feedBasis).toMatch(/60 days for 1 animals/);
-  });
-
-  it('leaves out what it cannot work out', () => {
-    const { values } = farmActuals({ name: 'Empty' }, { stock, weightTracking: [], salesTracking: [], batches: [] });
-    expect(values).toEqual({});
   });
 });
 

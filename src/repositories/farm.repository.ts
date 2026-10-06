@@ -34,7 +34,6 @@ export class FarmRepository {
     await this.run('UPDATE feed_transactions SET target_farm = $1 WHERE target_farm = $2', [newName, oldName], client);
     await this.run('UPDATE users SET farm_location = $1 WHERE farm_location = $2', [newName, oldName], client);
     await this.run('UPDATE farm_costs SET farm_location = $1 WHERE farm_location = $2', [newName, oldName], client);
-    await this.run('UPDATE farm_loans SET farm_location = $1 WHERE farm_location = $2', [newName, oldName], client);
   }
 }
 

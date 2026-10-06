@@ -17,14 +17,6 @@ export function canUsePlanning(user: { role?: string } | null | undefined): bool
   return !!user?.role && PLANNING_ROLES.includes(user.role);
 }
 
-/**
- * A Farm Owner may read their own farm's loan plan (Planning → Farm loans),
- * nothing else in Planning, and may not change it.
- */
-export function canSeeOwnLoan(user: { role?: string; farmLocation?: string } | null | undefined): boolean {
-  return user?.role === 'Farm Owner' && !!user.farmLocation;
-}
-
 export function hasPermission(
   currentUser: { role?: string; permissions?: readonly string[] } | null | undefined,
   key: PermissionKey

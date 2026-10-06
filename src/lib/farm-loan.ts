@@ -1,10 +1,6 @@
-import type { FarmItem, FarmLoanAssumptions, FarmLoanTerms, FeedProductItem, FeedStockTransaction, LoanRepayment, BatchItem, PlanFeedLine } from './types';
-import type { SalesRecord, StockItem, WeightRecord } from './xlsx-parser';
-import { growth, weighPoints } from './cattle-stats';
-import { addDays, dayOf, farmToday } from './daily-feed';
-import { feedFarm } from './farm-costs';
-import { feedPerHeadDay, parseFeedLines } from './feed-lines';
-import { farmMatcher } from './farm-scope';
+import type { FarmLoanAssumptions, FarmLoanTerms, LoanRepayment } from './types';
+import { farmToday } from './daily-feed';
+import { parseFeedLines } from './feed-lines';
 
 /**
  * A farm's 24-month loan plan: what the farm draws, owes, repays and has in
@@ -421,94 +417,6 @@ export function parseLoanAssumptions(raw: unknown): FarmLoanAssumptions | string
     out.feedCostPerHeadDayKhr = feedPerHeadDay(feedLines).costKhr;
   }
   return out;
-}
-
-// ─── Starting from the farm's own records ───────────────────────────────────
-
-export interface FarmActuals {
-  /** Only the numbers the records can give; each with what it was worked out from. */
-  values: Partial<FarmLoanAssumptions>;
-  /** Feed by kind from the last 60 days (kg per animal a day, price per kg), when there is any. */
-  feedLines?: PlanFeedLine[];
-  feedBasis?: string;
-  basis: Partial<Record<keyof FarmLoanAssumptions, string>>;
-}
-
-const avg = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
-const byWeight = (s: Pick<SalesRecord, 'saleType'>) => ['scale', 'weight'].includes((s.saleType ?? '').toLowerCase().trim());
-const FEED_LOOKBACK_DAYS = 60;
-
-export function farmActuals(
-  farm: Pick<FarmItem, 'name' | 'capacity'>,
-  data: { stock: StockItem[]; weightTracking: WeightRecord[]; salesTracking: SalesRecord[]; feedTransactions?: FeedStockTransaction[]; feedProducts?: FeedProductItem[]; batches: Pick<BatchItem, 'id' | 'farmLocation'>[] },
-  today: string = farmToday()
-): FarmActuals {
-  const values: Partial<FarmLoanAssumptions> = {};
-  const basis: FarmActuals['basis'] = {};
-  const onFarm = farmMatcher(farm.name);
-  const cattle = data.stock.filter(c => onFarm(c.location));
-  const active = cattle.filter(c => c.status.toLowerCase() === 'active');
-
-  if (farm.capacity && farm.capacity > 0) { values.herdTarget = farm.capacity; basis.herdTarget = 'the farm’s capacity'; }
-
-  const gains = cattle
-    .map(c => growth(c, weighPoints(c.id, data.weightTracking, c.purchaseDate)).perDay)
-    .filter((g): g is number => g !== null && g > 0 && g < 5);
-  const gain = avg(gains);
-  if (gain !== null) { values.dailyGainKg = Math.round(gain * 100) / 100; basis.dailyGainKg = `${gains.length} weighed animals`; }
-
-  const boughtByKg = cattle.filter(c => (c.buyType ?? '').toLowerCase() === 'weight' && c.unitPrice > 0 && c.totalPrice > 0);
-  const buyPrice = avg(boughtByKg.map(c => c.unitPrice));
-  const buyWeight = avg(boughtByKg.map(c => c.totalPrice / c.unitPrice));
-  if (buyPrice !== null) { values.buyPricePerKgKhr = Math.round(buyPrice); basis.buyPricePerKgKhr = `${boughtByKg.length} animals bought by weight`; }
-  if (buyWeight !== null) { values.initialWeightKg = Math.round(buyWeight); basis.initialWeightKg = `${boughtByKg.length} animals bought by weight`; }
-
-  const ids = new Set(cattle.map(c => c.id));
-  const sold = data.salesTracking.filter(s => ids.has(s.cowId));
-  const soldByKg = sold.filter(s => byWeight(s) && s.unitPrice > 0);
-  const sellPrice = avg(soldByKg.map(s => s.unitPrice));
-  if (sellPrice !== null) { values.sellPricePerKgKhr = Math.round(sellPrice); basis.sellPricePerKgKhr = `${soldByKg.length} sales by weight`; }
-
-  const cowById = new Map(cattle.map(c => [c.id, c]));
-  const kept = sold
-    .map(s => { const c = cowById.get(s.cowId); const from = dayOf(c?.purchaseDate ?? undefined); const to = dayOf(s.salesDate ?? undefined); return from && to ? (Date.parse(to) - Date.parse(from)) / 86_400_000 : null; })
-    .filter((d): d is number => d !== null && d > 0);
-  const days = avg(kept);
-  if (days !== null) { values.fatteningDays = Math.round(days); basis.fatteningDays = `${kept.length} animals sold`; }
-
-  // Feed taken out at this farm over the last 60 days, for the cattle on it now.
-  const since = addDays(today, -FEED_LOOKBACK_DAYS);
-  const batchFarm = new Map(data.batches.map(b => [b.id, b.farmLocation]));
-  const used = (data.feedTransactions ?? [])
-    .filter(t => t.type === 'STOCK_OUT' && dayOf(t.date) > since && dayOf(t.date) <= today && onFarm(feedFarm(t, batchFarm)));
-  const feedCost = used.reduce((s, t) => s + (t.totalCost || 0), 0);
-  if (feedCost > 0 && active.length > 0) {
-    values.feedCostPerHeadDayKhr = Math.round(feedCost / (active.length * FEED_LOOKBACK_DAYS));
-    basis.feedCostPerHeadDayKhr = `feed used in the last ${FEED_LOOKBACK_DAYS} days for ${active.length} animals`;
-  }
-  // The same, by feed: kg per animal a day, priced at the feed list's price per kg.
-  let feedLines: PlanFeedLine[] | undefined;
-  if (used.length > 0 && active.length > 0) {
-    const products = new Map((data.feedProducts ?? []).map(p => [p.id, p]));
-    const kgBy = new Map<string, { name: string; kg: number; cost: number }>();
-    for (const t of used) {
-      const k = kgBy.get(t.productId) ?? { name: products.get(t.productId)?.name ?? t.productName, kg: 0, cost: 0 };
-      k.kg += t.quantityKg || 0;
-      k.cost += t.totalCost || 0;
-      kgBy.set(t.productId, k);
-    }
-    const headDays = active.length * FEED_LOOKBACK_DAYS;
-    feedLines = [...kgBy.entries()]
-      .filter(([, k]) => k.kg > 0)
-      .map(([id, k]) => ({
-        ...(products.has(id) ? { productId: id } : {}),
-        name: k.name,
-        kgPerHeadDay: Math.round((k.kg / headDays) * 10) / 10,
-        pricePerKgKhr: Math.round(products.get(id)?.unitCost ?? k.cost / k.kg),
-      }))
-      .sort((a, b) => b.kgPerHeadDay - a.kgPerHeadDay);
-  }
-  return { values, basis, ...(feedLines?.length ? { feedLines, feedBasis: `feed recorded in the last ${FEED_LOOKBACK_DAYS} days for ${active.length} animals` } : {}) };
 }
 
 // ─── The payment plan with the bank ─────────────────────────────────────────

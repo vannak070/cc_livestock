@@ -24,7 +24,7 @@ import {
   Receipt
 } from 'lucide-react';
 import { UserRoleItem } from '@/lib/types';
-import { canSeeOwnLoan, canUsePlanning, hasPermission } from '@/lib/utils';
+import { canUsePlanning, hasPermission } from '@/lib/utils';
 import { canOpenPeople, isFarmOwner } from '@/lib/user-admin';
 import { useLanguage } from '@/context/LanguageContext';
 import LanguageSwitcher from '../LanguageSwitcher';
@@ -159,8 +159,7 @@ export default function SidebarLayout({
     'costs': t('nav.costs', 'Costs'),
     'sales-finance': t('nav.financeLedger'),
     'analytics': t('nav.analytics'),
-    // A Farm Owner only gets their own loan under Planning.
-    'proposal-plan': !canUsePlanning(currentUser) && canSeeOwnLoan(currentUser) ? t('nav.myLoan', 'My loan') : t('nav.proposalPlan'),
+    'proposal-plan': t('nav.proposalPlan'),
     'farms': t('nav.farmsBranches'),
     // A farm owner's Settings page is only the people on their farm.
     'settings': currentUser && isFarmOwner(currentUser) ? t('nav.people', 'People') : t('nav.masterSettings')
@@ -169,7 +168,7 @@ export default function SidebarLayout({
   // "Office" pages are for people who look at money and reports; farm staff
   // and vets (who have none of these permissions) see only daily work.
   const showSummary = can('dashboard_view') && (can('sales_view') || can('analytics_view'));
-  const hasOffice = showSummary || can('sales_view') || can('analytics_view') || canUsePlanning(currentUser) || canSeeOwnLoan(currentUser) || can('farms_manage') || canOpenPeople(currentUser);
+  const hasOffice = showSummary || can('sales_view') || can('analytics_view') || canUsePlanning(currentUser) || can('farms_manage') || canOpenPeople(currentUser);
 
   const userInitials = currentUser?.name
     ? currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
@@ -252,7 +251,7 @@ export default function SidebarLayout({
             {can('analytics_view') && (
               <NavItem icon={<PieChart className="h-5 w-5" />} label={tabLabels['analytics']} isActive={activeTab === 'analytics'} onClick={() => handleTabChange('analytics')} />
             )}
-            {(canUsePlanning(currentUser) || canSeeOwnLoan(currentUser)) && (
+            {canUsePlanning(currentUser) && (
               <NavItem icon={<Calculator className="h-5 w-5" />} label={tabLabels['proposal-plan']} isActive={activeTab === 'proposal-plan'} onClick={() => handleTabChange('proposal-plan')} />
             )}
             {can('farms_manage') && (

@@ -154,12 +154,6 @@ export function calculatePlan(p: ProposalPlanParams) {
   };
 }
 
-/** Feed needed, and what it costs, for some animals over some days: by kind, and the total. */
-export function feedForPeriod(p: ProposalPlanParams, head: number, days: number) {
-  const lines = feedNeeds(planFeedLines(p), head * days);
-  return { lines, totalKg: lines.reduce((s, l) => s + l.kg, 0), totalCostKhr: lines.reduce((s, l) => s + l.costKhr, 0) };
-}
-
 type NumberKey = Exclude<keyof ProposalPlanParams, 'feedLines' | 'loan'>;
 const PARAM_KEYS = (Object.keys(DEFAULT_PLAN) as (keyof ProposalPlanParams)[]).filter((k): k is NumberKey => k !== 'feedLines' && k !== 'loan');
 

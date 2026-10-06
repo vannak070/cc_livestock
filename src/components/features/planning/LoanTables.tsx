@@ -3,7 +3,9 @@
 import React from 'react';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { CcTradeRow, bankSchedule, ccTrades } from '@/lib/farm-loan';
+import type { CcTradeRow, LoanMonth, bankSchedule, ccTrades } from '@/lib/farm-loan';
+import type { PlanFeedLine } from '@/lib/types';
+import { feedNeeds } from '@/lib/feed-lines';
 import { exportToExcel } from '@/lib/excel-export';
 
 /**
@@ -171,4 +173,100 @@ export function CcTradesTable({ trades, farmName, onDownload }: { trades: Trades
       )}
     </section>
   );
+}
+
+const kgLabel = (kg: number) => (kg >= 1000 ? `${(Math.round(kg / 100) / 10).toLocaleString()} t` : `${Math.round(kg).toLocaleString()} kg`);
+
+/**
+ * The feed a plan needs, worked out from its herd month by month: each feed's
+ * kg and cost for each year, then for each month, to know what to order from
+ * CC Livestock. Nothing to type.
+ */
+export function FeedNeedsTable({ lines, months, onDownload }: {
+  lines: PlanFeedLine[];
+  months: Pick<LoanMonth, 'index' | 'month' | 'year' | 'monthInYear' | 'headDays'>[];
+  onDownload?: () => void;
+}) {
+  const perMonth = months.map(m => ({ m, head: Math.round(m.headDays / 30), needs: feedNeeds(lines, m.headDays) }));
+  const years = [...new Set(months.map(m => m.year))].map(year => {
+    const headDays = months.filter(m => m.year === year).reduce((s, m) => s + m.headDays, 0);
+    return { year, needs: feedNeeds(lines, headDays) };
+  });
+  const total = (needs: { costKhr: number }[]) => needs.reduce((s, n) => s + n.costKhr, 0);
+  if (lines.length === 0) return <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">This plan has no feed yet. Change the plan to add each feed per cow a day.</p>;
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-2xl text-base text-ink-muted">Worked out from the plan: the cattle on the farm each month × what each cow eats a day × 30 days. This is the feed to order from CC Livestock.</p>
+        {onDownload && <Button variant="outline" onClick={onDownload}><Download /> Download Excel</Button>}
+      </div>
+      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {years.map(y => (
+          <li key={y.year} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <p className="text-lg font-semibold text-ink">Year {y.year}</p>
+            <dl className="mt-1">
+              {y.needs.map(n => (
+                <div key={n.name} className="flex justify-between gap-3 border-b border-slate-100 py-2 last:border-0">
+                  <dt className="text-base text-ink-muted">{n.name}</dt>
+                  <dd className="text-right text-base font-medium text-ink">{kgLabel(n.kg)} · {riel(n.costKhr)}</dd>
+                </div>
+              ))}
+              <div className="flex justify-between gap-3 border-t border-slate-200 pt-2">
+                <dt className="text-lg font-medium text-ink">All feed</dt>
+                <dd className="text-lg font-semibold text-emerald-800">{riel(total(y.needs))}</dd>
+              </div>
+            </dl>
+          </li>
+        ))}
+      </ul>
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full min-w-[40rem] text-right text-base">
+          <thead className="bg-slate-50 text-sm text-ink-muted">
+            <tr>
+              <th scope="col" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium">Month</th>
+              <th scope="col" className="px-3 py-2 font-medium">Cattle</th>
+              {lines.map(l => <th key={l.name} scope="col" className="px-3 py-2 font-medium">{l.name}</th>)}
+              <th scope="col" className="px-3 py-2 font-medium">All feed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {perMonth.map(({ m, head, needs }) => (
+              <tr key={m.index} className={`border-t ${m.monthInYear === 1 && m.index > 1 ? 'border-t-2 border-slate-300' : 'border-slate-100'}`}>
+                <th scope="row" className="sticky left-0 bg-white px-3 py-2 text-left font-medium text-ink">
+                  {monthLabel(m.month)}
+                  <span className="block text-sm font-normal text-ink-muted">Y{m.year} · M{m.monthInYear}</span>
+                </th>
+                <td className="px-3 py-2 text-ink">{head.toLocaleString()}</td>
+                {needs.map(n => <td key={n.name} className="px-3 py-2 text-ink">{kgLabel(n.kg)}<span className="block text-sm text-ink-muted">{riel(n.costKhr)}</span></td>)}
+                <td className="px-3 py-2 font-semibold text-ink">{riel(total(needs))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+export function exportFeedNeeds(name: string, startMonth: string, lines: PlanFeedLine[], months: Pick<LoanMonth, 'month' | 'year' | 'monthInYear' | 'headDays'>[]) {
+  const rows = months.map(m => {
+    const needs = feedNeeds(lines, m.headDays);
+    return {
+      label: `${monthLabel(m.month)} (year ${m.year}, month ${m.monthInYear})`,
+      head: Math.round(m.headDays / 30),
+      ...Object.fromEntries(needs.flatMap((n, i) => [[`kg${i}`, n.kg], [`khr${i}`, n.costKhr]])),
+      total: needs.reduce((s, n) => s + n.costKhr, 0),
+    };
+  });
+  exportToExcel<Record<string, unknown>>({
+    filename: `CC_Livestock_Feed_Needs_${fileSafe(name)}_${startMonth}.xlsx`,
+    sheetName: 'Feed the plan needs',
+    data: rows,
+    columns: [
+      { header: 'Month', key: 'label' },
+      { header: 'Cattle', key: 'head' },
+      ...lines.flatMap((l, i) => [{ header: `${l.name} (kg)`, key: `kg${i}` }, { header: `${l.name} (៛)`, key: `khr${i}` }]),
+      { header: 'All feed (៛)', key: 'total' },
+    ],
+  });
 }

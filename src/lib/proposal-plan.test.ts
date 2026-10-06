@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_PLAN, calculatePlan, feedForPeriod, parsePlanParams, planName } from './proposal-plan';
+import { DEFAULT_PLAN, calculatePlan, parsePlanParams, planName } from './proposal-plan';
 
 describe('calculatePlan with the standard plan', () => {
   const r = calculatePlan(DEFAULT_PLAN);
@@ -39,16 +39,6 @@ describe('calculatePlan edge cases', () => {
     expect(r.marginPerHeadPercent).toBe(0);
     expect(r.annualRoiPercent).toBe(0);
     expect(r.fatteningMonths).toBe(1);
-  });
-});
-
-describe('feedForPeriod', () => {
-  it('gives kg and cost of each feed', () => {
-    expect(feedForPeriod(DEFAULT_PLAN, 100, 30)).toEqual({
-      lines: [{ name: 'Grass', kg: 90_000, costKhr: 18_000_000 }, { name: 'Concentrate', kg: 21_000, costKhr: 25_200_000 }],
-      totalKg: 111_000,
-      totalCostKhr: 43_200_000,
-    });
   });
 });
 

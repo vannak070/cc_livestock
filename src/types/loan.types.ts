@@ -68,12 +68,3 @@ export interface FarmLoanAssumptions {
   firstBuyPct?: number;
   secondBuyMonth?: number;
 }
-
-export interface FarmLoanRecord {
-  farmLocation: string;
-  terms: FarmLoanTerms;
-  assumptions: FarmLoanAssumptions;
-  notes?: string;
-  updatedAt: string;
-  updatedBy?: string;
-}
