@@ -14,6 +14,7 @@ import { growth, weighPoints } from '@/lib/cattle-stats';
 import { batchWeighIns } from '@/lib/batch-stats';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
+import { useText } from '@/hooks/useText';
 import { Choice, NUM } from '../flow/FlowShell';
 import { FarmSelect } from '@/components/ui/listbox-select';
 
@@ -48,6 +49,7 @@ function Tile({ label, value, sub, tone }: { label: string; value: string; sub?:
 }
 
 export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDeleteWeightRecord, onUpdateWeightRecord, currentUser, farms = [] }: WeightsPageProps) {
+  const { tx, txn } = useText('weightsPage');
   const [tab, setTab] = useState<Tab>('due');
   const [showAllDue, setShowAllDue] = useState(false);
   const [openBatches, setOpenBatches] = useState<Record<string, boolean>>({});
@@ -160,54 +162,54 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
   const saveEdit = async () => {
     if (!editing || !onUpdateWeightRecord) return;
     const kg = Number(editing.weight);
-    if (!(kg > 0)) { setEditError('Type the weight in kg.'); return; }
+    if (!(kg > 0)) { setEditError(tx('errWeight')); return; }
     try {
       await onUpdateWeightRecord(editing.cowId, editing.trackingDate, kg, editing.health);
       setEditing(null);
     } catch (e) {
-      setEditError(getErrorMessage(e, 'Could not save. Please try again.'));
+      setEditError(getErrorMessage(e, tx('errSave')));
     }
   };
 
   const askDelete = (r: WeightRecord) => setConfirm({
-    title: 'Delete this weigh-in?',
-    description: `This removes the weight of ${r.cowId} on ${day(r.trackingDate)} (${r.currentWeight} kg). It cannot be undone.`,
+    title: tx('deleteTitle'),
+    description: tx('deleteDesc', { tag: r.cowId, date: day(r.trackingDate), kg: r.currentWeight }),
     type: 'danger',
-    confirmText: 'Delete',
+    confirmText: tx('delete'),
     onConfirm: async () => {
       try {
         await onDeleteWeightRecord?.(r.cowId, r.trackingDate || '');
       } catch (e) {
-        setConfirm({ title: 'Could not delete', description: getErrorMessage(e, 'Something went wrong.'), type: 'danger', confirmText: 'OK' });
+        setConfirm({ title: tx('deleteFailed'), description: getErrorMessage(e, tx('errGeneric')), type: 'danger', confirmText: tx('ok') });
       }
     },
   });
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'due', label: `To weigh (${due.length})` },
-    { key: 'batches', label: 'Batches' },
-    { key: 'growth', label: 'Growth' },
-    { key: 'history', label: 'History' },
+    { key: 'due', label: tx('tabDue', { n: due.length }) },
+    { key: 'batches', label: tx('tabBatches') },
+    { key: 'growth', label: tx('tabGrowth') },
+    { key: 'history', label: tx('tabHistory') },
   ];
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">Weights</h2>
-          <p className="text-base text-ink-muted">Weigh every 14 days to see who is growing.</p>
+          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
+          <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
-        {canWeigh && <Button size="lg" onClick={() => onOpenLogWeight()}><Scale /> Weigh</Button>}
+        {canWeigh && <Button size="lg" onClick={() => onOpenLogWeight()}><Scale /> {tx('weigh')}</Button>}
       </div>
 
       <section className="grid grid-cols-3 gap-2 sm:gap-3">
-        <Tile label="To weigh" value={String(due.length)} sub={due.length === 0 ? 'All up to date' : 'animals'} tone={due.length > 0 ? 'warn' : undefined} />
-        <Tile label="Average weight" value={activeScoped.length ? `${Math.round(avgWeight)} kg` : '—'} sub={`${activeScoped.length} animals`} />
-        <Tile label="Daily gain" value={avgGain !== null ? `${r1(avgGain)} kg` : '—'} sub="average each day" />
+        <Tile label={tx('tileToWeigh')} value={String(due.length)} sub={due.length === 0 ? tx('allUpToDate') : tx('animals')} tone={due.length > 0 ? 'warn' : undefined} />
+        <Tile label={tx('tileAvgWeight')} value={activeScoped.length ? `${Math.round(avgWeight)} kg` : '—'} sub={tx('animalMany', { n: activeScoped.length })} />
+        <Tile label={tx('tileDailyGain')} value={avgGain !== null ? `${r1(avgGain)} kg` : '—'} sub={tx('avgEachDay')} />
       </section>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label="Weights" className="flex flex-1 rounded-xl bg-slate-100 p-1 sm:flex-none">
+        <div role="tablist" aria-label={tx('tabsAria')} className="flex flex-1 rounded-xl bg-slate-100 p-1 sm:flex-none">
           {tabs.map(t => (
             <button
               key={t.key}
@@ -227,7 +229,7 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
           onClick={() => setShowFilters(v => !v)}
           className="ml-auto flex min-h-11 items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 text-base font-medium text-ink hover:border-emerald-600"
         >
-          <SlidersHorizontal className="h-5 w-5" aria-hidden /> Filters{activeFilters > 0 ? ` (${activeFilters})` : ''}
+          <SlidersHorizontal className="h-5 w-5" aria-hidden /> {tx('filters')}{activeFilters > 0 ? ` (${activeFilters})` : ''}
         </button>
       </div>
 
@@ -235,15 +237,15 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
         <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
           {showFarmFilter && (
             <div className="block">
-              <span className="mb-1 block text-base font-medium text-ink">Farm</span>
+              <span className="mb-1 block text-base font-medium text-ink">{tx('farm')}</span>
               <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} />
             </div>
           )}
           {batches.length > 0 && (
             <label className="block">
-              <span className="mb-1 block text-base font-medium text-ink">Batch</span>
+              <span className="mb-1 block text-base font-medium text-ink">{tx('batch')}</span>
               <select value={batchId} onChange={e => setBatchId(e.target.value)} className={SELECT}>
-                <option value="">All cattle</option>
+                <option value="">{tx('allCattle')}</option>
                 {batches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </label>
@@ -251,21 +253,21 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
           {tab === 'history' && (
             <>
               <label className="block">
-                <span className="mb-1 block text-base font-medium text-ink">From date</span>
+                <span className="mb-1 block text-base font-medium text-ink">{tx('fromDate')}</span>
                 <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-12 text-lg" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-base font-medium text-ink">Until date</span>
+                <span className="mb-1 block text-base font-medium text-ink">{tx('untilDate')}</span>
                 <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-12 text-lg" />
               </label>
               <div className="sm:col-span-2">
-                <Button type="button" variant="outline" onClick={exportHistory} disabled={history.length === 0}><Download /> Download Excel</Button>
+                <Button type="button" variant="outline" onClick={exportHistory} disabled={history.length === 0}><Download /> {tx('downloadExcel')}</Button>
               </div>
             </>
           )}
           {activeFilters > 0 && (
             <div className="sm:col-span-2">
-              <Button type="button" variant="ghost" onClick={() => { setBatchId(''); setFarm(''); setStartDate(''); setEndDate(''); }}>Clear filters</Button>
+              <Button type="button" variant="ghost" onClick={() => { setBatchId(''); setFarm(''); setStartDate(''); setEndDate(''); }}>{tx('clearFilters')}</Button>
             </div>
           )}
         </div>
@@ -274,8 +276,8 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
       {tab === 'due' && (
         <div className="space-y-3">
           {due.length === 0 && (schedules.length === 0
-            ? <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No animals here to weigh.</p>
-            : <p className="rounded-2xl bg-emerald-50 p-6 text-center text-lg text-emerald-900">Everyone has been weighed recently.</p>)}
+            ? <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noneToWeigh')}</p>
+            : <p className="rounded-2xl bg-emerald-50 p-6 text-center text-lg text-emerald-900">{tx('allWeighed')}</p>)}
           <ul className="space-y-3">
             {due.map(s => {
               const cow = cowById.get(s.cowId);
@@ -285,10 +287,10 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
                     <p className="text-xl font-semibold text-ink">{s.cowId}</p>
                     <p className="text-base text-ink-muted">{[cow?.breed, cow?.weight ? `${cow.weight} kg` : null].filter(Boolean).join(' · ')}</p>
                     <p className={`text-base font-medium ${s.status === 'overdue' ? 'text-amber-800' : 'text-ink-muted'}`}>
-                      {s.daysElapsed === 999 ? 'Never weighed' : s.status === 'duesoon' ? `Weigh soon · last ${s.daysElapsed} days ago` : `Last weighed ${s.daysElapsed} days ago`}
+                      {s.daysElapsed === 999 ? tx('neverWeighed') : s.status === 'duesoon' ? tx('weighSoon', { n: s.daysElapsed }) : tx('lastWeighed', { n: s.daysElapsed })}
                     </p>
                   </div>
-                  {canWeigh && <Button onClick={() => onOpenLogWeight(s.cowId)} className="shrink-0"><Scale /> Weigh</Button>}
+                  {canWeigh && <Button onClick={() => onOpenLogWeight(s.cowId)} className="shrink-0"><Scale /> {tx('weigh')}</Button>}
                 </li>
               );
             })}
@@ -296,14 +298,14 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
           {upToDate.length > 0 && (
             <>
               <Button variant="ghost" onClick={() => setShowAllDue(v => !v)}>
-                {showAllDue ? 'Hide' : 'Show'} {upToDate.length} up to date
+                {tx(showAllDue ? 'hideUpToDate' : 'showUpToDate', { n: upToDate.length })}
               </Button>
               {showAllDue && (
                 <ul className="space-y-2">
                   {upToDate.map(s => (
                     <li key={s.cowId} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
                       <span className="text-lg font-semibold text-ink">{s.cowId}</span>
-                      <span className="text-base text-ink-muted">{s.daysElapsed === 0 ? 'Weighed today' : `${s.daysElapsed} days ago`}</span>
+                      <span className="text-base text-ink-muted">{s.daysElapsed === 0 ? tx('weighedToday') : tx('daysAgo', { n: s.daysElapsed })}</span>
                     </li>
                   ))}
                 </ul>
@@ -316,7 +318,7 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
       {tab === 'batches' && (
         <div className="space-y-3">
           {batchRows.length === 0 ? (
-            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No batch to show. Add cattle to a batch on the Batches page first.</p>
+            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noBatch')}</p>
           ) : batchRows.map(({ batch, head, weighIns }) => {
             const latest = weighIns[0];
             const first = weighIns[weighIns.length - 1];
@@ -327,39 +329,39 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xl font-semibold text-ink">{batch.name}</p>
-                    <p className="text-base text-ink-muted">{head} {head === 1 ? 'animal' : 'animals'}{batch.farmLocation ? ` · ${batch.farmLocation}` : ''}</p>
+                    <p className="text-base text-ink-muted">{txn(head, 'animalOne', 'animalMany')}{batch.farmLocation ? ` · ${batch.farmLocation}` : ''}</p>
                   </div>
-                  {canWeigh && onWeighBatch && head > 0 && <Button onClick={() => onWeighBatch(batch.id)} className="shrink-0"><Scale /> Weigh batch</Button>}
+                  {canWeigh && onWeighBatch && head > 0 && <Button onClick={() => onWeighBatch(batch.id)} className="shrink-0"><Scale /> {tx('weighBatch')}</Button>}
                 </div>
                 {latest ? (
                   <>
                     <div className="mt-3 grid grid-cols-3 gap-2">
-                      <Tile label="Average now" value={`${r1(latest.avg)} kg`} sub={`${latest.head} weighed ${latest.date}`} />
-                      <Tile label="Last change" value={latest.change === null ? '—' : `${signed(latest.change)} kg`} sub={latest.perDay === null ? 'needs 2 weigh-ins' : `${signed(latest.perDay)} kg a day`} />
-                      <Tile label="Since first" value={weighIns.length > 1 ? `${signed(latest.avg - first.avg)} kg` : '—'} sub={weighIns.length > 1 ? `from ${r1(first.avg)} kg` : 'needs 2 weigh-ins'} />
+                      <Tile label={tx('avgNow')} value={`${r1(latest.avg)} kg`} sub={tx('weighedOn', { n: latest.head, date: latest.date })} />
+                      <Tile label={tx('lastChange')} value={latest.change === null ? '—' : `${signed(latest.change)} kg`} sub={latest.perDay === null ? tx('needsTwo') : tx('kgADay', { kg: signed(latest.perDay) })} />
+                      <Tile label={tx('sinceFirst')} value={weighIns.length > 1 ? `${signed(latest.avg - first.avg)} kg` : '—'} sub={weighIns.length > 1 ? tx('fromKg', { kg: r1(first.avg) }) : tx('needsTwo')} />
                     </div>
                     <ul className="mt-3 overflow-hidden rounded-xl border border-slate-100">
                       {shown.map(w => (
                         <li key={w.date} className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 last:border-0">
                           <span>
                             <span className="block text-lg font-medium text-ink">{w.date}</span>
-                            <span className="block text-base text-ink-muted">{w.head} weighed</span>
+                            <span className="block text-base text-ink-muted">{tx('nWeighed', { n: w.head })}</span>
                           </span>
                           <span className="text-right">
                             <span className="block text-lg font-semibold text-ink">{r1(w.avg)} kg</span>
-                            <span className={`block text-base ${w.change !== null && w.change < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{w.change === null ? 'first' : `${signed(w.change)} kg`}</span>
+                            <span className={`block text-base ${w.change !== null && w.change < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{w.change === null ? tx('firstLower') : `${signed(w.change)} kg`}</span>
                           </span>
                         </li>
                       ))}
                     </ul>
                     {weighIns.length > 3 && (
                       <Button variant="ghost" className="mt-1" onClick={() => setOpenBatches(o => ({ ...o, [batch.id]: !open }))}>
-                        {open ? 'Show fewer' : `Show all ${weighIns.length} weigh-ins`}
+                        {open ? tx('showFewer') : tx('showAllWeighIns', { n: weighIns.length })}
                       </Button>
                     )}
                   </>
                 ) : (
-                  <p className="mt-3 rounded-xl bg-slate-50 p-3 text-base text-ink-muted">Not weighed yet.</p>
+                  <p className="mt-3 rounded-xl bg-slate-50 p-3 text-base text-ink-muted">{tx('notWeighedYet')}</p>
                 )}
               </section>
             );
@@ -370,14 +372,14 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
       {tab === 'growth' && (
         <div className="space-y-6">
           {growthRows.length === 0 ? (
-            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">Growth appears once animals have been weighed on two different days.</p>
+            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('growthEmpty')}</p>
           ) : (
             <>
               {[
-                { title: 'Growing fastest', rows: fastest, tone: 'text-emerald-700' },
-                { title: 'Gaining least', rows: slowest, tone: 'text-amber-800' },
+                { id: 'fast', title: tx('growingFastest'), rows: fastest, tone: 'text-emerald-700' },
+                { id: 'slow', title: tx('gainingLeast'), rows: slowest, tone: 'text-amber-800' },
               ].filter(sec => sec.rows.length > 0).map(sec => (
-                <section key={sec.title}>
+                <section key={sec.id}>
                   <h3 className="mb-2 text-lg font-semibold text-ink">{sec.title}</h3>
                   <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                     {sec.rows.map(({ cow, g }) => (
@@ -387,15 +389,15 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
                           <p className="text-base text-ink-muted">{[cow.breed, `${r1(g.currentWeight)} kg`].join(' · ')}</p>
                         </div>
                         <div className="text-right">
-                          <p className={`text-lg font-semibold ${sec.tone}`}>{g.perDay} kg a day</p>
-                          <p className="text-base text-ink-muted">{signed(g.gain)} kg in {g.days} days</p>
+                          <p className={`text-lg font-semibold ${sec.tone}`}>{tx('kgADay', { kg: g.perDay ?? '' })}</p>
+                          <p className="text-base text-ink-muted">{tx('gainInDays', { kg: signed(g.gain), n: g.days })}</p>
                         </div>
                       </li>
                     ))}
                   </ul>
                 </section>
               ))}
-              <p className="text-base text-ink-muted">Based on {growthRows.length} animals with two or more weigh-ins. Open an animal under Cattle to see its chart.</p>
+              <p className="text-base text-ink-muted">{tx('basedOn', { n: growthRows.length })}</p>
             </>
           )}
         </div>
@@ -405,7 +407,7 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
         <div className="space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
-            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by tag number" aria-label="Search weigh-ins" className="h-14 pl-11 text-lg" />
+            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder={tx('searchPlaceholder')} aria-label={tx('searchAria')} className="h-14 pl-11 text-lg" />
           </div>
           {history.length > 0 ? (
             <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -419,14 +421,14 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-semibold text-ink">{r1(r.currentWeight)} kg</p>
-                      <p className={`text-base font-medium ${change === null ? 'text-ink-muted' : change < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{change === null ? 'First' : `${signed(change)} kg`}</p>
+                      <p className={`text-base font-medium ${change === null ? 'text-ink-muted' : change < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{change === null ? tx('firstCap') : `${signed(change)} kg`}</p>
                     </div>
                     {(canWeigh && onUpdateWeightRecord) || canDelete ? (
                       <div className="flex shrink-0">
                         {canWeigh && onUpdateWeightRecord && (
-                          <Button variant="ghost" size="icon" aria-label={`Edit weigh-in of ${r.cowId}`} onClick={() => { setEditError(''); setEditing({ cowId: r.cowId, trackingDate: r.trackingDate || '', weight: String(r.currentWeight), health: r.healthStatus || healthStatuses[0] }); }}><Pencil /></Button>
+                          <Button variant="ghost" size="icon" aria-label={tx('editAria', { tag: r.cowId })} onClick={() => { setEditError(''); setEditing({ cowId: r.cowId, trackingDate: r.trackingDate || '', weight: String(r.currentWeight), health: r.healthStatus || healthStatuses[0] }); }}><Pencil /></Button>
                         )}
-                        {canDelete && <Button variant="ghost" size="icon" aria-label={`Delete weigh-in of ${r.cowId}`} onClick={() => askDelete(r)}><Trash2 className="text-rose-700" /></Button>}
+                        {canDelete && <Button variant="ghost" size="icon" aria-label={tx('deleteAria', { tag: r.cowId })} onClick={() => askDelete(r)}><Trash2 className="text-rose-700" /></Button>}
                       </div>
                     ) : null}
                   </li>
@@ -434,10 +436,10 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
               })}
             </ul>
           ) : (
-            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No weigh-ins match.</p>
+            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noMatch')}</p>
           )}
           {history.length > visible && (
-            <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>Show more ({history.length - visible} left)</Button></div>
+            <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>{tx('showMore', { n: history.length - visible })}</Button></div>
           )}
         </div>
       )}
@@ -446,22 +448,22 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
         <Dialog open onOpenChange={open => { if (!open) setEditing(null); }}>
           <DialogContent className="max-w-md">
             <DialogHeader className="text-left">
-              <DialogTitle className="text-2xl font-semibold text-ink">Edit weigh-in</DialogTitle>
+              <DialogTitle className="text-2xl font-semibold text-ink">{tx('editTitle')}</DialogTitle>
               <DialogDescription className="text-base text-ink-muted">{editing.cowId} · {day(editing.trackingDate)}</DialogDescription>
             </DialogHeader>
             <form onSubmit={e => { e.preventDefault(); saveEdit(); }} className="space-y-5">
               <label className="block">
-                <span className="mb-1 block text-lg font-medium text-ink">Weight (kg)</span>
+                <span className="mb-1 block text-lg font-medium text-ink">{tx('weightKg')}</span>
                 <Input type="number" step="any" inputMode="decimal" autoFocus value={editing.weight} onChange={e => { setEditing({ ...editing, weight: e.target.value }); setEditError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
               </label>
               <div>
-                <p className="mb-2 text-lg font-medium text-ink">Health</p>
+                <p className="mb-2 text-lg font-medium text-ink">{tx('health')}</p>
                 <div className="flex flex-wrap gap-3">{healthStatuses.map(h => <Choice key={h} selected={editing.health === h} onClick={() => setEditing({ ...editing, health: h })}>{h}</Choice>)}</div>
               </div>
               {editError && <p role="alert" className="text-base font-medium text-rose-700">{editError}</p>}
               <div className="flex gap-3">
-                <Button type="button" variant="secondary" size="lg" onClick={() => setEditing(null)}>Cancel</Button>
-                <Button type="submit" size="lg" className="flex-1">Save</Button>
+                <Button type="button" variant="secondary" size="lg" onClick={() => setEditing(null)}>{tx('cancel')}</Button>
+                <Button type="submit" size="lg" className="flex-1">{tx('save')}</Button>
               </div>
             </form>
           </DialogContent>

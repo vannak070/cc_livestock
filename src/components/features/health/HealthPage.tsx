@@ -13,6 +13,7 @@ import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { Choice, NUM } from '../flow/FlowShell';
 import { FarmSelect } from '@/components/ui/listbox-select';
+import { useText } from '@/hooks/useText';
 
 interface HealthPageProps {
   data: ERPLivestockData;
@@ -29,7 +30,9 @@ type Kind = HealthLogItem['type'];
 
 const PAGE = 15;
 const SELECT = 'h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-3 text-lg text-ink focus:border-emerald-600 focus:outline-none';
-const KIND_LABEL: Record<Kind, string> = { Vaccination: 'Vaccine', Treatment: 'Treatment', Deworming: 'Deworming', Disease: 'Illness' };
+/** Kinds are saved in English; the label shown comes from the healthPage section. */
+const KIND_KEY: Record<Kind, string> = { Vaccination: 'kindVaccination', Treatment: 'kindTreatment', Deworming: 'kindDeworming', Disease: 'kindDisease' };
+const STATUS_KEY: Record<string, string> = { poor: 'statusPoor', sick: 'statusSick', critical: 'statusCritical', quarantine: 'statusQuarantine' };
 const KIND_STYLE: Record<Kind, string> = {
   Vaccination: 'bg-emerald-100 text-emerald-800',
   Treatment: 'bg-sky-100 text-sky-900',
@@ -58,6 +61,9 @@ function Tile({ label, value, sub, tone }: { label: string; value: string; sub?:
 }
 
 export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpdateHealthLog, currentUser, farms = [] }: HealthPageProps) {
+  const { tx, language } = useText('healthPage');
+  const kindLabel = (k: Kind) => (KIND_KEY[k] ? tx(KIND_KEY[k]) : k);
+  const statusLabel = (s: string) => (language !== 'en' && STATUS_KEY[norm(s)] ? tx(STATUS_KEY[norm(s)]) : s);
   const [tab, setTab] = useState<Tab>('sick');
   const [showFilters, setShowFilters] = useState(false);
   const [farm, setFarm] = useState('');
@@ -163,54 +169,54 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
 
   const saveEdit = async () => {
     if (!editing || !onUpdateHealthLog) return;
-    if (!editing.name.trim()) { setEditError('Type the name.'); return; }
-    if (!editing.by.trim()) { setEditError('Type who gave it.'); return; }
+    if (!editing.name.trim()) { setEditError(tx('errName')); return; }
+    if (!editing.by.trim()) { setEditError(tx('errBy')); return; }
     try {
       await onUpdateHealthLog(editing.id, { type: editing.type, name: editing.name.trim(), date: editing.date, administeredBy: editing.by.trim(), cost: Number(editing.cost) || 0, notes: editing.notes.trim() });
       setEditing(null);
     } catch (e) {
-      setEditError(getErrorMessage(e, 'Could not save. Please try again.'));
+      setEditError(getErrorMessage(e, tx('errSave')));
     }
   };
 
   const askDelete = (l: HealthLogItem) => setConfirm({
-    title: 'Delete this record?',
-    description: `This removes "${l.name}" for ${l.cowId} on ${day(l.date)}. It cannot be undone.`,
+    title: tx('delTitle'),
+    description: tx('delDesc', { name: l.name, tag: l.cowId, date: day(l.date) }),
     type: 'danger',
-    confirmText: 'Delete',
+    confirmText: tx('delete'),
     onConfirm: async () => {
       try {
         await onDeleteHealthLog?.(l.id);
       } catch (e) {
-        setConfirm({ title: 'Could not delete', description: getErrorMessage(e, 'Something went wrong.'), type: 'danger', confirmText: 'OK' });
+        setConfirm({ title: tx('delFailTitle'), description: getErrorMessage(e, tx('delFail')), type: 'danger', confirmText: tx('ok') });
       }
     },
   });
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'sick', label: `Sick (${sick.length})` },
-    { key: 'vaccines', label: 'Vaccines' },
-    { key: 'history', label: 'History' },
+    { key: 'sick', label: tx('tabSick', { n: sick.length }) },
+    { key: 'vaccines', label: tx('tabVaccines') },
+    { key: 'history', label: tx('tabHistory') },
   ];
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">Health</h2>
-          <p className="text-base text-ink-muted">Sick animals, vaccines and treatments.</p>
+          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
+          <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
-        {canTreat && <Button size="lg" onClick={() => onOpenTreat()}><Syringe /> Treat</Button>}
+        {canTreat && <Button size="lg" onClick={() => onOpenTreat()}><Syringe /> {tx('treat')}</Button>}
       </div>
 
       <section className="grid grid-cols-3 gap-2 sm:gap-3">
-        <Tile label="Sick now" value={String(sick.length)} sub={sick.length === 0 ? 'All well' : 'animals'} tone={sick.length > 0 ? 'bad' : undefined} />
-        <Tile label="Last 30 days" value={String(recent.length)} sub="treatments" />
-        <Tile label="Health cost" value={riel(recentCost)} sub="last 30 days" />
+        <Tile label={tx('tileSick')} value={String(sick.length)} sub={sick.length === 0 ? tx('allWell') : tx('animals')} tone={sick.length > 0 ? 'bad' : undefined} />
+        <Tile label={tx('tileRecent')} value={String(recent.length)} sub={tx('treatments')} />
+        <Tile label={tx('tileCost')} value={riel(recentCost)} sub={tx('last30')} />
       </section>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label="Health" className="flex flex-1 rounded-xl bg-slate-100 p-1 sm:flex-none">
+        <div role="tablist" aria-label={tx('tabsAria')} className="flex flex-1 rounded-xl bg-slate-100 p-1 sm:flex-none">
           {tabs.map(t => (
             <button
               key={t.key}
@@ -230,7 +236,7 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
           onClick={() => setShowFilters(v => !v)}
           className="ml-auto flex min-h-11 items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 text-base font-medium text-ink hover:border-emerald-600"
         >
-          <SlidersHorizontal className="h-5 w-5" aria-hidden /> Filters{activeFilters > 0 ? ` (${activeFilters})` : ''}
+          <SlidersHorizontal className="h-5 w-5" aria-hidden /> {tx('filters')}{activeFilters > 0 ? ` (${activeFilters})` : ''}
         </button>
       </div>
 
@@ -238,15 +244,15 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
         <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
           {showFarmFilter && (
             <div className="block">
-              <span className="mb-1 block text-base font-medium text-ink">Farm</span>
+              <span className="mb-1 block text-base font-medium text-ink">{tx('farm')}</span>
               <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} />
             </div>
           )}
           {batches.length > 0 && (
             <label className="block">
-              <span className="mb-1 block text-base font-medium text-ink">Batch</span>
+              <span className="mb-1 block text-base font-medium text-ink">{tx('batch')}</span>
               <select value={batchId} onChange={e => setBatchId(e.target.value)} className={SELECT}>
-                <option value="">All cattle</option>
+                <option value="">{tx('allCattle')}</option>
                 {batches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </label>
@@ -254,29 +260,29 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
           {tab === 'history' && (
             <>
               <label className="block">
-                <span className="mb-1 block text-base font-medium text-ink">Type</span>
+                <span className="mb-1 block text-base font-medium text-ink">{tx('type')}</span>
                 <select value={kind} onChange={e => setKind(e.target.value)} className={SELECT}>
-                  <option value="">All types</option>
-                  {(Object.keys(KIND_LABEL) as Kind[]).map(k => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
+                  <option value="">{tx('allTypes')}</option>
+                  {(Object.keys(KIND_KEY) as Kind[]).map(k => <option key={k} value={k}>{kindLabel(k)}</option>)}
                 </select>
               </label>
               <div className="hidden sm:block" />
               <label className="block">
-                <span className="mb-1 block text-base font-medium text-ink">From date</span>
+                <span className="mb-1 block text-base font-medium text-ink">{tx('fromDate')}</span>
                 <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-12 text-lg" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-base font-medium text-ink">Until date</span>
+                <span className="mb-1 block text-base font-medium text-ink">{tx('untilDate')}</span>
                 <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-12 text-lg" />
               </label>
               <div className="sm:col-span-2">
-                <Button type="button" variant="outline" onClick={exportHistory} disabled={history.length === 0}><Download /> Download Excel</Button>
+                <Button type="button" variant="outline" onClick={exportHistory} disabled={history.length === 0}><Download /> {tx('download')}</Button>
               </div>
             </>
           )}
           {activeFilters > 0 && (
             <div className="sm:col-span-2">
-              <Button type="button" variant="ghost" onClick={() => { setFarm(''); setBatchId(''); setKind(''); setStartDate(''); setEndDate(''); }}>Clear filters</Button>
+              <Button type="button" variant="ghost" onClick={() => { setFarm(''); setBatchId(''); setKind(''); setStartDate(''); setEndDate(''); }}>{tx('clearFilters')}</Button>
             </div>
           )}
         </div>
@@ -284,7 +290,7 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
 
       {tab === 'sick' && (
         sick.length === 0 ? (
-          <p className="rounded-2xl bg-emerald-50 p-6 text-center text-lg text-emerald-900">No sick animals. Everyone is well.</p>
+          <p className="rounded-2xl bg-emerald-50 p-6 text-center text-lg text-emerald-900">{tx('noneSick')}</p>
         ) : (
           <ul className="space-y-3">
             {sick.map(c => {
@@ -294,12 +300,12 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-xl font-semibold text-ink">{c.id}</p>
-                      <span className="rounded-full bg-rose-100 px-3 py-1 text-sm font-medium text-rose-800">{c.healthStatus}</span>
+                      <span className="rounded-full bg-rose-100 px-3 py-1 text-sm font-medium text-rose-800">{statusLabel(c.healthStatus)}</span>
                     </div>
                     <p className="text-base text-ink-muted">{[c.breed, c.location].filter(Boolean).join(' · ')}</p>
-                    <p className="text-base text-ink">{last ? `Last: ${last.name} on ${day(last.date)}` : 'No treatment recorded yet'}</p>
+                    <p className="text-base text-ink">{last ? tx('lastTreat', { name: last.name, date: day(last.date) }) : tx('noTreatYet')}</p>
                   </div>
-                  {canTreat && <Button onClick={() => onOpenTreat(c.id)} className="shrink-0"><Syringe /> Treat</Button>}
+                  {canTreat && <Button onClick={() => onOpenTreat(c.id)} className="shrink-0"><Syringe /> {tx('treat')}</Button>}
                 </li>
               );
             })}
@@ -309,7 +315,7 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
 
       {tab === 'vaccines' && (
         coverage.length === 0 ? (
-          <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No vaccines are set up yet. Add them in Settings.</p>
+          <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noVaccines')}</p>
         ) : (
           <ul className="space-y-3">
             {coverage.map(v => {
@@ -320,22 +326,22 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-lg font-semibold text-ink">{v.name}</p>
-                      <p className="text-base text-ink-muted">{v.last ? `Last given ${day(v.last)}` : 'Never given'}</p>
+                      <p className="text-base text-ink-muted">{v.last ? tx('lastGiven', { date: day(v.last) }) : tx('neverGiven')}</p>
                     </div>
-                    <p className="shrink-0 text-lg font-semibold text-ink">{v.done} of {v.total}</p>
+                    <p className="shrink-0 text-lg font-semibold text-ink">{tx('doneOf', { done: v.done, total: v.total })}</p>
                   </div>
-                  <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={`${v.name}: ${pct}% of animals vaccinated`}>
+                  <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={tx('vaccAria', { name: v.name, pct })}>
                     <div className="h-full rounded-full bg-emerald-600" style={{ width: `${pct}%` }} />
                   </div>
                   {v.missing.length > 0 ? (
                     <>
                       <button type="button" aria-expanded={open} onClick={() => setOpenVaccine(open ? null : v.name)} className="mt-3 min-h-11 text-base font-medium text-emerald-800 underline-offset-4 hover:underline">
-                        {open ? 'Hide' : 'See'} {v.missing.length} not vaccinated
+                        {tx(open ? 'hideMissing' : 'seeMissing', { n: v.missing.length })}
                       </button>
                       {open && <p className="mt-1 break-words text-base text-ink">{v.missing.join(', ')}</p>}
                     </>
                   ) : (
-                    <p className="mt-3 text-base font-medium text-emerald-800">Everyone is vaccinated.</p>
+                    <p className="mt-3 text-base font-medium text-emerald-800">{tx('allVaccinated')}</p>
                   )}
                 </li>
               );
@@ -348,7 +354,7 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
         <div className="space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
-            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by tag or name" aria-label="Search health records" className="h-14 pl-11 text-lg" />
+            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder={tx('searchPlaceholder')} aria-label={tx('searchAria')} className="h-14 pl-11 text-lg" />
           </div>
           {history.length > 0 ? (
             <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -357,7 +363,7 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-lg font-semibold text-ink">{l.cowId}</p>
-                      <span className={`rounded-full px-3 py-0.5 text-sm font-medium ${KIND_STYLE[l.type] ?? 'bg-slate-200 text-ink'}`}>{KIND_LABEL[l.type] ?? l.type}</span>
+                      <span className={`rounded-full px-3 py-0.5 text-sm font-medium ${KIND_STYLE[l.type] ?? 'bg-slate-200 text-ink'}`}>{kindLabel(l.type)}</span>
                     </div>
                     <p className="text-base font-medium text-ink">{l.name}</p>
                     <p className="text-base text-ink-muted">{[day(l.date), l.administeredBy, l.cost > 0 ? riel(l.cost) : null].filter(Boolean).join(' · ')}</p>
@@ -366,19 +372,19 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
                   {(canTreat && onUpdateHealthLog) || canDelete ? (
                     <div className="flex shrink-0">
                       {canTreat && onUpdateHealthLog && (
-                        <Button variant="ghost" size="icon" aria-label={`Edit record of ${l.cowId}`} onClick={() => { setEditError(''); setEditing({ id: l.id, type: l.type, name: l.name, date: day(l.date), by: l.administeredBy, cost: String(l.cost || ''), notes: l.notes ?? '' }); }}><Pencil /></Button>
+                        <Button variant="ghost" size="icon" aria-label={tx('editAria', { tag: l.cowId })} onClick={() => { setEditError(''); setEditing({ id: l.id, type: l.type, name: l.name, date: day(l.date), by: l.administeredBy, cost: String(l.cost || ''), notes: l.notes ?? '' }); }}><Pencil /></Button>
                       )}
-                      {canDelete && <Button variant="ghost" size="icon" aria-label={`Delete record of ${l.cowId}`} onClick={() => askDelete(l)}><Trash2 className="text-rose-700" /></Button>}
+                      {canDelete && <Button variant="ghost" size="icon" aria-label={tx('deleteAria', { tag: l.cowId })} onClick={() => askDelete(l)}><Trash2 className="text-rose-700" /></Button>}
                     </div>
                   ) : null}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No health records match.</p>
+            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noMatch')}</p>
           )}
           {history.length > visible && (
-            <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>Show more ({history.length - visible} left)</Button></div>
+            <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>{tx('showMore', { n: history.length - visible })}</Button></div>
           )}
         </div>
       )}
@@ -387,27 +393,27 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
         <Dialog open onOpenChange={open => { if (!open) setEditing(null); }}>
           <DialogContent className="max-w-md">
             <DialogHeader className="text-left">
-              <DialogTitle className="text-2xl font-semibold text-ink">Edit record</DialogTitle>
-              <DialogDescription className="text-base text-ink-muted">Change what was written down.</DialogDescription>
+              <DialogTitle className="text-2xl font-semibold text-ink">{tx('editTitle')}</DialogTitle>
+              <DialogDescription className="text-base text-ink-muted">{tx('editSub')}</DialogDescription>
             </DialogHeader>
             <form onSubmit={e => { e.preventDefault(); saveEdit(); }} className="space-y-4">
               <div>
-                <p className="mb-2 text-lg font-medium text-ink">Type</p>
+                <p className="mb-2 text-lg font-medium text-ink">{tx('type')}</p>
                 <div className="grid grid-cols-2 gap-3">
-                  {(Object.keys(KIND_LABEL) as Kind[]).map(k => <Choice key={k} selected={editing.type === k} onClick={() => setEditing({ ...editing, type: k })}>{KIND_LABEL[k]}</Choice>)}
+                  {(Object.keys(KIND_KEY) as Kind[]).map(k => <Choice key={k} selected={editing.type === k} onClick={() => setEditing({ ...editing, type: k })}>{kindLabel(k)}</Choice>)}
                 </div>
               </div>
-              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Name</span><Input value={editing.name} onChange={e => { setEditing({ ...editing, name: e.target.value }); setEditError(''); }} className="h-14 text-lg" /></label>
-              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Given by</span><Input value={editing.by} onChange={e => { setEditing({ ...editing, by: e.target.value }); setEditError(''); }} className="h-14 text-lg" /></label>
+              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{tx('name')}</span><Input value={editing.name} onChange={e => { setEditing({ ...editing, name: e.target.value }); setEditError(''); }} className="h-14 text-lg" /></label>
+              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{tx('givenBy')}</span><Input value={editing.by} onChange={e => { setEditing({ ...editing, by: e.target.value }); setEditError(''); }} className="h-14 text-lg" /></label>
               <div className="grid grid-cols-2 gap-3">
-                <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Date</span><Input type="date" value={editing.date} onChange={e => setEditing({ ...editing, date: e.target.value })} className="h-14 text-lg" /></label>
-                <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Cost (៛)</span><Input type="number" step="any" inputMode="numeric" value={editing.cost} onChange={e => setEditing({ ...editing, cost: e.target.value })} className={`h-14 text-lg ${NUM}`} /></label>
+                <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{tx('date')}</span><Input type="date" value={editing.date} onChange={e => setEditing({ ...editing, date: e.target.value })} className="h-14 text-lg" /></label>
+                <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{tx('cost')}</span><Input type="number" step="any" inputMode="numeric" value={editing.cost} onChange={e => setEditing({ ...editing, cost: e.target.value })} className={`h-14 text-lg ${NUM}`} /></label>
               </div>
-              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Note</span><Input value={editing.notes} onChange={e => setEditing({ ...editing, notes: e.target.value })} className="h-14 text-lg" /></label>
+              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{tx('note')}</span><Input value={editing.notes} onChange={e => setEditing({ ...editing, notes: e.target.value })} className="h-14 text-lg" /></label>
               {editError && <p role="alert" className="text-base font-medium text-rose-700">{editError}</p>}
               <div className="flex gap-3">
-                <Button type="button" variant="secondary" size="lg" onClick={() => setEditing(null)}>Cancel</Button>
-                <Button type="submit" size="lg" className="flex-1">Save</Button>
+                <Button type="button" variant="secondary" size="lg" onClick={() => setEditing(null)}>{tx('cancel')}</Button>
+                <Button type="submit" size="lg" className="flex-1">{tx('save')}</Button>
               </div>
             </form>
           </DialogContent>

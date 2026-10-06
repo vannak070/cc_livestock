@@ -203,7 +203,7 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, prod
           <div role="tablist" aria-label="Bank loan details" className="flex rounded-xl bg-slate-100 p-1 sm:w-fit">
             {([['payments', 'Payments to the bank'], ['trades', 'Trades with CC Livestock']] as const).map(([k, label]) => (
               <button key={k} role="tab" type="button" aria-selected={loanView === k} onClick={() => setLoanView(k)}
-                className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-4 text-base font-medium ${loanView === k ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
+                className={`min-h-11 flex-1 rounded-lg px-3 py-1 text-base font-medium leading-tight sm:whitespace-nowrap sm:px-4 ${loanView === k ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
                 {label}
               </button>
             ))}

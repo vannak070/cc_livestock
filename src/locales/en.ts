@@ -1,3 +1,12 @@
+import { en as flowEn } from './sections/flow';
+import { en as todayPageEn } from './sections/todayPage';
+import { en as cattlePageEn } from './sections/cattlePage';
+import { en as weightsPageEn } from './sections/weightsPage';
+import { en as weighFlowEn } from './sections/weighFlow';
+import { en as healthPageEn } from './sections/healthPage';
+import { en as treatFlowEn } from './sections/treatFlow';
+import { en as feedPageEn } from './sections/feedPage';
+import { en as feedFlowsEn } from './sections/feedFlows';
 export const en = {
   // Navigation & Header
   nav: {
@@ -10,6 +19,9 @@ export const en = {
     record: 'Record',
     recordTitle: 'What do you want to record?',
     more: 'More',
+    people: 'People',
+    closeMenu: 'Close menu',
+    signOut: 'Sign out',
     cattleRegistry: 'Cattle',
     batchManagement: 'Batches',
     feedStock: 'Feed',
@@ -288,6 +300,57 @@ export const en = {
       'Other': 'Other'
     }
   },
+
+  // Sign-in screen
+  login: {
+    tagline: 'Farm records for your cattle',
+    title: 'Sign in',
+    email: 'Email',
+    password: 'Password',
+    show: 'Show',
+    hide: 'Hide',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
+    signIn: 'Sign in',
+    signingIn: 'Signing in…',
+    tryAgain: 'Try again',
+    forgot: 'Forgot your password? Ask your farm manager to reset it for you.',
+    wrongTitle: 'Email or password is not correct',
+    wrongDetail: 'Check both and try again. Tap Show to see what you typed.',
+    offlineTitle: 'Could not sign in right now',
+    offlineDetail: 'Check your internet connection and try again.'
+  },
+
+  // The Record buttons (Today and the phone's Record button)
+  record: {
+    feedToday: 'Feed today',
+    weigh: 'Weigh',
+    treat: 'Treat',
+    addCattle: 'Add cattle',
+    sell: 'Sell',
+    feedIn: 'Feed in',
+    cost: 'Cost'
+  },
+
+  // Choosing a farm
+  farm: {
+    workingOn: 'Working on',
+    allFarms: 'All farms',
+    farm: 'Farm',
+    search: 'Search',
+    searchAria: 'Search the list'
+  },
+
+  // Sections for the redesigned screens live in ./sections (one file each).
+  flow: flowEn,
+  todayPage: todayPageEn,
+  cattlePage: cattlePageEn,
+  weightsPage: weightsPageEn,
+  weighFlow: weighFlowEn,
+  healthPage: healthPageEn,
+  treatFlow: treatFlowEn,
+  feedPage: feedPageEn,
+  feedFlows: feedFlowsEn,
 
   // Install as an app (PWA)
   pwa: {

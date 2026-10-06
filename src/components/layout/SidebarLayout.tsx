@@ -27,6 +27,7 @@ import { UserRoleItem } from '@/lib/types';
 import { canUsePlanning, hasPermission } from '@/lib/utils';
 import { canOpenPeople, isFarmOwner } from '@/lib/user-admin';
 import { useLanguage } from '@/context/LanguageContext';
+import { khmerLongDate } from '@/lib/khmer-date';
 import LanguageSwitcher from '../LanguageSwitcher';
 import InstallAppButton from '../InstallAppButton';
 import ShareAppButton from '../ShareAppButton';
@@ -136,7 +137,7 @@ export default function SidebarLayout({
   onLogout,
   workingOn
 }: SidebarLayoutProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [recordSheetOpen, setRecordSheetOpen] = useState(false);
 
@@ -205,7 +206,7 @@ export default function SidebarLayout({
         </div>
         <button
           onClick={() => setMobileMenuOpen(false)}
-          aria-label="Close menu"
+          aria-label={t('nav.closeMenu', 'Close menu')}
           className="md:hidden text-ink-muted hover:text-ink h-11 w-11 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors"
         >
           <X className="h-5 w-5" />
@@ -292,8 +293,8 @@ export default function SidebarLayout({
               <button
                 onClick={onLogout}
                 className="text-ink-muted hover:text-rose-700 transition-colors cursor-pointer h-11 w-11 flex items-center justify-center rounded-xl hover:bg-rose-50"
-                title="Sign out"
-                aria-label="Sign out"
+                title={t('nav.signOut', 'Sign out')}
+                aria-label={t('nav.signOut', 'Sign out')}
               >
                 <LogOut className="h-5 w-5" />
               </button>
@@ -376,7 +377,7 @@ export default function SidebarLayout({
             <LanguageSwitcher />
             <div className="hidden xl:flex text-sm text-ink-muted bg-slate-50 py-2 px-3.5 rounded-full border border-slate-200 items-center gap-2">
               <Calendar className="h-4 w-4 text-emerald-700" />
-              {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              {language === 'km' ? khmerLongDate(new Date()) : new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </div>
           </div>
         </header>

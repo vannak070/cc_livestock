@@ -2,6 +2,7 @@
 
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
 
 /**
  * A choose-one list that always opens below its button and scrolls inside
@@ -158,7 +159,11 @@ const FIELD = 'flex h-12 w-full items-center gap-2 rounded-xl border-2 border-sl
 const COMPACT = 'flex h-11 w-full min-w-[10rem] max-w-[16rem] items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 text-base text-ink hover:border-emerald-600 focus-visible:border-emerald-600 focus-visible:outline-none';
 
 /** The farm filter used across the pages: "All farms" and then each farm. */
-export function FarmSelect({ farms, value, onChange, allLabel = 'All farms', label = 'Farm', size = 'field', align = 'left', className }: FarmSelectProps) {
+export function FarmSelect({ farms, value, onChange, allLabel, label, size = 'field', align = 'left', className }: FarmSelectProps) {
+  const { t } = useLanguage();
+  // In the chosen language unless the page passes its own words.
+  allLabel = allLabel ?? t('farm.allFarms', 'All farms');
+  label = label ?? t('farm.farm', 'Farm');
   const options = [{ value: '', label: allLabel }, ...farms.map(f => ({ value: f, label: f }))];
   const list = size === 'field'
     ? 'left-0 right-0'

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import type { HealthLogItem, MasterSetup, StockItem, UserRoleItem } from '@/lib/types';
 import { sickCattle } from '@/lib/attention';
 import { FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, RowButton, today } from '../flow/FlowShell';
+import { useText } from '@/hooks/useText';
 
 interface TreatFlowProps {
   isOpen: boolean;
@@ -28,12 +29,23 @@ type Kind = HealthLogItem['type'];
 
 const OTHER = '__other__';
 
+// The type is saved in English; title/hint are keys in the treatFlow section.
+// The default names are saved values too, so they stay as they are.
 const KINDS: { type: Kind; title: string; hint: string; names: string[] }[] = [
-  { type: 'Vaccination', title: 'Vaccine', hint: 'A vaccine injection', names: [] },
-  { type: 'Treatment', title: 'Treatment', hint: 'Medicine for a sick animal', names: ['Antibiotics Injection'] },
-  { type: 'Deworming', title: 'Deworming', hint: 'Worm medicine', names: ['Broad Spectrum Dewormer'] },
-  { type: 'Disease', title: 'Illness found', hint: 'Write down a disease you found', names: ['Foot and Mouth Disease'] },
+  { type: 'Vaccination', title: 'kindVaccination', hint: 'hintVaccination', names: [] },
+  { type: 'Treatment', title: 'kindTreatment', hint: 'hintTreatment', names: ['Antibiotics Injection'] },
+  { type: 'Deworming', title: 'kindDeworming', hint: 'hintDeworming', names: ['Broad Spectrum Dewormer'] },
+  { type: 'Disease', title: 'kindDisease', hint: 'hintDisease', names: ['Foot and Mouth Disease'] },
 ];
+const STATUS_KEY: Record<string, string> = { poor: 'statusPoor', sick: 'statusSick', critical: 'statusCritical', quarantine: 'statusQuarantine' };
+
+/** A sentence with {placeholders} where each filled-in value is shown in bold. */
+function boldFill(template: string, vars: Record<string, string | number>) {
+  return template.split(/(\{\w+\})/).map((part, i) => {
+    const m = /^\{(\w+)\}$/.exec(part);
+    return m && m[1] in vars ? <span key={i} className="font-semibold">{vars[m[1]]}</span> : part;
+  });
+}
 
 export default function TreatFlow(props: TreatFlowProps) {
   // Remount on every open so each entry starts from a clean form.
@@ -45,6 +57,9 @@ export default function TreatFlow(props: TreatFlowProps) {
 }
 
 function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, preselectedCowIds, onSave }: TreatFlowProps) {
+  const { tx, language } = useText('treatFlow');
+  const flow = useText('flow');
+  const statusLabel = (s: string) => (language !== 'en' && STATUS_KEY[s.toLowerCase()] ? tx(STATUS_KEY[s.toLowerCase()]) : s);
   const known = new Set(cattle.map(c => c.id));
   const initial = preselectedCowIds?.length
     ? preselectedCowIds.filter(id => known.has(id))
@@ -83,7 +98,7 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
 
   const save = async () => {
     if (!kind) return;
-    if (!by.trim()) { setError('Type who gave it.'); return; }
+    if (!by.trim()) { setError(tx('errBy')); return; }
     setSaving(true);
     setError('');
     const done: string[] = [];
@@ -97,16 +112,16 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
     } catch (e) {
       // Drop the animals already saved so a retry does not record them twice.
       setPicked(p => p.filter(id => !done.includes(id)));
-      const msg = e instanceof Error ? e.message : 'Could not save.';
-      setError(done.length ? `${msg} ${done.length} saved before this; the rest are still selected.` : `${msg} Please try again.`);
+      const msg = e instanceof Error ? e.message : tx('errSave');
+      setError(done.length ? tx('errPartial', { msg, n: done.length }) : tx('errRetry', { msg }));
     } finally {
       setSaving(false);
     }
   };
 
   const next = () => {
-    if (step === 'pick') { if (!picked.length) { setError('Tap at least one animal.'); return; } }
-    if (step === 'name' && !finalName) { setError(choice === OTHER ? 'Type the name.' : 'Choose what was given.'); return; }
+    if (step === 'pick') { if (!picked.length) { setError(tx('errPick')); return; } }
+    if (step === 'name' && !finalName) { setError(tx(choice === OTHER ? 'errName' : 'errChoose')); return; }
     if (step === 'extra') { save(); return; }
     setError('');
     setStep(steps[at + 1]);
@@ -118,18 +133,18 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
     setStep('pick');
   };
 
-  const who = picked.length === 1 ? picked[0] : `${picked.length} animals`;
+  const who = picked.length === 1 ? picked[0] : tx('animalsMany', { n: picked.length });
   const summary = step === 'name' || step === 'extra'
-    ? [who, kindInfo?.title, step === 'extra' ? finalName : ''].filter(Boolean).join(' · ')
+    ? [who, kindInfo ? tx(kindInfo.title) : '', step === 'extra' ? finalName : ''].filter(Boolean).join(' · ')
     : step === 'what' && picked.length ? who : '';
 
-  const title = { pick: 'Which animals?', what: 'What was done?', name: kind === 'Disease' ? 'Which illness?' : kind === 'Vaccination' ? 'Which vaccine?' : 'What was given?', extra: 'A few more details', done: 'Saved' }[step];
+  const title = { pick: tx('titlePick'), what: tx('titleWhat'), name: tx(kind === 'Disease' ? 'titleIllness' : kind === 'Vaccination' ? 'titleVaccine' : 'titleGiven'), extra: tx('titleExtra'), done: tx('titleDone') }[step];
   const subtitle = {
-    pick: 'Tap every animal that was treated. Sick ones are at the top.',
-    what: 'Choose one.',
-    name: 'Pick one, or choose "Something else".',
-    extra: 'Who gave it, and when.',
-    done: 'It is on the health record.',
+    pick: tx('subPick'),
+    what: tx('subWhat'),
+    name: tx('subName'),
+    extra: tx('subExtra'),
+    done: tx('subDone'),
   }[step];
 
   return (
@@ -144,7 +159,7 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
       footer={step === 'what' || step === 'done' ? (step === 'what' && at > 0 ? <FlowBackOnly onBack={back} /> : null) : (
         <FlowFooter
           onBack={at === 0 ? undefined : back}
-          label={step === 'extra' ? (saving ? 'Saving…' : 'Save') : step === 'pick' && picked.length ? `Next (${picked.length})` : 'Next'}
+          label={step === 'extra' ? flow.tx(saving ? 'saving' : 'save') : step === 'pick' && picked.length ? tx('nextCount', { n: picked.length }) : flow.tx('next')}
           busy={saving}
         />
       )}
@@ -153,7 +168,7 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
         <>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
-            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search tag number" aria-label="Search tag number" className="h-14 pl-10 text-lg" />
+            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder={tx('searchTag')} aria-label={tx('searchTag')} className="h-14 pl-10 text-lg" />
           </div>
           <ul className="space-y-3 pb-2">
             {list.map(c => {
@@ -166,7 +181,7 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
                       <span className="block text-base text-ink-muted">{[c.breed, c.sex].filter(Boolean).join(' · ')}</span>
                     </span>
                     <span className="flex items-center gap-2">
-                      {sickIds.has(c.id) && <span className="text-base font-medium text-rose-700">{c.healthStatus}</span>}
+                      {sickIds.has(c.id) && <span className="text-base font-medium text-rose-700">{statusLabel(c.healthStatus)}</span>}
                       {on && <Check className="h-7 w-7 text-emerald-700" aria-hidden />}
                     </span>
                   </RowButton>
@@ -174,7 +189,7 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
               );
             })}
             {/* An empty farm is not a search that found nothing. */}
-            {list.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">{cattle.length === 0 ? 'There are no animals on the farm yet. Add cattle first.' : 'No animal with that tag.'}</li>}
+            {list.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">{tx(cattle.length === 0 ? 'noCattle' : 'noTag')}</li>}
           </ul>
         </>
       )}
@@ -188,8 +203,8 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
                 onClick={() => { setKind(k.type); setChoice(''); setCustom(''); setError(''); setStep('name'); }}
                 className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600"
               >
-                <span className="text-xl font-semibold text-ink">{k.title}</span>
-                <span className="text-base text-ink-muted">{k.hint}</span>
+                <span className="text-xl font-semibold text-ink">{tx(k.title)}</span>
+                <span className="text-base text-ink-muted">{tx(k.hint)}</span>
               </button>
             </li>
           ))}
@@ -198,24 +213,24 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
 
       {step === 'name' && (
         <>
-          <PickList options={[...names, OTHER]} value={choice} onChange={v => { setChoice(v); setError(''); }} labelFor={n => (n === OTHER ? 'Something else' : n)} />
-          {choice === OTHER && <Input autoFocus aria-label="Name" value={custom} onChange={e => { setCustom(e.target.value); setError(''); }} placeholder="Type the name" className="h-14 text-lg" />}
+          <PickList options={[...names, OTHER]} value={choice} onChange={v => { setChoice(v); setError(''); }} labelFor={n => (n === OTHER ? tx('somethingElse') : n)} />
+          {choice === OTHER && <Input autoFocus aria-label={tx('name')} value={custom} onChange={e => { setCustom(e.target.value); setError(''); }} placeholder={tx('typeName')} className="h-14 text-lg" />}
         </>
       )}
 
       {step === 'extra' && (
         <>
-          <Question label="Given by"><Input aria-label="Given by" value={by} onChange={e => { setBy(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
-          <Question label="Date"><Input aria-label="Date" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" /></Question>
-          <Question label="Cost for each animal (៛, optional)"><Input aria-label="Cost for each animal" type="number" step="any" inputMode="numeric" value={cost} onChange={e => setCost(e.target.value)} className={`h-14 text-lg ${NUM}`} /></Question>
-          <Question label="Note (optional)"><Input aria-label="Note" value={notes} onChange={e => setNotes(e.target.value)} className="h-14 text-lg" /></Question>
+          <Question label={tx('givenBy')}><Input aria-label={tx('givenBy')} value={by} onChange={e => { setBy(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
+          <Question label={tx('date')}><Input aria-label={tx('date')} type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" /></Question>
+          <Question label={tx('costEach')}><Input aria-label={tx('costEachAria')} type="number" step="any" inputMode="numeric" value={cost} onChange={e => setCost(e.target.value)} className={`h-14 text-lg ${NUM}`} /></Question>
+          <Question label={tx('noteOptional')}><Input aria-label={tx('note')} value={notes} onChange={e => setNotes(e.target.value)} className="h-14 text-lg" /></Question>
         </>
       )}
 
       {step === 'done' && saved && (
         <FlowDone
-          message={<><span className="font-semibold">{saved.name}</span> recorded for <span className="font-semibold">{saved.count} {saved.count === 1 ? 'animal' : 'animals'}</span></>}
-          again="Treat more animals"
+          message={<>{boldFill(tx(saved.count === 1 ? 'doneOne' : 'doneMany'), { name: saved.name, count: saved.count })}</>}
+          again={tx('again')}
           onAgain={another}
           onClose={onClose}
         />
@@ -225,7 +240,8 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
 }
 
 function FlowBackOnly({ onBack }: { onBack: () => void }) {
+  const flow = useText('flow');
   return (
-    <Button type="button" variant="secondary" size="lg" onClick={onBack} aria-label="Go back"><ArrowLeft /></Button>
+    <Button type="button" variant="secondary" size="lg" onClick={onBack} aria-label={flow.tx('back')}><ArrowLeft /></Button>
   );
 }

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import type { BatchItem } from '@/lib/types';
 import type { StockItem } from '@/lib/xlsx-parser';
 import { estimateFromSamples } from '@/lib/batch-stats';
+import { useText } from '@/hooks/useText';
 import { FlowDone, FlowFooter, FlowShell, NUM, Question, RowButton, today } from '../flow/FlowShell';
 
 export interface GroupWeight { cowId: string; currentWeight: number; healthStatus: string; trackingDate: string }
@@ -23,11 +24,20 @@ interface WeighGroupFlowProps {
 type Mode = 'each' | 'sample' | 'lump';
 type Step = 'mode' | 'total' | 'weights' | 'best' | 'medium' | 'low' | 'check' | 'done';
 
+/** Keys in the weighFlow section for each sample animal's title and hint. */
 const SAMPLE_ROLE: Record<'best' | 'medium' | 'low', { title: string; hint: string }> = {
-  best: { title: 'A fast grower', hint: 'Pick an animal that is growing well, then weigh it.' },
-  medium: { title: 'An average animal', hint: 'Pick one that grows about like most of the group.' },
-  low: { title: 'A slow grower', hint: 'Pick one that is growing less than the others.' },
+  best: { title: 'fastTitle', hint: 'fastHint' },
+  medium: { title: 'averageTitle', hint: 'averageHint' },
+  low: { title: 'slowTitle', hint: 'slowHint' },
 };
+
+/** A translated sentence with some {placeholders} shown in bold. */
+function rich(template: string, bold: Record<string, React.ReactNode>) {
+  return template.split(/(\{\w+\})/).map((part, i) => {
+    const m = /^\{(\w+)\}$/.exec(part);
+    return m && m[1] in bold ? <span key={i} className="font-semibold">{bold[m[1]]}</span> : part;
+  });
+}
 
 export default function WeighGroupFlow(props: WeighGroupFlowProps) {
   // Remount on every open so each weigh-in starts from a clean state.
@@ -39,6 +49,8 @@ export default function WeighGroupFlow(props: WeighGroupFlowProps) {
 }
 
 function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
+  const { tx, txn } = useText('weighFlow');
+  const { tx: ftx } = useText('flow');
   const canSample = cattle.length >= 4;
   const [step, setStep] = useState<Step>('mode');
   const [mode, setMode] = useState<Mode>('each');
@@ -85,45 +97,45 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
       setSavedCount(list.length);
       setStep('done');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save. Please try again.');
+      setError(e instanceof Error ? e.message : tx('errSave'));
     } finally {
       setSaving(false);
     }
   };
 
   const next = () => {
-    if (step === 'total' && !(lumpAvg > 0)) { setError('Type the total weight of the group, in kg.'); return; }
-    if (step === 'weights' && typedRows.length === 0) { setError('Type the weight of at least one animal.'); return; }
+    if (step === 'total' && !(lumpAvg > 0)) { setError(tx('errTotal')); return; }
+    if (step === 'weights' && typedRows.length === 0) { setError(tx('errOneWeight')); return; }
     if (step === 'best' || step === 'medium' || step === 'low') {
       const s = sample[step];
-      if (!s.cowId) { setError('Tap an animal.'); return; }
-      if (!(Number(s.weight) > 0)) { setError('Type its weight in kg.'); return; }
+      if (!s.cowId) { setError(tx('errTap')); return; }
+      if (!(Number(s.weight) > 0)) { setError(tx('errItsWeight')); return; }
     }
-    if (step === 'check') { if (!date) { setError('Choose the date.'); return; } save(); return; }
+    if (step === 'check') { if (!date) { setError(tx('errDate')); return; } save(); return; }
     setError('');
     setStep(steps[at + 1]);
   };
   const back = () => { setError(''); setStep(steps[at - 1]); };
 
   const title: Record<Step, string> = {
-    mode: 'Weigh the group',
-    total: 'Total weight of the group',
-    weights: 'Type the weights',
-    best: SAMPLE_ROLE.best.title,
-    medium: SAMPLE_ROLE.medium.title,
-    low: SAMPLE_ROLE.low.title,
-    check: mode !== 'sample' ? 'Check and save' : 'Check the estimate',
-    done: 'Saved',
+    mode: tx('modeTitle'),
+    total: tx('totalTitle'),
+    weights: tx('weightsTitle'),
+    best: tx(SAMPLE_ROLE.best.title),
+    medium: tx(SAMPLE_ROLE.medium.title),
+    low: tx(SAMPLE_ROLE.low.title),
+    check: mode !== 'sample' ? tx('checkSaveTitle') : tx('checkEstimateTitle'),
+    done: tx('saved'),
   };
   const subtitle: Record<Step, string> = {
-    mode: `${batch.name} · ${cattle.length} animals`,
-    total: `${batch.name} · ${cattle.length} animals weighed together`,
-    weights: 'Only animals you type a weight for are saved.',
-    best: sample.best.cowId ? 'Type what the scale shows.' : SAMPLE_ROLE.best.hint,
-    medium: sample.medium.cowId ? 'Type what the scale shows.' : SAMPLE_ROLE.medium.hint,
-    low: sample.low.cowId ? 'Type what the scale shows.' : SAMPLE_ROLE.low.hint,
-    check: 'Pick the date, then save.',
-    done: 'The weights are on the records.',
+    mode: tx('modeSub', { batch: batch.name, n: cattle.length }),
+    total: tx('totalSub', { batch: batch.name, n: cattle.length }),
+    weights: tx('weightsSub'),
+    best: sample.best.cowId ? tx('typeScale') : tx(SAMPLE_ROLE.best.hint),
+    medium: sample.medium.cowId ? tx('typeScale') : tx(SAMPLE_ROLE.medium.hint),
+    low: sample.low.cowId ? tx('typeScale') : tx(SAMPLE_ROLE.low.hint),
+    check: tx('checkDateSub'),
+    done: tx('groupDoneSub'),
   };
 
   const samplePick = (role: 'best' | 'medium' | 'low') => {
@@ -137,13 +149,13 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
           <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-emerald-600 bg-emerald-50 px-5 py-3">
             <span>
               <span className="block text-xl font-semibold text-ink">{picked.id}</span>
-              <span className="block text-base text-ink-muted">{[picked.breed, picked.weight ? `last ${picked.weight} kg` : null].filter(Boolean).join(' · ')}</span>
+              <span className="block text-base text-ink-muted">{[picked.breed, picked.weight ? tx('lastKg', { kg: picked.weight }) : null].filter(Boolean).join(' · ')}</span>
             </span>
-            <button type="button" onClick={() => set({ cowId: '', weight: '' })} className="rounded-lg px-3 py-2 text-lg font-medium text-emerald-800 underline">Change</button>
+            <button type="button" onClick={() => set({ cowId: '', weight: '' })} className="rounded-lg px-3 py-2 text-lg font-medium text-emerald-800 underline">{tx('change')}</button>
           </div>
-          <Question label="Weight on the scale (kg)">
-            <Input aria-label="Weight in kg" type="number" step="any" inputMode="decimal" autoFocus value={sample[role].weight} onChange={e => set({ weight: e.target.value })} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
-            {gain !== null && <p className={`mt-3 text-lg font-medium ${gain < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{gain > 0 ? '+' : ''}{gain} kg since last time</p>}
+          <Question label={tx('scaleWeight')}>
+            <Input aria-label={tx('weightAria')} type="number" step="any" inputMode="decimal" autoFocus value={sample[role].weight} onChange={e => set({ weight: e.target.value })} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
+            {gain !== null && <p className={`mt-3 text-lg font-medium ${gain < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{tx('sinceLast', { kg: `${gain > 0 ? '+' : ''}${gain}` })}</p>}
           </Question>
         </>
       );
@@ -154,7 +166,7 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
       <>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
-          <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search tag number" aria-label="Search tag number" className="h-14 pl-10 text-lg" />
+          <Input value={query} onChange={e => setQuery(e.target.value)} placeholder={tx('searchTag')} aria-label={tx('searchTag')} className="h-14 pl-10 text-lg" />
         </div>
         <ul className="space-y-3 pb-2">
           {options.map(c => (
@@ -162,12 +174,12 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
               <RowButton onClick={() => { set({ cowId: c.id }); setQuery(''); }}>
                 <span>
                   <span className="block text-xl font-semibold text-ink">{c.id}</span>
-                  <span className="block text-base text-ink-muted">{[c.breed, c.weight ? `last ${c.weight} kg` : null].filter(Boolean).join(' · ')}</span>
+                  <span className="block text-base text-ink-muted">{[c.breed, c.weight ? tx('lastKg', { kg: c.weight }) : null].filter(Boolean).join(' · ')}</span>
                 </span>
               </RowButton>
             </li>
           ))}
-          {options.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">No animal with that tag.</li>}
+          {options.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">{tx('noTag')}</li>}
         </ul>
       </>
     );
@@ -182,37 +194,37 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
       error={error}
       onSubmit={step === 'mode' || step === 'done' ? undefined : next}
       footer={step === 'mode' || step === 'done' ? null : (
-        <FlowFooter onBack={back} label={step === 'check' ? (saving ? 'Saving…' : 'Save weights') : 'Next'} busy={saving} />
+        <FlowFooter onBack={back} label={step === 'check' ? (saving ? ftx('saving') : tx('saveWeights')) : ftx('next')} busy={saving} />
       )}
     >
       {step === 'mode' && (
         <ul className="space-y-3">
           <li>
             <button type="button" onClick={() => { setMode('lump'); setStep('total'); }} className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600">
-              <span className="text-xl font-semibold text-ink">Weigh the whole group together</span>
-              <span className="text-base text-ink-muted">Type one total. Each animal gets the average.</span>
+              <span className="text-xl font-semibold text-ink">{tx('lumpMode')}</span>
+              <span className="text-base text-ink-muted">{tx('lumpModeHint')}</span>
             </button>
           </li>
           <li>
             <button type="button" onClick={() => { setMode('each'); setStep('weights'); }} className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600">
-              <span className="text-xl font-semibold text-ink">Weigh each animal</span>
-              <span className="text-base text-ink-muted">Type a weight for every animal you weighed.</span>
+              <span className="text-xl font-semibold text-ink">{tx('eachMode')}</span>
+              <span className="text-base text-ink-muted">{tx('eachModeHint')}</span>
             </button>
           </li>
           <li>
             <button type="button" disabled={!canSample} onClick={() => { setMode('sample'); setStep('best'); }} className="flex min-h-20 w-full flex-col items-start justify-center rounded-xl border-2 border-slate-200 px-5 py-3 text-left hover:border-emerald-600 disabled:cursor-not-allowed disabled:opacity-50">
-              <span className="text-xl font-semibold text-ink">Weigh 3 and estimate the rest</span>
-              <span className="text-base text-ink-muted">{canSample ? 'Weigh a fast, an average and a slow animal. The others get the average gain.' : 'Needs at least 4 animals in the batch.'}</span>
+              <span className="text-xl font-semibold text-ink">{tx('sampleMode')}</span>
+              <span className="text-base text-ink-muted">{canSample ? tx('sampleModeHint') : tx('sampleNeeds4')}</span>
             </button>
           </li>
         </ul>
       )}
 
       {step === 'total' && (
-        <Question label="Total weight (kg)">
-          <Input aria-label="Total weight in kg" type="number" step="any" inputMode="decimal" autoFocus value={total} onChange={e => { setTotal(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
+        <Question label={tx('totalKg')}>
+          <Input aria-label={tx('totalAria')} type="number" step="any" inputMode="decimal" autoFocus value={total} onChange={e => { setTotal(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
           <p className="mt-3 text-lg text-ink-muted">
-            {lumpAvg > 0 ? <>Average: <span className="font-semibold text-ink">{lumpAvg} kg</span> for each of {cattle.length} animals</> : `Shared between ${cattle.length} animals`}
+            {lumpAvg > 0 ? rich(tx('lumpAverage', { n: cattle.length }), { avg: <span className="text-ink">{lumpAvg} kg</span> }) : tx('sharedBetween', { n: cattle.length })}
           </p>
         </Question>
       )}
@@ -221,20 +233,20 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
         <>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
-            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search tag number" aria-label="Search tag number" className="h-14 pl-10 text-lg" />
+            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder={tx('searchTag')} aria-label={tx('searchTag')} className="h-14 pl-10 text-lg" />
           </div>
-          <p className="text-base text-ink-muted">{typedRows.length} of {cattle.length} typed</p>
+          <p className="text-base text-ink-muted">{tx('typedOf', { typed: typedRows.length, n: cattle.length })}</p>
           <ul className="space-y-2 pb-2">
             {shown.map(c => (
               <li key={c.id} className="flex items-center justify-between gap-3 rounded-xl border-2 border-slate-200 bg-white px-4 py-2">
                 <div className="min-w-0">
                   <p className="text-xl font-semibold text-ink">{c.id}</p>
-                  <p className="text-base text-ink-muted">{c.weight ? `Last ${c.weight} kg` : 'Not weighed'}</p>
+                  <p className="text-base text-ink-muted">{c.weight ? tx('lastKgCap', { kg: c.weight }) : tx('notWeighed')}</p>
                 </div>
-                <Input aria-label={`Weight of ${c.id} in kg`} type="number" step="any" inputMode="decimal" value={typed[c.id] ?? ''} onChange={e => { setTyped({ ...typed, [c.id]: e.target.value }); setError(''); }} placeholder="kg" className={`h-14 w-28 text-center text-xl font-semibold ${NUM}`} />
+                <Input aria-label={tx('weightOfAria', { tag: c.id })} type="number" step="any" inputMode="decimal" value={typed[c.id] ?? ''} onChange={e => { setTyped({ ...typed, [c.id]: e.target.value }); setError(''); }} placeholder="kg" className={`h-14 w-28 text-center text-xl font-semibold ${NUM}`} />
               </li>
             ))}
-            {shown.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">No animal with that tag.</li>}
+            {shown.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">{tx('noTag')}</li>}
           </ul>
         </>
       )}
@@ -257,21 +269,21 @@ function WeighBody({ onClose, batch, cattle, onSave }: WeighGroupFlowProps) {
                 );
               })}
               <p className="border-t border-slate-200 pt-3 text-lg text-ink">
-                Average gain <span className="font-semibold">{estimate.avgGain >= 0 ? '+' : ''}{Math.round(estimate.avgGain * 10) / 10} kg</span>. The other {cattle.length - 3} animals will be saved with their last weight plus this.
+                {rich(tx('avgGainNote', { n: cattle.length - 3 }), { gain: `${estimate.avgGain >= 0 ? '+' : ''}${Math.round(estimate.avgGain * 10) / 10} kg` })}
               </p>
             </div>
           )}
-          {mode === 'lump' && <p className="rounded-xl bg-slate-50 p-4 text-lg text-ink">Every one of the <span className="font-semibold">{cattle.length}</span> animals is saved at <span className="font-semibold">{lumpAvg} kg</span> (total {lumpKg} kg ÷ {cattle.length}). This is an average, not a scale reading for each animal.</p>}
-          {mode === 'each' && <p className="rounded-xl bg-slate-50 p-4 text-lg text-ink">Saving <span className="font-semibold">{typedRows.length}</span> {typedRows.length === 1 ? 'weight' : 'weights'}.</p>}
-          <Question label="Date weighed"><Input aria-label="Date weighed" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" /></Question>
+          {mode === 'lump' && <p className="rounded-xl bg-slate-50 p-4 text-lg text-ink">{rich(tx('lumpNote', { total: lumpKg, n: cattle.length }), { count: cattle.length, avg: `${lumpAvg} kg` })}</p>}
+          {mode === 'each' && <p className="rounded-xl bg-slate-50 p-4 text-lg text-ink">{rich(tx(typedRows.length === 1 ? 'savingOne' : 'savingMany'), { count: typedRows.length })}</p>}
+          <Question label={tx('dateWeighed')}><Input aria-label={tx('dateWeighed')} type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" /></Question>
         </>
       )}
 
       {step === 'done' && (
         <FlowDone
-          message={<><span className="font-semibold">{savedCount} {savedCount === 1 ? 'weight' : 'weights'}</span> saved</>}
-          detail={mode === 'sample' ? 'Estimates were saved for the animals you did not weigh.' : mode === 'lump' ? 'Each animal was saved at the group average.' : undefined}
-          again="Weigh again"
+          message={<>{rich(tx('doneSaved'), { count: txn(savedCount, 'weightOne', 'weightMany') })}</>}
+          detail={mode === 'sample' ? tx('sampleDone') : mode === 'lump' ? tx('lumpDone') : undefined}
+          again={tx('weighAgain')}
           onAgain={() => { setTyped({}); setTotal(''); setQuery(''); setSample({ best: { cowId: '', weight: '' }, medium: { cowId: '', weight: '' }, low: { cowId: '', weight: '' } }); setError(''); setStep('mode'); }}
           onClose={onClose}
         />

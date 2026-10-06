@@ -16,6 +16,7 @@ import {
 import { SALE_WEEK_DAYS, saleWindowDays } from '@/lib/sale-review';
 import { farmToday, farmsToRecord, missedFeedDays, todayNotRecorded, unlinkedRationFeeds } from '@/lib/daily-feed';
 import { dayLabel } from './features/feed/DailyFeedFlow';
+import { useText } from '@/hooks/useText';
 import type { ActiveTabType, RecordAction } from './layout/SidebarLayout';
 
 interface TodayTabProps {
@@ -40,11 +41,9 @@ interface AttentionItem {
   onAction: () => void;
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
-function greeting(now: Date): string {
+function greeting(now: Date, tx: (key: string) => string): string {
   const h = now.getHours();
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  return tx(h < 12 ? 'goodMorning' : h < 17 ? 'goodAfternoon' : 'goodEvening');
 }
 
 /**
@@ -53,6 +52,7 @@ function greeting(now: Date): string {
  * Every rule lives in src/lib/attention.ts so the pages behind it agree.
  */
 export default function TodayTab({ data, currentUser, recordActions, onNavigate, onOpenSaleReview, onRecordFeed }: TodayTabProps) {
+  const { tx, txn, language } = useText('todayPage');
   const can = (key: Parameters<typeof hasPermission>[1]) => hasPermission(currentUser, key);
   const now = new Date();
   const onFarm = activeCattle(data.stock).length;
@@ -73,9 +73,9 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
         items.push({
           key: `feed-missed-${farm}`,
           severity: 'urgent',
-          title: `Feed not written down for ${plural(missed.length, 'day', 'days')}${many ? ` at ${farm}` : ''}`,
-          detail: `${missed.map(dayLabel).join(', ')}. Stock is only taken when the day is recorded.`,
-          actionLabel: 'Record',
+          title: many ? txn(missed.length, 'feedMissedOneAt', 'feedMissedManyAt', { farm }) : txn(missed.length, 'feedMissedOne', 'feedMissedMany'),
+          detail: tx('feedMissedDetail', { days: missed.map(d => dayLabel(d, language)).join(', ') }),
+          actionLabel: tx('record'),
           onAction: () => onRecordFeed(farm, missed[0])
         });
       }
@@ -83,9 +83,9 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
         items.push({
           key: `feed-day-${farm}`,
           severity: 'attention',
-          title: many ? `Today's feed is not written down at ${farm}` : 'Today\'s feed is not written down yet',
-          detail: 'Record the bags and grass the cattle ate today.',
-          actionLabel: 'Record feed',
+          title: many ? tx('todayFeedNotRecordedAt', { farm }) : tx('todayFeedNotRecorded'),
+          detail: tx('todayFeedDetail'),
+          actionLabel: tx('recordFeed'),
           onAction: () => onRecordFeed(farm)
         });
       }
@@ -94,9 +94,9 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
       items.push({
         key: `feed-unlinked-${u.batch.id}`,
         severity: 'attention',
-        title: `${u.batch.name}: feed not in your feed list`,
-        detail: `${u.names.join(', ')} cannot be recorded. Open the batch, Feeding tab, tap the pencil and choose the feed.`,
-        actionLabel: 'Open batches',
+        title: tx('feedUnlinked', { batch: u.batch.name }),
+        detail: tx('feedUnlinkedDetail', { names: u.names.join(', ') }),
+        actionLabel: tx('openBatches'),
         onAction: () => onNavigate('batch-management')
       });
     }
@@ -108,9 +108,9 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
       items.push({
         key: 'sick',
         severity: 'urgent',
-        title: `${plural(sick.length, 'animal is', 'animals are')} sick`,
-        detail: sick.slice(0, 5).map(c => c.id).join(', ') + (sick.length > 5 ? ` and ${sick.length - 5} more` : ''),
-        actionLabel: 'See them',
+        title: txn(sick.length, 'sickOne', 'sickMany'),
+        detail: sick.slice(0, 5).map(c => c.id).join(', ') + (sick.length > 5 ? tx('andMore', { n: sick.length - 5 }) : ''),
+        actionLabel: tx('seeThem'),
         onAction: () => onNavigate('health-tracking')
       });
     }
@@ -123,11 +123,11 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
       items.push({
         key: `feed-${l.productId}`,
         severity: l.daysLeft !== null && l.daysLeft <= 3 ? 'urgent' : 'attention',
-        title: `Feed running low: ${l.productName}`,
+        title: tx('feedLow', { name: l.productName }),
         detail: l.daysLeft === null || l.daysLeft <= 0
-          ? `Only ${Math.round(l.bags)} bags left`
-          : `About ${plural(l.daysLeft, 'day', 'days')} left (${Math.round(l.bags)} bags)`,
-        actionLabel: can('feed_manage') ? 'Add feed' : 'Open feed',
+          ? tx('onlyBagsLeft', { bags: Math.round(l.bags) })
+          : txn(l.daysLeft, 'daysLeftOne', 'daysLeftMany', { bags: Math.round(l.bags) }),
+        actionLabel: tx(can('feed_manage') ? 'addFeed' : 'openFeed'),
         onAction: () => onNavigate('feed-inventory')
       });
     }
@@ -136,9 +136,9 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
       items.push({
         key: 'feed-other',
         severity: 'attention',
-        title: `${plural(otherLow, 'other feed product is', 'other feed products are')} at or below the minimum`,
-        detail: 'Not used by any feeding program right now',
-        actionLabel: 'Open feed',
+        title: txn(otherLow, 'otherLowOne', 'otherLowMany'),
+        detail: tx('otherLowDetail'),
+        actionLabel: tx('openFeed'),
         onAction: () => onNavigate('feed-inventory')
       });
     }
@@ -149,14 +149,14 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
     const overdue = schedule.filter(s => s.status === 'overdue').length;
     const dueSoon = schedule.filter(s => s.status === 'duesoon').length;
     if (overdue + dueSoon > 0) {
-      const parts = [overdue > 0 ? `${overdue} overdue` : '', dueSoon > 0 ? `${dueSoon} due in the next 2 days` : ''].filter(Boolean);
+      const parts = [overdue > 0 ? tx('overdueCount', { n: overdue }) : '', dueSoon > 0 ? tx('dueSoonCount', { n: dueSoon }) : ''].filter(Boolean);
       items.push({
         key: 'weigh',
         severity: 'attention',
-        title: `${plural(overdue + dueSoon, 'animal is', 'animals are')} due for weighing`,
-        detail: `${parts.join(' · ')} (weighed every ${WEIGH_INTERVAL_DAYS} days)`,
+        title: txn(overdue + dueSoon, 'weighDueOne', 'weighDueMany'),
+        detail: `${parts.join(' · ')} ${tx('weighEvery', { n: WEIGH_INTERVAL_DAYS })}`,
         // Read-only people (Management) only look, so the button says where it goes.
-        actionLabel: can('weight_record') ? 'Weigh now' : 'Open weights',
+        actionLabel: tx(can('weight_record') ? 'weighNow' : 'openWeights'),
         onAction: () => onNavigate('weight-tracking')
       });
     }
@@ -165,15 +165,15 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
   if (can('batch_view')) {
     const near = batchesNearSelling(data, saleWindowDays(data.settings), now);
     const openReview = () => (onOpenSaleReview ? onOpenSaleReview() : onNavigate('batch-management'));
-    const label = can('batch_review') ? 'Review' : 'Open batches';
+    const label = tx(can('batch_review') ? 'review' : 'openBatches');
     for (const b of near.slice(0, 3)) {
       items.push({
         key: `sell-${b.batchId}`,
         severity: b.daysRemaining < 0 ? 'urgent' : 'attention',
-        title: `Batch ${b.batchName}: ${b.daysRemaining < 0 ? 'selling date has passed' : b.daysRemaining <= SALE_WEEK_DAYS ? 'selling date is this week' : 'selling date is coming up'}`,
+        title: tx(b.daysRemaining < 0 ? 'batchSellPassed' : b.daysRemaining <= SALE_WEEK_DAYS ? 'batchSellThisWeek' : 'batchSellComing', { name: b.batchName }),
         detail: b.daysRemaining < 0
-          ? `${plural(-b.daysRemaining, 'day', 'days')} overdue`
-          : b.daysRemaining === 0 ? 'Planned for today' : `In ${plural(b.daysRemaining, 'day', 'days')}`,
+          ? txn(-b.daysRemaining, 'daysOverdueOne', 'daysOverdueMany')
+          : b.daysRemaining === 0 ? tx('plannedToday') : txn(b.daysRemaining, 'inDaysOne', 'inDaysMany'),
         actionLabel: label,
         onAction: openReview
       });
@@ -182,8 +182,8 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
       items.push({
         key: 'sell-more',
         severity: near.some(b => b.daysRemaining < 0) ? 'urgent' : 'attention',
-        title: `${plural(near.length - 3, 'more batch', 'more batches')} near the selling date`,
-        detail: 'See them all on the sale review',
+        title: txn(near.length - 3, 'moreBatchesOne', 'moreBatchesMany'),
+        detail: tx('seeAllSaleReview'),
         actionLabel: label,
         onAction: openReview
       });
@@ -196,9 +196,9 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
       items.push({
         key: 'disease',
         severity: 'attention',
-        title: `${plural(history.length, 'animal has', 'animals have')} a disease on record`,
-        detail: 'Check they are recovering',
-        actionLabel: 'Open health',
+        title: txn(history.length, 'diseaseOne', 'diseaseMany'),
+        detail: tx('diseaseDetail'),
+        actionLabel: tx('openHealth'),
         onAction: () => onNavigate('health-tracking')
       });
     }
@@ -207,23 +207,23 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
   items.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'urgent' ? -1 : 1));
 
   const farmLine = currentUser.farmLocation
-    ? `${currentUser.farmLocation} · ${plural(onFarm, 'animal', 'animals')} on the farm`
-    : `All farms · ${plural(onFarm, 'animal', 'animals')} on farms`;
+    ? txn(onFarm, 'farmLineOne', 'farmLineMany', { farm: currentUser.farmLocation })
+    : txn(onFarm, 'allFarmsLineOne', 'allFarmsLineMany');
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <section>
-        <h2 className="text-2xl md:text-3xl font-bold text-ink">{greeting(now)}{firstName ? `, ${firstName}` : ''}</h2>
+        <h2 className="text-2xl md:text-3xl font-bold text-ink">{greeting(now, tx)}{firstName ? `, ${firstName}` : ''}</h2>
         <p className="text-base text-ink-muted mt-1">{farmLine}</p>
       </section>
 
       <section aria-labelledby="attention-heading" className="space-y-3">
-        <h3 id="attention-heading" className="text-xl font-semibold text-ink">Needs attention today</h3>
+        <h3 id="attention-heading" className="text-xl font-semibold text-ink">{tx('needsAttentionToday')}</h3>
 
         {items.length === 0 ? (
           <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 text-emerald-800">
             <CheckCircle2 className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
-            <p className="text-base font-semibold">All good today. Nothing needs attention.</p>
+            <p className="text-base font-semibold">{tx('allGood')}</p>
           </div>
         ) : (
           <ul className="space-y-3">
@@ -236,8 +236,8 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
                     }`}
                   >
                     {item.severity === 'urgent'
-                      ? <AlertTriangle className="h-6 w-6" aria-label="Urgent" />
-                      : <Info className="h-6 w-6" aria-label="Needs attention" />}
+                      ? <AlertTriangle className="h-6 w-6" aria-label={tx('urgent')} />
+                      : <Info className="h-6 w-6" aria-label={tx('needsAttention')} />}
                   </span>
                   <div className="min-w-0">
                     <p className="text-base md:text-lg font-semibold text-ink">{item.title}</p>
@@ -260,7 +260,7 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
 
       {recordActions.length > 0 && (
         <section aria-labelledby="record-heading" className="space-y-3">
-          <h3 id="record-heading" className="text-xl font-semibold text-ink">Record</h3>
+          <h3 id="record-heading" className="text-xl font-semibold text-ink">{tx('record')}</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {recordActions.map(a => (
               <button

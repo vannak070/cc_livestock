@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { AlertTriangle, Eye, EyeOff, Info } from 'lucide-react';
 import { loginAction } from '@/app/actions';
 import InstallAppButton from './InstallAppButton';
+import LanguageSwitcher from './LanguageSwitcher';
+import { useLanguage } from '@/context/LanguageContext';
 
 // Rendered by src/app/page.tsx whenever there is no valid session. It never
 // receives any farm data: the page only loads data once the server has
@@ -16,13 +18,14 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [loginError, setLoginError] = React.useState<{ title: string; detail?: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { t } = useLanguage();
 
   // The server's wording for a wrong email or password is terse; say it in
   // plain words and tell the person what to do. Any other message (inactive
   // account, missing fields) is already plain and is shown as it is.
   const toFriendlyError = (message?: string) =>
     !message || message === 'Invalid email or password.'
-      ? { title: 'Email or password is not correct', detail: 'Check both and try again. Tap Show to see what you typed.' }
+      ? { title: t('login.wrongTitle'), detail: t('login.wrongDetail') }
       : { title: message };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -41,7 +44,7 @@ export default function LoginScreen() {
       // loads this user's data.
       router.refresh();
     } catch {
-      setLoginError({ title: 'Could not sign in right now', detail: 'Check your internet connection and try again.' });
+      setLoginError({ title: t('login.offlineTitle'), detail: t('login.offlineDetail') });
       setIsSubmitting(false);
     }
   };
@@ -51,16 +54,20 @@ export default function LoginScreen() {
   return (
     <div className="min-h-screen flex sm:items-center justify-center bg-canvas font-sans sm:p-6">
       <div className="w-full sm:max-w-md bg-canvas sm:bg-white sm:border sm:border-slate-200 sm:rounded-3xl sm:shadow-sm overflow-hidden">
-        <header className="bg-white border-b-4 border-brand px-6 pt-8 pb-7 flex flex-col items-center gap-3 text-center">
+        <header className="relative bg-white border-b-4 border-brand px-6 pt-8 pb-7 flex flex-col items-center gap-3 text-center">
+          {/* Choose the language before signing in. */}
+          <div className="self-end -mt-4 -mr-2">
+            <LanguageSwitcher />
+          </div>
           <img src="/logo.png" alt="CC Livestock logo" className="h-28 w-28 object-contain" />
           <div>
             <h1 className="text-3xl font-bold leading-tight text-brand">CC Livestock</h1>
-            <p className="text-base text-ink-muted mt-1">Farm records for your cattle</p>
+            <p className="text-base text-ink-muted mt-1">{t('login.tagline')}</p>
           </div>
         </header>
 
         <div className="px-5 sm:px-8 pt-7 pb-8">
-          <h2 className="text-2xl font-bold text-ink mb-5">Sign in</h2>
+          <h2 className="text-2xl font-bold text-ink mb-5">{t('login.title')}</h2>
 
           {loginError && (
             <div role="alert" className="mb-5 flex gap-3 items-start p-4 rounded-xl bg-rose-50 text-rose-800">
@@ -74,7 +81,7 @@ export default function LoginScreen() {
 
           <form onSubmit={handleLoginSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label htmlFor="login-email" className="block text-base font-semibold text-ink">Email</label>
+              <label htmlFor="login-email" className="block text-base font-semibold text-ink">{t('login.email')}</label>
               <input
                 id="login-email"
                 type="email"
@@ -89,7 +96,7 @@ export default function LoginScreen() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="login-password" className="block text-base font-semibold text-ink">Password</label>
+              <label htmlFor="login-password" className="block text-base font-semibold text-ink">{t('login.password')}</label>
               <div className={`flex items-center h-14 bg-white border-2 rounded-xl pl-4 pr-1.5 focus-within:ring-2 focus-within:ring-emerald-600/15 ${fieldBorder}`}>
                 <input
                   id="login-password"
@@ -104,11 +111,11 @@ export default function LoginScreen() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(v => !v)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                   className="h-11 px-3 rounded-lg flex items-center gap-1.5 text-emerald-700 font-semibold text-sm hover:bg-emerald-50 cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" aria-hidden="true" /> : <Eye className="h-5 w-5" aria-hidden="true" />}
-                  {showPassword ? 'Hide' : 'Show'}
+                  {showPassword ? t('login.hide') : t('login.show')}
                 </button>
               </div>
             </div>
@@ -121,15 +128,15 @@ export default function LoginScreen() {
               {isSubmitting ? (
                 <>
                   <span className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
-                  Signing in…
+                  {t('login.signingIn')}
                 </>
-              ) : loginError ? 'Try again' : 'Sign in'}
+              ) : loginError ? t('login.tryAgain') : t('login.signIn')}
             </button>
           </form>
 
           <div className="mt-6 flex gap-3 items-start p-4 rounded-xl bg-white sm:bg-slate-50 border border-slate-200">
             <Info className="h-5 w-5 flex-shrink-0 mt-0.5 text-ink-muted" aria-hidden="true" />
-            <p className="text-sm text-ink-muted">Forgot your password? Ask your farm manager to reset it for you.</p>
+            <p className="text-sm text-ink-muted">{t('login.forgot')}</p>
           </div>
 
           <div className="mt-4">

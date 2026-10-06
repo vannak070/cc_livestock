@@ -1,19 +1,40 @@
 import { PartialTranslations } from './en';
+import { km as flowKm } from './sections/flow';
+import { km as todayPageKm } from './sections/todayPage';
+import { km as cattlePageKm } from './sections/cattlePage';
+import { km as weightsPageKm } from './sections/weightsPage';
+import { km as weighFlowKm } from './sections/weighFlow';
+import { km as healthPageKm } from './sections/healthPage';
+import { km as treatFlowKm } from './sections/treatFlow';
+import { km as feedPageKm } from './sections/feedPage';
+import { km as feedFlowsKm } from './sections/feedFlows';
 
 export const km: PartialTranslations = {
   // Navigation & Header
   nav: {
     dashboard: 'ផ្ទាំងគ្រប់គ្រង',
-    cattleRegistry: 'បញ្ជីសារពើភណ្ឌគោ',
-    batchManagement: 'គ្រប់គ្រងក្រុមគោ និង ចំណី',
-    feedStock: 'ស្តុកចំណីគោ',
-    healthVaccines: 'ព្យាបាល និង វ៉ាក់សាំង',
-    financeLedger: 'ការលក់ និង ចំណូល',
-    analytics: 'របាយការណ៍ និង វិភាគ',
-    proposalPlan: 'ឧបករណ៍ផែនការអាជីវកម្មបំប៉ន',
+    // Short page names (2026-10-06): the long ones were cut off on phones. Drafted by Claude; need a native speaker's review.
+    today: 'ថ្ងៃនេះ',
+    summary: 'សង្ខេប',
+    weights: 'ទម្ងន់',
+    dailyWork: 'ការងារប្រចាំថ្ងៃ',
+    office: 'ការិយាល័យ',
+    record: 'កត់ត្រា',
+    recordTitle: 'តើអ្នកចង់កត់ត្រាអ្វី?',
+    more: 'ច្រើនទៀត',
+    people: 'បុគ្គលិក',
+    closeMenu: 'បិទម៉ឺនុយ',
+    signOut: 'ចាកចេញ',
+    cattleRegistry: 'គោ',
+    batchManagement: 'ក្រុមគោ',
+    feedStock: 'ចំណី',
+    healthVaccines: 'សុខភាព',
+    financeLedger: 'ការលក់',
+    analytics: 'របាយការណ៍',
+    proposalPlan: 'ផែនការ',
     costs: 'ចំណាយ',
-    farmsBranches: 'កសិដ្ឋាន និង ក្រោលគោ',
-    masterSettings: 'ការកំណត់ប្រព័ន្ធ',
+    farmsBranches: 'កសិដ្ឋាន',
+    masterSettings: 'ការកំណត់',
     systemTitle: 'ប្រព័ន្ធគ្រប់គ្រងកសិដ្ឋាន',
     systemSubtitle: 'ប្រព័ន្ធគ្រប់គ្រងការបំប៉នគោសាច់',
     role: 'តួនាទី',
@@ -280,6 +301,56 @@ export const km: PartialTranslations = {
       'Other': 'ផ្សេងៗ'
     }
   },
+
+  // ការចូលប្រើ (Claude drafted these; they need a native speaker's review)
+  login: {
+    tagline: 'កំណត់ត្រាកសិដ្ឋានសម្រាប់គោរបស់អ្នក',
+    title: 'ចូលប្រើ',
+    email: 'អ៊ីមែល',
+    password: 'ពាក្យសម្ងាត់',
+    show: 'បង្ហាញ',
+    hide: 'លាក់',
+    showPassword: 'បង្ហាញពាក្យសម្ងាត់',
+    hidePassword: 'លាក់ពាក្យសម្ងាត់',
+    signIn: 'ចូលប្រើ',
+    signingIn: 'កំពុងចូល…',
+    tryAgain: 'ព្យាយាមម្ដងទៀត',
+    forgot: 'ភ្លេចពាក្យសម្ងាត់? សូមសុំអ្នកគ្រប់គ្រងកសិដ្ឋានរបស់អ្នកឱ្យកំណត់ថ្មី។',
+    wrongTitle: 'អ៊ីមែល ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ',
+    wrongDetail: 'សូមពិនិត្យទាំងពីរ ហើយព្យាយាមម្ដងទៀត។ ចុច បង្ហាញ ដើម្បីមើលអ្វីដែលអ្នកបានវាយ។',
+    offlineTitle: 'មិនអាចចូលប្រើបានឥឡូវនេះទេ',
+    offlineDetail: 'សូមពិនិត្យការតភ្ជាប់អ៊ីនធឺណិត ហើយព្យាយាមម្ដងទៀត។'
+  },
+
+  // ប៊ូតុងកត់ត្រា
+  record: {
+    feedToday: 'ចំណីថ្ងៃនេះ',
+    weigh: 'ថ្លឹង',
+    treat: 'ព្យាបាល',
+    addCattle: 'បន្ថែមគោ',
+    sell: 'លក់',
+    feedIn: 'ចំណីចូល',
+    cost: 'ចំណាយ'
+  },
+
+  // ការជ្រើសកសិដ្ឋាន
+  farm: {
+    workingOn: 'កំពុងមើល',
+    allFarms: 'កសិដ្ឋានទាំងអស់',
+    farm: 'កសិដ្ឋាន',
+    search: 'ស្វែងរក',
+    searchAria: 'ស្វែងរកក្នុងបញ្ជី'
+  },
+
+  flow: flowKm,
+  todayPage: todayPageKm,
+  cattlePage: cattlePageKm,
+  weightsPage: weightsPageKm,
+  weighFlow: weighFlowKm,
+  healthPage: healthPageKm,
+  treatFlow: treatFlowKm,
+  feedPage: feedPageKm,
+  feedFlows: feedFlowsKm,
 
   // Install as an app (PWA)
   pwa: {

@@ -12,6 +12,8 @@ import { growth, weighPoints } from '@/lib/cattle-stats';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { FarmSelect } from '@/components/ui/listbox-select';
+import { useText } from '@/hooks/useText';
+import { en as words } from '@/locales/sections/cattlePage';
 
 interface CattleListProps {
   stock: StockItem[];
@@ -30,7 +32,15 @@ const kgText = (n: number) => `${Math.round(n * 10) / 10} kg`;
 
 const SELECT = 'h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-3 text-lg text-ink focus:border-emerald-600 focus:outline-none';
 
+const TAB_KEY: Record<Status, string> = { Active: 'tabActive', Sold: 'tabSold', All: 'tabAll' };
+
 export default function CattleList({ stock, weightTracking, onViewDetails, onAddCowClick, currentUser, farms = [] }: CattleListProps) {
+  const { tx, txn } = useText('cattlePage');
+  // Known stored values (Active, Sick, Male...) in the chosen language; anything else as it is.
+  const val = (v?: string) => {
+    const k = `v_${norm(v)}`;
+    return v && k in words ? tx(k) : (v ?? '');
+  };
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<Status>('Active');
   const [attentionOnly, setAttentionOnly] = useState(false);
@@ -138,11 +148,11 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
     <div className="mx-auto max-w-6xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">Cattle</h2>
-          <p className="text-base text-ink-muted">{counts.Active} active · {counts.Sold} sold</p>
+          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
+          <p className="text-base text-ink-muted">{tx('activeSold', { active: counts.Active, sold: counts.Sold })}</p>
         </div>
         {onAddCowClick && hasPermission(currentUser, 'stock_create') && (
-          <Button size="lg" onClick={onAddCowClick}><Plus /> Add cattle</Button>
+          <Button size="lg" onClick={onAddCowClick}><Plus /> {tx('addCattle')}</Button>
         )}
       </div>
 
@@ -150,11 +160,11 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
       <div className="space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by tag number or seller" aria-label="Search cattle" className="h-14 pl-11 text-lg" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={tx('searchPlaceholder')} aria-label={tx('searchAria')} className="h-14 pl-11 text-lg" />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div role="tablist" aria-label="Show" className="flex rounded-xl bg-slate-100 p-1">
+          <div role="tablist" aria-label={tx('showAria')} className="flex rounded-xl bg-slate-100 p-1">
             {(['Active', 'Sold', 'All'] as Status[]).map(s => (
               <button
                 key={s}
@@ -164,7 +174,7 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
                 onClick={() => setStatus(s)}
                 className={`min-h-11 rounded-lg px-4 text-base font-medium ${status === s ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}
               >
-                {s} ({counts[s]})
+                {tx(TAB_KEY[s])} ({counts[s]})
               </button>
             ))}
           </div>
@@ -176,7 +186,7 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
               onClick={() => { setAttentionOnly(v => !v); if (!attentionOnly) setStatus('Active'); }}
               className={`min-h-11 rounded-xl border-2 px-4 text-base font-medium ${attentionOnly ? 'border-amber-500 bg-amber-100 text-amber-900' : 'border-slate-200 bg-white text-ink hover:border-amber-500'}`}
             >
-              Needs attention ({attentionCount})
+              {tx('needsAttention', { n: attentionCount })}
             </button>
           )}
 
@@ -186,7 +196,7 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
             onClick={() => setShowFilters(v => !v)}
             className="ml-auto flex min-h-11 items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 text-base font-medium text-ink hover:border-emerald-600"
           >
-            <SlidersHorizontal className="h-5 w-5" aria-hidden /> Filters{activeFilters > 0 ? ` (${activeFilters})` : ''}
+            <SlidersHorizontal className="h-5 w-5" aria-hidden /> {tx('filters')}{activeFilters > 0 ? ` (${activeFilters})` : ''}
           </button>
         </div>
 
@@ -194,43 +204,43 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
           <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
             {showFarmFilter && (
               <div className="block">
-                <span className="mb-1 block text-base font-medium text-ink">Farm</span>
+                <span className="mb-1 block text-base font-medium text-ink">{tx('farm')}</span>
                 <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} />
               </div>
             )}
             <label className="block">
-              <span className="mb-1 block text-base font-medium text-ink">Breed</span>
+              <span className="mb-1 block text-base font-medium text-ink">{tx('breed')}</span>
               <select value={breed} onChange={e => setBreed(e.target.value)} className={SELECT}>
-                <option value="">All breeds</option>
+                <option value="">{tx('allBreeds')}</option>
                 {breeds.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-base font-medium text-ink">Sex</span>
+              <span className="mb-1 block text-base font-medium text-ink">{tx('sex')}</span>
               <select value={sex} onChange={e => setSex(e.target.value)} className={SELECT}>
-                <option value="">Male and female</option>
-                {sexes.map(s => <option key={s} value={s}>{s}</option>)}
+                <option value="">{tx('maleAndFemale')}</option>
+                {sexes.map(s => <option key={s} value={s}>{val(s)}</option>)}
               </select>
             </label>
             <div className="grid grid-cols-2 gap-3 sm:col-span-2">
               <label className="block">
-                <span className="mb-1 block text-base font-medium text-ink">Arrived from</span>
+                <span className="mb-1 block text-base font-medium text-ink">{tx('arrivedFrom')}</span>
                 <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-12 text-lg" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-base font-medium text-ink">Arrived until</span>
+                <span className="mb-1 block text-base font-medium text-ink">{tx('arrivedUntil')}</span>
                 <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-12 text-lg" />
               </label>
             </div>
             <div className="flex flex-wrap gap-3 sm:col-span-2">
-              <Button type="button" variant="outline" onClick={exportList} disabled={filtered.length === 0}><Download /> Download Excel</Button>
-              {activeFilters > 0 && <Button type="button" variant="ghost" onClick={() => { setFarm(''); setBreed(''); setSex(''); setStartDate(''); setEndDate(''); }}><X /> Clear filters</Button>}
+              <Button type="button" variant="outline" onClick={exportList} disabled={filtered.length === 0}><Download /> {tx('downloadExcel')}</Button>
+              {activeFilters > 0 && <Button type="button" variant="ghost" onClick={() => { setFarm(''); setBreed(''); setSex(''); setStartDate(''); setEndDate(''); }}><X /> {tx('clearFilters')}</Button>}
             </div>
           </div>
         )}
       </div>
 
-      {filtered.length > 0 && <p className="text-base text-ink-muted" aria-live="polite">{filtered.length === 1 ? '1 animal' : `${filtered.length} animals`}</p>}
+      {filtered.length > 0 && <p className="text-base text-ink-muted" aria-live="polite">{txn(filtered.length, 'animalOne', 'animalMany')}</p>}
 
       {shown.length > 0 ? (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -249,14 +259,14 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-2xl font-semibold text-ink">{c.id}</span>
                     {st === 'active' ? (
-                      <span className={`rounded-full px-3 py-1 text-sm font-medium ${isSick ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>{c.healthStatus || 'Active'}</span>
+                      <span className={`rounded-full px-3 py-1 text-sm font-medium ${isSick ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>{c.healthStatus ? val(c.healthStatus) : tx('v_active')}</span>
                     ) : (
-                      <span className={`rounded-full px-3 py-1 text-sm font-medium ${st === 'dead' ? 'bg-rose-100 text-rose-800' : 'bg-slate-200 text-ink'}`}>{c.status}</span>
+                      <span className={`rounded-full px-3 py-1 text-sm font-medium ${st === 'dead' ? 'bg-rose-100 text-rose-800' : 'bg-slate-200 text-ink'}`}>{val(c.status)}</span>
                     )}
                   </div>
                   <div>
-                    <p className="text-lg text-ink">{[c.sex, c.breed].filter(Boolean).join(' · ') || '—'}</p>
-                    <p className="text-base text-ink-muted">{farmName(c.location) || 'No farm set'}</p>
+                    <p className="text-lg text-ink">{[val(c.sex), c.breed].filter(Boolean).join(' · ') || '—'}</p>
+                    <p className="text-base text-ink-muted">{farmName(c.location) || tx('noFarmSet')}</p>
                   </div>
                   <div className="mt-auto flex items-end justify-between gap-3 border-t border-slate-100 pt-3">
                     <div>
@@ -266,9 +276,9 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
                       )}
                     </div>
                     {flag && flag !== 'sick' && (
-                      <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900">{flag === 'never' ? 'Never weighed' : 'Time to weigh'}</span>
+                      <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900">{tx(flag === 'never' ? 'neverWeighed' : 'timeToWeigh')}</span>
                     )}
-                    {isSick && <span className="rounded-full bg-rose-100 px-3 py-1 text-sm font-medium text-rose-800">Needs a look</span>}
+                    {isSick && <span className="rounded-full bg-rose-100 px-3 py-1 text-sm font-medium text-rose-800">{tx('needsALook')}</span>}
                   </div>
                 </button>
               </li>
@@ -277,15 +287,15 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
         </ul>
       ) : (
         <div className="space-y-4 rounded-2xl bg-slate-50 p-8 text-center">
-          <p className="text-lg text-ink-muted">{stock.length === 0 ? 'No cattle yet.' : 'No cattle match what you chose.'}</p>
-          {anyChange ? <Button variant="outline" onClick={clearAll}>Show all active cattle</Button>
-            : onAddCowClick && hasPermission(currentUser, 'stock_create') && <Button onClick={onAddCowClick}><Plus /> Add cattle</Button>}
+          <p className="text-lg text-ink-muted">{tx(stock.length === 0 ? 'noCattleYet' : 'noMatch')}</p>
+          {anyChange ? <Button variant="outline" onClick={clearAll}>{tx('showAllActive')}</Button>
+            : onAddCowClick && hasPermission(currentUser, 'stock_create') && <Button onClick={onAddCowClick}><Plus /> {tx('addCattle')}</Button>}
         </div>
       )}
 
       {filtered.length > visible && (
         <div className="flex justify-center">
-          <Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>Show more ({filtered.length - visible} left)</Button>
+          <Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>{tx('showMore', { n: filtered.length - visible })}</Button>
         </div>
       )}
     </div>

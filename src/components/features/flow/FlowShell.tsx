@@ -5,6 +5,7 @@ import { ArrowLeft, Check, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/context/LanguageContext';
 
 /**
  * The layout every guided Record dialog shares: a progress bar, one question
@@ -49,7 +50,11 @@ const SEARCH_FROM = 9;
  * farms or breeds) becomes full-width rows that never clip a long name, with a
  * search box once it is long enough to need one.
  */
-export function PickList({ options, value, onChange, labelFor = o => o, searchText = 'Search', searchAria = 'Search the list', noMatchText = 'Nothing matches that.' }: { options: string[]; value: string; onChange: (v: string) => void; labelFor?: (o: string) => string; searchText?: string; searchAria?: string; noMatchText?: string }) {
+export function PickList({ options, value, onChange, labelFor = o => o, searchText, searchAria, noMatchText }: { options: string[]; value: string; onChange: (v: string) => void; labelFor?: (o: string) => string; searchText?: string; searchAria?: string; noMatchText?: string }) {
+  const { t } = useLanguage();
+  searchText = searchText ?? t('flow.search');
+  searchAria = searchAria ?? t('flow.searchAria');
+  noMatchText = noMatchText ?? t('flow.noMatch');
   const [q, setQ] = useState('');
   if (options.length <= MAX_BUTTONS) {
     return (
@@ -103,15 +108,18 @@ export function RowButton({ onClick, selected, children }: { onClick: () => void
 }
 
 export function FlowFooter({ onBack, label, busy }: { onBack?: () => void; label: string; busy?: boolean }) {
+  const { t } = useLanguage();
   return (
     <div className="flex gap-3">
-      {onBack && <Button type="button" variant="secondary" size="lg" onClick={onBack} aria-label="Go back"><ArrowLeft /></Button>}
+      {onBack && <Button type="button" variant="secondary" size="lg" onClick={onBack} aria-label={t('flow.back')}><ArrowLeft /></Button>}
       <Button type="submit" size="lg" className="flex-1" disabled={busy}>{label}</Button>
     </div>
   );
 }
 
-export function FlowDone({ message, detail, again, onAgain, onClose, doneText = "I'm done" }: { message: React.ReactNode; detail?: React.ReactNode; again: string; onAgain: () => void; onClose: () => void; doneText?: string }) {
+export function FlowDone({ message, detail, again, onAgain, onClose, doneText }: { message: React.ReactNode; detail?: React.ReactNode; again: string; onAgain: () => void; onClose: () => void; doneText?: string }) {
+  const { t } = useLanguage();
+  doneText = doneText ?? t('flow.done');
   return (
     <div className="flex h-full flex-col justify-between gap-6">
       <div className="space-y-5 pt-4 text-center">

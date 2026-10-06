@@ -8,8 +8,9 @@ import { ConfirmModal } from '@/components/ui/confirm-modal';
 import type { ERPLivestockData, FarmItem, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import { format2DecimalsWithCommas, getErrorMessage, hasPermission } from '@/lib/utils';
 import { feedStockLevels } from '@/lib/attention';
-import { addDays, amountText, dailyFeedReport, farmToday, farmsToRecord, feedUnit, missedFeedDays, movementOnFarm, round1, unitWord, type FeedDayStatus } from '@/lib/daily-feed';
-import { dayLabel } from './DailyFeedFlow';
+import { addDays, amountText, dailyFeedReport, farmToday, farmsToRecord, feedUnit, missedFeedDays, movementOnFarm, round1, type FeedDayStatus } from '@/lib/daily-feed';
+import { dayLabel, useFeedUnits } from './DailyFeedFlow';
+import { useText } from '@/hooks/useText';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import FeedProductFlow from './FeedProductFlow';
@@ -42,7 +43,9 @@ const num = (n: number) => (Math.round(n * 10) / 10).toLocaleString();
 const day = (d: string | null | undefined) => (d ? d.slice(0, 10) : '—');
 const isPlace = (s?: string) => !!s && !s.startsWith('Daily Feed') && s !== 'Supplier' && s !== 'Central Warehouse';
 
+// English, for the Excel download; the screen uses STATUS_KEY.
 const STATUS_TEXT: Record<FeedDayStatus, string> = { recorded: 'Recorded', partly: 'Partly recorded', estimated: 'Automatic (old)', missing: 'Not recorded' };
+const STATUS_KEY: Record<FeedDayStatus, string> = { recorded: 'statusRecorded', partly: 'statusPartly', estimated: 'statusEstimated', missing: 'statusMissing' };
 const STATUS_STYLE: Record<FeedDayStatus, string> = {
   recorded: 'bg-emerald-100 text-emerald-800',
   partly: 'bg-amber-100 text-amber-900',
@@ -62,6 +65,8 @@ function Tile({ label, value, sub, tone }: { label: string; value: string; sub?:
 }
 
 export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTransaction, onOpenFeedIn, onRecordDay, currentUser, farms = [] }: FeedPageProps) {
+  const { tx, txn, language } = useText('feedPage');
+  const { word, amount } = useFeedUnits();
   const [tab, setTab] = useState<Tab>('stock');
   const [days, setDays] = useState<7 | 30>(7);
   const [showFilters, setShowFilters] = useState(false);
@@ -199,74 +204,74 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
   });
 
   const askDelete = (p: FeedProductItem) => setConfirm({
-    title: 'Delete this feed?',
-    description: `This removes "${p.name}" from the product list. Past movements stay in the history.`,
+    title: tx('deleteTitle'),
+    description: tx('deleteBody', { name: p.name }),
     type: 'danger',
-    confirmText: 'Delete',
+    confirmText: tx('deleteConfirm'),
     onConfirm: async () => {
       try {
         await onDeleteProduct(p.id);
       } catch (e) {
-        setConfirm({ title: 'Could not delete', description: getErrorMessage(e, 'Something went wrong.'), type: 'danger', confirmText: 'OK' });
+        setConfirm({ title: tx('deleteFailed'), description: getErrorMessage(e, tx('somethingWrong')), type: 'danger', confirmText: tx('ok') });
       }
     },
   });
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'stock', label: 'Stock' },
-    { key: 'daily', label: 'Daily' },
-    { key: 'moves', label: 'Movements' },
-    { key: 'products', label: 'Products' },
+    { key: 'stock', label: tx('tabStock') },
+    { key: 'daily', label: tx('tabDaily') },
+    { key: 'moves', label: tx('tabMoves') },
+    { key: 'products', label: tx('tabProducts') },
   ];
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">Feed</h2>
-          <p className="text-base text-ink-muted">What is in store and how long it will last.</p>
+          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
+          <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
         {(canFeedIn || onRecordDay) && (
           <div className="flex flex-wrap gap-2">
-            {onRecordDay && <Button size="lg" onClick={() => onRecordDay()}><Wheat /> Record today&apos;s feed</Button>}
-            {canFeedIn && <Button size="lg" variant={onRecordDay ? 'outline' : 'default'} onClick={onOpenFeedIn}><ArrowDownToLine /> Feed in</Button>}
+            {onRecordDay && <Button size="lg" onClick={() => onRecordDay()}><Wheat /> {tx('recordToday')}</Button>}
+            {canFeedIn && <Button size="lg" variant={onRecordDay ? 'outline' : 'default'} onClick={onOpenFeedIn}><ArrowDownToLine /> {tx('feedIn')}</Button>}
           </div>
         )}
       </div>
 
       <section className="grid grid-cols-3 gap-2 sm:gap-3">
         <Tile
-          label="Lasts about"
-          value={tightest ? `${tightest.daysLeft} days` : '—'}
-          sub={tightest ? `then ${tightest.productName} runs out` : 'No feeding program'}
+          label={tx('lastsAbout')}
+          value={tightest ? tx('daysN', { n: tightest.daysLeft ?? 0 }) : '—'}
+          sub={tightest ? tx('thenRunsOut', { name: tightest.productName }) : tx('noProgram')}
           tone={daysTone}
         />
-        <Tile label="In store" value={`${num(totalKg)} kg`} sub={`${num(totalBags)} bags`} />
-        <Tile label="Eaten daily" value={dailyKg > 0 ? `${num(dailyKg)} kg` : '—'} sub="all active batches" />
+        <Tile label={tx('inStore')} value={tx('kgN', { n: num(totalKg) })} sub={tx('bagsN', { n: num(totalBags) })} />
+        <Tile label={tx('eatenDaily')} value={dailyKg > 0 ? tx('kgN', { n: num(dailyKg) }) : '—'} sub={tx('allActiveBatches')} />
       </section>
 
       {missed.map(m => (
         <div key={m.farm} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-300 bg-rose-50 p-4">
           <p className="text-lg text-ink">
-            <span className="font-semibold">Feed not written down{effectiveFarm ? '' : ` at ${m.farm}`}: </span>
-            {m.days.map(dayLabel).join(', ')}. No feed was taken from stock for {m.days.length === 1 ? 'that day' : 'those days'}.
+            <span className="font-semibold">{effectiveFarm ? tx('notWritten') : tx('notWrittenAt', { farm: m.farm })}</span>
+            {txn(m.days.length, 'missedOne', 'missedMany', { days: m.days.map(d => dayLabel(d, language)).join(', ') })}
           </p>
-          {onRecordDay && <Button onClick={() => onRecordDay(m.farm, m.days[0])}><Wheat /> Record {dayLabel(m.days[0])}</Button>}
+          {onRecordDay && <Button onClick={() => onRecordDay(m.farm, m.days[0])}><Wheat /> {tx('recordDay', { day: dayLabel(m.days[0], language) })}</Button>}
         </div>
       ))}
 
       {lowItems.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4">
           <p className="text-lg text-ink">
-            <span className="font-semibold">Running low: </span>
-            {lowItems.slice(0, 3).map(l => `${l.productName} (${amountText(productById.get(l.productId), l.bags)})`).join(', ')}{lowItems.length > 3 ? ` and ${lowItems.length - 3} more` : ''}
+            <span className="font-semibold">{tx('runningLowLabel')}</span>
+            {lowItems.slice(0, 3).map(l => `${l.productName} (${amount(productById.get(l.productId), l.bags)})`).join(', ')}{lowItems.length > 3 ? tx('andMore', { n: lowItems.length - 3 }) : ''}
           </p>
-          {canFeedIn && <Button onClick={onOpenFeedIn}><ArrowDownToLine /> Feed in</Button>}
+          {canFeedIn && <Button onClick={onOpenFeedIn}><ArrowDownToLine /> {tx('feedIn')}</Button>}
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label="Feed" className="flex flex-1 rounded-xl bg-slate-100 p-1 sm:flex-none">
+        <div role="tablist" aria-label={tx('tabsAria')} className="flex flex-1 rounded-xl bg-slate-100 p-1 sm:flex-none">
           {tabs.map(t => (
             <button
               key={t.key}
@@ -286,7 +291,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
           onClick={() => setShowFilters(v => !v)}
           className="ml-auto flex min-h-11 items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 text-base font-medium text-ink hover:border-emerald-600"
         >
-          <SlidersHorizontal className="h-5 w-5" aria-hidden /> Filters{activeFilters > 0 ? ` (${activeFilters})` : ''}
+          <SlidersHorizontal className="h-5 w-5" aria-hidden /> {tx('filters')}{activeFilters > 0 ? ` (${activeFilters})` : ''}
         </button>
       </div>
 
@@ -294,15 +299,15 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
         <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
           {showFarmFilter && (
             <div className="block">
-              <span className="mb-1 block text-base font-medium text-ink">Farm</span>
+              <span className="mb-1 block text-base font-medium text-ink">{tx('farm')}</span>
               <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} />
             </div>
           )}
           {categories.length > 0 && (
             <label className="block">
-              <span className="mb-1 block text-base font-medium text-ink">Kind of feed</span>
+              <span className="mb-1 block text-base font-medium text-ink">{tx('kindOfFeed')}</span>
               <select value={category} onChange={e => setCategory(e.target.value)} className={SELECT}>
-                <option value="">All kinds</option>
+                <option value="">{tx('allKinds')}</option>
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
@@ -310,20 +315,20 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
           {tab === 'moves' && (
             <>
               <label className="block">
-                <span className="mb-1 block text-base font-medium text-ink">From date</span>
+                <span className="mb-1 block text-base font-medium text-ink">{tx('fromDate')}</span>
                 <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-12 text-lg" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-base font-medium text-ink">Until date</span>
+                <span className="mb-1 block text-base font-medium text-ink">{tx('untilDate')}</span>
                 <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-12 text-lg" />
               </label>
               <div className="sm:col-span-2">
-                <Button type="button" variant="outline" onClick={exportMoves} disabled={moves.length === 0}><Download /> Download Excel</Button>
+                <Button type="button" variant="outline" onClick={exportMoves} disabled={moves.length === 0}><Download /> {tx('downloadExcel')}</Button>
               </div>
             </>
           )}
           {activeFilters > 0 && (
-            <div className="sm:col-span-2"><Button type="button" variant="ghost" onClick={() => { setFarm(''); setCategory(''); setStartDate(''); setEndDate(''); }}>Clear filters</Button></div>
+            <div className="sm:col-span-2"><Button type="button" variant="ghost" onClick={() => { setFarm(''); setCategory(''); setStartDate(''); setEndDate(''); }}>{tx('clearFilters')}</Button></div>
           )}
         </div>
       )}
@@ -331,55 +336,55 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
       {(tab === 'moves' || tab === 'products') && (
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
-          <Input value={query} onChange={e => setQuery(e.target.value)} placeholder={tab === 'moves' ? 'Search feed, invoice or note' : 'Search feed'} aria-label="Search" className="h-14 pl-11 text-lg" />
+          <Input value={query} onChange={e => setQuery(e.target.value)} placeholder={tab === 'moves' ? tx('searchMoves') : tx('searchFeed')} aria-label={tx('searchAria')} className="h-14 pl-11 text-lg" />
         </div>
       )}
 
       {tab === 'daily' && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <div role="tablist" aria-label="Days" className="flex rounded-xl bg-slate-100 p-1">
+            <div role="tablist" aria-label={tx('daysAria')} className="flex rounded-xl bg-slate-100 p-1">
               {([7, 30] as const).map(n => (
-                <button key={n} role="tab" type="button" aria-selected={days === n} onClick={() => setDays(n)} className={`min-h-11 rounded-lg px-4 text-base font-medium ${days === n ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>Last {n} days</button>
+                <button key={n} role="tab" type="button" aria-selected={days === n} onClick={() => setDays(n)} className={`min-h-11 rounded-lg px-4 text-base font-medium ${days === n ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>{tx('lastNDays', { n })}</button>
               ))}
             </div>
-            <Button variant="outline" className="ml-auto" onClick={exportReport} disabled={report.length === 0}><Download /> Download Excel</Button>
+            <Button variant="outline" className="ml-auto" onClick={exportReport} disabled={report.length === 0}><Download /> {tx('downloadExcel')}</Button>
           </div>
           {report.length === 0 ? (
-            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No batch is being fed{effectiveFarm ? ` on ${effectiveFarm}` : ''}. Turn feeding on in a batch&apos;s Feeding tab.</p>
+            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{effectiveFarm ? tx('noBatchFedOn', { farm: effectiveFarm }) : tx('noBatchFed')}</p>
           ) : (
             <>
-              <p className="text-base text-ink-muted">{reportRecorded} of {report.length} farm days written down · feed cost {riel(reportCost)}</p>
+              <p className="text-base text-ink-muted">{tx('reportSummary', { done: reportRecorded, total: report.length, cost: riel(reportCost) })}</p>
               <ul className="space-y-3">
                 {report.slice(0, visible).map(r => (
                   <li key={`${r.farm}|${r.day}`} className={`rounded-2xl border-2 bg-white p-4 ${r.status === 'missing' ? 'border-rose-200' : r.status === 'recorded' ? 'border-slate-200' : 'border-amber-200'}`}>
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-xl font-semibold text-ink">{dayLabel(r.day)}{r.day === todayDay ? ' (today)' : ''}</p>
-                        <p className="text-base text-ink-muted">{r.farm} · {r.head} head in fed batches now{r.bulls || r.cows ? ` (${r.bulls} bulls, ${r.cows} cows)` : ''}{r.onFarm !== r.head ? ` · ${r.onFarm} on the farm` : ''}</p>
+                        <p className="text-xl font-semibold text-ink">{dayLabel(r.day, language)}{r.day === todayDay ? tx('todaySuffix') : ''}</p>
+                        <p className="text-base text-ink-muted">{r.farm} · {tx('headLine', { n: r.head })}{r.bulls || r.cows ? tx('bullsCows', { bulls: r.bulls, cows: r.cows }) : ''}{r.onFarm !== r.head ? tx('onFarm', { n: r.onFarm }) : ''}</p>
                       </div>
-                      <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${STATUS_STYLE[r.status]}`}>{STATUS_TEXT[r.status]}</span>
+                      <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${STATUS_STYLE[r.status]}`}>{tx(STATUS_KEY[r.status])}</span>
                     </div>
                     {r.items.length > 0 ? (
-                      <p className="mt-2 text-lg text-ink">{r.items.map(i => `${amountText({ unit: i.unit }, i.units)} ${i.productName}`).join(' · ')}</p>
+                      <p className="mt-2 text-lg text-ink">{r.items.map(i => `${amount({ unit: i.unit }, i.units)} ${i.productName}`).join(' · ')}</p>
                     ) : (
-                      <p className="mt-2 text-lg text-ink-muted">{r.status === 'missing' ? 'Nothing written down for this day.' : 'Nothing fed.'}</p>
+                      <p className="mt-2 text-lg text-ink-muted">{r.status === 'missing' ? tx('nothingWritten') : tx('nothingFed')}</p>
                     )}
                     <p className="text-base text-ink-muted">
-                      {[r.cost > 0 ? `Cost ${riel(r.cost)}` : '', r.recordedBy && r.status !== 'estimated' ? `by ${r.recordedBy}` : '', r.treatments > 0 ? `${r.treatments} ${r.treatments === 1 ? 'treatment' : 'treatments'}` : ''].filter(Boolean).join(' · ')}
+                      {[r.cost > 0 ? tx('costN', { cost: riel(r.cost) }) : '', r.recordedBy && r.status !== 'estimated' ? tx('byName', { name: r.recordedBy }) : '', r.treatments > 0 ? txn(r.treatments, 'treatmentOne', 'treatmentMany') : ''].filter(Boolean).join(' · ')}
                     </p>
                     {onRecordDay && (
                       <div className="mt-3">
                         <Button size="sm" variant={r.status === 'recorded' ? 'ghost' : 'default'} onClick={() => onRecordDay(r.farm, r.day)}>
-                          <Wheat /> {r.status === 'recorded' ? 'Change' : 'Record this day'}
+                          <Wheat /> {r.status === 'recorded' ? tx('change') : tx('recordThisDay')}
                         </Button>
                       </div>
                     )}
                   </li>
                 ))}
               </ul>
-              {report.length > visible && <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>Show more ({report.length - visible} left)</Button></div>}
-              <p className="text-base text-ink-muted">Feed is only taken from stock when a day is recorded. &quot;Automatic (old)&quot; days were filled in by the app before 5 Oct 2026; recording such a day replaces it. Head counts are today&apos;s numbers.</p>
+              {report.length > visible && <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>{tx('showMore', { n: report.length - visible })}</Button></div>}
+              <p className="text-base text-ink-muted">{tx('dailyNote')}</p>
             </>
           )}
         </div>
@@ -387,7 +392,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
 
       {tab === 'stock' && (
         stockRows.length === 0 ? (
-          <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No feed products yet. Add one under Products.</p>
+          <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noProductsYet')}</p>
         ) : (
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {stockRows.map(l => {
@@ -401,10 +406,10 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
                         <p className="text-xl font-semibold text-ink">{l.productName}</p>
                         <p className="text-base text-ink-muted">{p?.category}</p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-ink">Grown on the farm</span>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-ink">{tx('grownOnFarm')}</span>
                     </div>
-                    <p className="mt-3 text-3xl font-semibold text-ink">{num(l.dailyUseKg)} <span className="text-lg font-medium text-ink-muted">kg a day</span></p>
-                    <p className="text-base text-ink-muted">{l.dailyUseKg > 0 ? 'From the feeding plans. Not kept as stock.' : 'Not in any feeding plan yet.'}</p>
+                    <p className="mt-3 text-3xl font-semibold text-ink">{num(l.dailyUseKg)} <span className="text-lg font-medium text-ink-muted">{tx('kgADay')}</span></p>
+                    <p className="text-base text-ink-muted">{l.dailyUseKg > 0 ? tx('fromPlans') : tx('notInPlan')}</p>
                   </li>
                 );
               }
@@ -415,12 +420,12 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
                       <p className="text-xl font-semibold text-ink">{l.productName}</p>
                       <p className="text-base text-ink-muted">{p?.category}</p>
                     </div>
-                    <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${l.isLow ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-800'}`}>{l.isLow ? 'Running low' : 'Enough'}</span>
+                    <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${l.isLow ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-800'}`}>{l.isLow ? tx('runningLow') : tx('enough')}</span>
                   </div>
-                  <p className="mt-3 text-3xl font-semibold text-ink">{num(l.bags)} <span className="text-lg font-medium text-ink-muted">{unitWord(feedUnit(p), round1(l.bags))}</span></p>
-                  <p className="text-base text-ink-muted">{feedUnit(p) === 'kg' ? '' : `${num(l.kg)} kg · `}worth {riel(l.kg * (p?.unitCost ?? 0))}</p>
+                  <p className="mt-3 text-3xl font-semibold text-ink">{num(l.bags)} <span className="text-lg font-medium text-ink-muted">{word(feedUnit(p), round1(l.bags))}</span></p>
+                  <p className="text-base text-ink-muted">{feedUnit(p) === 'kg' ? '' : `${num(l.kg)} kg · `}{tx('worth', { money: riel(l.kg * (p?.unitCost ?? 0)) })}</p>
                   <p className="mt-2 border-t border-slate-100 pt-2 text-base text-ink">
-                    {l.daysLeft !== null ? `Lasts about ${l.daysLeft} days (${num(l.dailyUseKg)} kg a day)` : 'Not used by any feeding program'}
+                    {l.daysLeft !== null ? tx('lastsLine', { n: l.daysLeft, kg: num(l.dailyUseKg) }) : tx('notUsed')}
                   </p>
                 </li>
               );
@@ -431,8 +436,8 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
 
       {tab === 'moves' && (
         <div className="space-y-3">
-          <div role="tablist" aria-label="Show" className="flex w-fit rounded-xl bg-slate-100 p-1">
-            {([['ALL', 'All'], ['STOCK_IN', 'Came in'], ['STOCK_OUT', 'Used']] as [Move, string][]).map(([k, label]) => (
+          <div role="tablist" aria-label={tx('showAria')} className="flex w-fit rounded-xl bg-slate-100 p-1">
+            {([['ALL', tx('moveAll')], ['STOCK_IN', tx('moveIn')], ['STOCK_OUT', tx('moveOut')]] as [Move, string][]).map(([k, label]) => (
               <button key={k} role="tab" type="button" aria-selected={move === k} onClick={() => setMove(k)} className={`min-h-11 rounded-lg px-4 text-base font-medium ${move === k ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>{label}</button>
             ))}
           </div>
@@ -444,11 +449,11 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
                   <li key={t.id} className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 last:border-0">
                     <div className="min-w-0">
                       <p className="text-lg font-semibold text-ink">{t.productName}</p>
-                      <p className="text-base text-ink-muted">{[day(t.date), incoming ? (isPlace(t.targetFarm) ? `to ${t.targetFarm}` : 'from supplier') : (isPlace(t.sourceFarm) ? `from ${t.sourceFarm}` : 'daily ration'), t.referenceNo].filter(Boolean).join(' · ')}</p>
+                      <p className="text-base text-ink-muted">{[day(t.date), incoming ? (isPlace(t.targetFarm) ? tx('toPlace', { place: t.targetFarm ?? '' }) : tx('fromSupplier')) : (isPlace(t.sourceFarm) ? tx('fromPlace', { place: t.sourceFarm ?? '' }) : tx('dailyRation')), t.referenceNo].filter(Boolean).join(' · ')}</p>
                       {t.notes && <p className="mt-1 text-base text-ink">{t.notes}</p>}
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className={`text-lg font-semibold ${incoming ? 'text-emerald-700' : 'text-ink'}`}>{incoming ? '+' : '−'}{amountText(productById.get(t.productId), t.quantityBags)}</p>
+                      <p className={`text-lg font-semibold ${incoming ? 'text-emerald-700' : 'text-ink'}`}>{incoming ? '+' : '−'}{amount(productById.get(t.productId), t.quantityBags)}</p>
                       {feedUnit(productById.get(t.productId)) !== 'kg' && <p className="text-base text-ink-muted">{num(t.quantityKg)} kg</p>}
                     </div>
                   </li>
@@ -456,10 +461,10 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
               })}
             </ul>
           ) : (
-            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No movements match.</p>
+            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noMoves')}</p>
           )}
-          {moves.length > visible && <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>Show more ({moves.length - visible} left)</Button></div>}
-          {canManage && <div><Button variant="ghost" onClick={() => setUseOpen(true)}>Take feed out by hand</Button></div>}
+          {moves.length > visible && <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>{tx('showMore', { n: moves.length - visible })}</Button></div>}
+          {canManage && <div><Button variant="ghost" onClick={() => setUseOpen(true)}>{tx('takeOut')}</Button></div>}
         </div>
       )}
 
@@ -467,13 +472,13 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
         <div className="space-y-3">
           {canAddProduct(currentUser) && (
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setProductModal({ open: true, product: null })}><Plus /> Add feed</Button>
-              {canManage && <Button variant="outline" onClick={() => setCategoryOpen(true)}><Settings /> Kinds of feed</Button>}
+              <Button onClick={() => setProductModal({ open: true, product: null })}><Plus /> {tx('addFeed')}</Button>
+              {canManage && <Button variant="outline" onClick={() => setCategoryOpen(true)}><Settings /> {tx('kindsOfFeed')}</Button>}
             </div>
           )}
-          {!canManage && canAddProduct(currentUser) && <p className="text-base text-ink-muted">Feeds marked Default are set by the office and cannot be changed. You can add and change your own.</p>}
+          {!canManage && canAddProduct(currentUser) && <p className="text-base text-ink-muted">{tx('ownNote')}</p>}
           {productRows.length === 0 ? (
-            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No feed products match.</p>
+            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noProductsMatch')}</p>
           ) : (
             <ul className="space-y-3">
               {productRows.map(p => (
@@ -481,16 +486,16 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
                   <div className="min-w-0">
                     <p className="flex flex-wrap items-center gap-2 text-xl font-semibold text-ink">
                       {p.name}
-                      <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium ${isDefaultProduct(p) ? 'bg-slate-100 text-ink-muted' : 'bg-emerald-100 text-emerald-800'}`}>{isDefaultProduct(p) ? 'Default' : currentUser?.farmLocation ? 'Your farm' : p.ownerFarm}</span>
+                      <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium ${isDefaultProduct(p) ? 'bg-slate-100 text-ink-muted' : 'bg-emerald-100 text-emerald-800'}`}>{isDefaultProduct(p) ? tx('defaultTag') : currentUser?.farmLocation ? tx('yourFarm') : p.ownerFarm}</span>
                     </p>
-                    <p className="text-base text-ink-muted">{[p.category, feedUnit(p) === 'kg' ? 'counted in kg' : `${p.weightPerUnit} kg per ${feedUnit(p)}`].filter(Boolean).join(' · ')}</p>
-                    <p className="text-base text-ink">{feedUnit(p) === 'kg' ? `${riel(p.unitCost)} a kg` : `${riel(p.costPerBag || p.unitCost * p.weightPerUnit)} a ${feedUnit(p)} · ${riel(p.unitCost)} a kg`}</p>
-                    <p className="text-base text-ink-muted">{p.trackStock === false ? 'Grown or cut on the farm, not kept as stock' : `Warn below ${amountText(p, p.minThresholdBags || 50)}`}{p.supplier ? ` · ${p.supplier}` : ''}</p>
+                    <p className="text-base text-ink-muted">{[p.category, feedUnit(p) === 'kg' ? tx('countedInKg') : tx('kgPer', { kg: p.weightPerUnit, unit: word(feedUnit(p), 1) })].filter(Boolean).join(' · ')}</p>
+                    <p className="text-base text-ink">{feedUnit(p) === 'kg' ? tx('priceAKg', { price: riel(p.unitCost) }) : `${tx('priceAUnit', { price: riel(p.costPerBag || p.unitCost * p.weightPerUnit), unit: word(feedUnit(p), 1) })} · ${tx('priceAKg', { price: riel(p.unitCost) })}`}</p>
+                    <p className="text-base text-ink-muted">{p.trackStock === false ? tx('grownNotStock') : tx('warnBelow', { amount: amount(p, p.minThresholdBags || 50) })}{p.supplier ? ` · ${p.supplier}` : ''}</p>
                   </div>
                   {canEditProduct(currentUser, p) && (
                     <div className="flex shrink-0">
-                      <Button variant="ghost" size="icon" aria-label={`Edit ${p.name}`} onClick={() => setProductModal({ open: true, product: p })}><Pencil /></Button>
-                      <Button variant="ghost" size="icon" aria-label={`Delete ${p.name}`} onClick={() => askDelete(p)}><Trash2 className="text-rose-700" /></Button>
+                      <Button variant="ghost" size="icon" aria-label={tx('editAria', { name: p.name })} onClick={() => setProductModal({ open: true, product: p })}><Pencil /></Button>
+                      <Button variant="ghost" size="icon" aria-label={tx('deleteAria', { name: p.name })} onClick={() => askDelete(p)}><Trash2 className="text-rose-700" /></Button>
                     </div>
                   )}
                 </li>

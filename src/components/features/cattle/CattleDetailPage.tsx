@@ -11,6 +11,8 @@ import { hasPermission, getErrorMessage } from '@/lib/utils';
 import { weighSchedules } from '@/lib/attention';
 import { feedShares } from '@/lib/farm-costs';
 import { daysOnFarm, growth, money, weighPoints } from '@/lib/cattle-stats';
+import { useText } from '@/hooks/useText';
+import { en as words } from '@/locales/sections/cattlePage';
 
 interface CattleDetailPageProps {
   cowId: string;
@@ -31,10 +33,10 @@ interface CattleDetailPageProps {
 
 type Tab = 'overview' | 'weight' | 'health' | 'money';
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'weight', label: 'Weight' },
-  { key: 'health', label: 'Health' },
-  { key: 'money', label: 'Money' },
+  { key: 'overview', label: 'tabOverview' },
+  { key: 'weight', label: 'tabWeight' },
+  { key: 'health', label: 'tabHealth' },
+  { key: 'money', label: 'tabMoney' },
 ];
 
 const riel = (n: number) => `${Math.round(n).toLocaleString()} ៛`;
@@ -64,6 +66,12 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export default function CattleDetailPage({ cowId, stock, weightTracking, salesTracking, healthLogs, feedTransactions = [], batches = [], currentUser, onBack, onWeigh, onTreat, onSell, onDelete }: CattleDetailPageProps) {
+  const { tx } = useText('cattlePage');
+  // Known stored values (Active, Sick, Male...) in the chosen language; anything else as it is.
+  const val = (v?: string | null) => {
+    const k = `v_${(v ?? '').toLowerCase().trim()}`;
+    return v && k in words ? tx(k) : (v ?? '');
+  };
   const [tab, setTab] = useState<Tab>('overview');
   const [photoFailed, setPhotoFailed] = useState(false);
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger' | 'success'; confirmText: string; onConfirm?: () => void }>(null);
@@ -84,8 +92,8 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
   if (!cow) {
     return (
       <div className="space-y-4">
-        <Button variant="secondary" onClick={onBack}><ArrowLeft /> Back to cattle</Button>
-        <p className="text-lg text-ink-muted">This animal is no longer in the list.</p>
+        <Button variant="secondary" onClick={onBack}><ArrowLeft /> {tx('backToCattle')}</Button>
+        <p className="text-lg text-ink-muted">{tx('notInList')}</p>
       </div>
     );
   }
@@ -110,30 +118,30 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
   const statusStyle = isActive ? 'bg-emerald-100 text-emerald-800' : status === 'dead' ? 'bg-rose-100 text-rose-800' : 'bg-slate-200 text-ink';
 
   const askDelete = () => setConfirm({
-    title: 'Delete this animal?',
-    description: `This permanently removes ${cow.id} with all its weights and health records. This cannot be undone.`,
+    title: tx('deleteTitle'),
+    description: tx('deleteDescription', { id: cow.id }),
     type: 'danger',
-    confirmText: 'Delete',
+    confirmText: tx('delete'),
     onConfirm: async () => {
       try {
         await onDelete?.(cow.id);
         onBack();
       } catch (err) {
-        setConfirm({ title: 'Could not delete', description: getErrorMessage(err, 'Something went wrong while deleting.'), type: 'danger', confirmText: 'OK' });
+        setConfirm({ title: tx('couldNotDelete'), description: getErrorMessage(err, tx('deleteFailed')), type: 'danger', confirmText: tx('ok') });
       }
     },
   });
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-10">
-      <Button variant="ghost" onClick={onBack} className="-ml-3"><ArrowLeft /> All cattle</Button>
+      <Button variant="ghost" onClick={onBack} className="-ml-3"><ArrowLeft /> {tx('allCattle')}</Button>
 
       {/* Who this is */}
       <section className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
         <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 sm:h-28 sm:w-28">
           {cow.imageUrl && !photoFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={cow.imageUrl} alt={`Cattle ${cow.id}`} onError={() => setPhotoFailed(true)} className="h-full w-full object-cover" />
+            <img src={cow.imageUrl} alt={tx('photoAlt', { id: cow.id })} onError={() => setPhotoFailed(true)} className="h-full w-full object-cover" />
           ) : (
             <Beef className="h-10 w-10 text-slate-400" aria-hidden />
           )}
@@ -141,48 +149,48 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-3xl font-semibold text-ink">{cow.id}</h2>
-            <span className={`rounded-full px-3 py-1 text-sm font-medium ${statusStyle}`}>{cow.status}</span>
+            <span className={`rounded-full px-3 py-1 text-sm font-medium ${statusStyle}`}>{val(cow.status)}</span>
           </div>
-          <p className="mt-1 text-lg text-ink-muted">{[cow.sex, cow.breed, cow.age && cow.age !== 'N/A' ? cow.age : null].filter(Boolean).join(' · ')}</p>
-          <p className="text-lg text-ink-muted">{cow.location || 'No farm set'}</p>
-          <p className={`mt-1 text-base font-medium ${sick ? 'text-rose-700' : 'text-emerald-700'}`}>Health: {cow.healthStatus || '—'}</p>
+          <p className="mt-1 text-lg text-ink-muted">{[val(cow.sex), cow.breed, cow.age && cow.age !== 'N/A' ? cow.age : null].filter(Boolean).join(' · ')}</p>
+          <p className="text-lg text-ink-muted">{cow.location || tx('noFarmSet')}</p>
+          <p className={`mt-1 text-base font-medium ${sick ? 'text-rose-700' : 'text-emerald-700'}`}>{tx('healthLine', { status: val(cow.healthStatus) || '—' })}</p>
         </div>
       </section>
 
       {status === 'sold' && sale && (
         <div className="rounded-2xl bg-slate-100 p-4 text-lg text-ink">
-          {canSeeMoney ? <>Sold for <span className="font-semibold">{riel(sale.totalPrice)}</span></> : 'Sold'}
-          {sale.salesDate ? ` on ${dateText(sale.salesDate)}` : ''}{sale.buyer ? ` to ${sale.buyer}` : ''}.
+          {canSeeMoney ? <>{tx('soldFor')} <span className="font-semibold">{riel(sale.totalPrice)}</span></> : tx('sold')}
+          {sale.salesDate ? tx('soldOn', { date: dateText(sale.salesDate) }) : ''}{sale.buyer ? tx('soldTo', { buyer: sale.buyer }) : ''}.
         </div>
       )}
 
       {/* What you can do */}
       {(canWeigh || canTreat || canSell) && (
-        <section className="grid grid-cols-3 gap-3" aria-label="Actions">
-          {canWeigh && <Button size="lg" onClick={() => onWeigh(cow.id)}><Scale /> Weigh</Button>}
-          {canTreat && <Button size="lg" variant="outline" onClick={() => onTreat(cow.id)}><Syringe /> Treat</Button>}
-          {canSell && <Button size="lg" variant="outline" onClick={() => onSell(cow.id)}><DollarSign /> Sell</Button>}
+        <section className="grid grid-cols-3 gap-3" aria-label={tx('actionsAria')}>
+          {canWeigh && <Button size="lg" onClick={() => onWeigh(cow.id)}><Scale /> {tx('weigh')}</Button>}
+          {canTreat && <Button size="lg" variant="outline" onClick={() => onTreat(cow.id)}><Syringe /> {tx('treat')}</Button>}
+          {canSell && <Button size="lg" variant="outline" onClick={() => onSell(cow.id)}><DollarSign /> {tx('sell')}</Button>}
         </section>
       )}
 
       {needsWeigh && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4">
           <p className="text-lg text-ink">
-            {due.daysElapsed === 999 ? 'This animal has never been weighed.' : `Last weighed ${due.daysElapsed} days ago. Time to weigh again.`}
+            {due.daysElapsed === 999 ? tx('neverWeighedLong') : tx('lastWeighed', { n: due.daysElapsed })}
           </p>
-          {canWeigh && <Button onClick={() => onWeigh(cow.id)}><Scale /> Weigh now</Button>}
+          {canWeigh && <Button onClick={() => onWeigh(cow.id)}><Scale /> {tx('weighNow')}</Button>}
         </div>
       )}
 
       {/* Numbers that matter */}
       <section className="grid grid-cols-3 gap-2 sm:gap-3">
-        <Tile label="Weight now" value={kgText(g.currentWeight)} sub={g.gain !== 0 ? `${signed(g.gain)} kg in all` : undefined} />
-        <Tile label="Daily gain" value={g.perDay !== null ? `${g.perDay} kg` : '—'} sub={g.perDay !== null ? 'each day' : 'Needs 2 weigh-ins'} />
-        <Tile label={status === 'sold' ? 'Days before sale' : 'Days here'} value={days !== null ? String(days) : '—'} />
+        <Tile label={tx('weightNow')} value={kgText(g.currentWeight)} sub={g.gain !== 0 ? tx('gainInAll', { kg: signed(g.gain) }) : undefined} />
+        <Tile label={tx('dailyGain')} value={g.perDay !== null ? `${g.perDay} kg` : '—'} sub={tx(g.perDay !== null ? 'eachDay' : 'needsTwoWeighIns')} />
+        <Tile label={tx(status === 'sold' ? 'daysBeforeSale' : 'daysHere')} value={days !== null ? String(days) : '—'} />
       </section>
 
       {/* Tabs */}
-      <div role="tablist" aria-label="Animal details" className="flex gap-1 overflow-x-auto border-b border-slate-200">
+      <div role="tablist" aria-label={tx('detailsAria')} className="flex gap-1 overflow-x-auto border-b border-slate-200">
         {TABS.filter(t => t.key !== 'money' || canSeeMoney).map(t => (
           <button
             key={t.key}
@@ -192,40 +200,40 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
             onClick={() => setTab(t.key)}
             className={`min-h-12 flex-1 whitespace-nowrap border-b-4 px-2 text-base font-medium sm:px-4 sm:text-lg ${tab === t.key ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-ink-muted hover:text-ink'}`}
           >
-            {t.label}{t.key === 'health' && logs.length > 0 ? ` (${logs.length})` : ''}
+            {tx(t.label)}{t.key === 'health' && logs.length > 0 ? ` (${logs.length})` : ''}
           </button>
         ))}
       </div>
 
       {tab === 'overview' && (
         <dl className="rounded-2xl border border-slate-200 bg-white px-5">
-          <Row label="Came from" value={cow.purchaseType || '—'} />
-          <Row label="Seller or owner" value={cow.ownerName || '—'} />
-          <Row label="Seller phone" value={cow.phone && cow.phone !== 'N/A' ? cow.phone : '—'} />
-          <Row label="Arrived" value={dateText(cow.purchaseDate)} />
-          <Row label="Weight at arrival" value={kgText(g.startWeight)} />
-          <Row label="Paid by" value={cow.paymentMethod && cow.paymentMethod !== 'N/A' ? cow.paymentMethod : '—'} />
-          {cow.remark && <Row label="Note" value={cow.remark} />}
+          <Row label={tx('cameFrom')} value={cow.purchaseType || '—'} />
+          <Row label={tx('sellerOrOwner')} value={cow.ownerName || '—'} />
+          <Row label={tx('sellerPhone')} value={cow.phone && cow.phone !== 'N/A' ? cow.phone : '—'} />
+          <Row label={tx('arrived')} value={dateText(cow.purchaseDate)} />
+          <Row label={tx('weightAtArrival')} value={kgText(g.startWeight)} />
+          <Row label={tx('paidBy')} value={cow.paymentMethod && cow.paymentMethod !== 'N/A' ? cow.paymentMethod : '—'} />
+          {cow.remark && <Row label={tx('note')} value={cow.remark} />}
         </dl>
       )}
 
       {tab === 'weight' && (
         <div className="space-y-4">
           {points.length > 1 ? (
-            <div className="h-72 rounded-2xl border border-slate-200 bg-white p-3" role="img" aria-label={`Weight of ${cow.id} over time`}>
-              <p className="px-1 pb-1 text-sm text-ink-muted">Weight in kg</p>
+            <div className="h-72 rounded-2xl border border-slate-200 bg-white p-3" role="img" aria-label={tx('chartAria', { id: cow.id })}>
+              <p className="px-1 pb-1 text-sm text-ink-muted">{tx('weightInKg')}</p>
               <ResponsiveContainer width="100%" height="88%">
                 <LineChart data={points} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke="#e2e8f0" vertical={false} />
                   <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} tick={{ fontSize: 14, fill: '#475569' }} tickLine={false} />
                   <YAxis domain={['auto', 'auto']} width={44} tick={{ fontSize: 14, fill: '#475569' }} tickLine={false} axisLine={false} />
-                  <Tooltip formatter={(v) => [`${v} kg`, 'Weight']} labelFormatter={(d) => String(d)} />
+                  <Tooltip formatter={(v) => [`${v} kg`, tx('weight')]} labelFormatter={(d) => String(d)} />
                   <Line type="monotone" dataKey="weight" stroke="#0E7A38" strokeWidth={3} dot={{ r: 4, fill: '#0E7A38' }} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="rounded-2xl bg-slate-50 p-4 text-lg text-ink-muted">The growth chart appears after two weigh-ins.</p>
+            <p className="rounded-2xl bg-slate-50 p-4 text-lg text-ink-muted">{tx('chartAfterTwo')}</p>
           )}
           {points.length > 0 ? (
             <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -234,13 +242,13 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
                   <span className="text-base text-ink-muted">{p.date}</span>
                   <span className="text-lg font-semibold text-ink">{kgText(p.weight)}</span>
                   <span className={`w-24 text-right text-base font-medium ${p.change === null ? 'text-ink-muted' : p.change < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-                    {p.change === null ? 'First' : `${signed(p.change)} kg`}
+                    {p.change === null ? tx('first') : `${signed(p.change)} kg`}
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="rounded-2xl bg-slate-50 p-4 text-lg text-ink-muted">No weigh-ins yet.</p>
+            <p className="rounded-2xl bg-slate-50 p-4 text-lg text-ink-muted">{tx('noWeighIns')}</p>
           )}
         </div>
       )}
@@ -253,7 +261,7 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-lg font-semibold text-ink">{l.name}</p>
-                    <p className="text-base text-ink-muted">{l.type} · {l.date}{l.administeredBy ? ` · ${l.administeredBy}` : ''}</p>
+                    <p className="text-base text-ink-muted">{val(l.type)} · {l.date}{l.administeredBy ? ` · ${l.administeredBy}` : ''}</p>
                   </div>
                   {l.cost > 0 && <p className="shrink-0 text-base font-medium text-ink">{riel(l.cost)}</p>}
                 </div>
@@ -262,32 +270,32 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
             ))}
           </ul>
         ) : (
-          <p className="rounded-2xl bg-slate-50 p-4 text-lg text-ink-muted">No vaccines or treatments recorded yet.</p>
+          <p className="rounded-2xl bg-slate-50 p-4 text-lg text-ink-muted">{tx('noHealth')}</p>
         )
       )}
 
       {tab === 'money' && canSeeMoney && (
         <div className="space-y-3">
           <dl className="rounded-2xl border border-slate-200 bg-white px-5">
-            <Row label="Bought for" value={m.cost > 0 ? riel(m.cost) : 'Nothing paid'} />
-            <Row label="Feed eaten" value={riel(feed)} />
-            <Row label={`Health costs (${logs.length})`} value={riel(m.medical)} />
-            <Row label="Cost so far" value={<span className="font-semibold">{riel(m.invested)}</span>} />
-            {m.revenue !== null && <Row label="Sold for" value={riel(m.revenue)} />}
+            <Row label={tx('boughtFor')} value={m.cost > 0 ? riel(m.cost) : tx('nothingPaid')} />
+            <Row label={tx('feedEaten')} value={riel(feed)} />
+            <Row label={tx('healthCosts', { n: logs.length })} value={riel(m.medical)} />
+            <Row label={tx('costSoFar')} value={<span className="font-semibold">{riel(m.invested)}</span>} />
+            {m.revenue !== null && <Row label={tx('soldFor')} value={riel(m.revenue)} />}
           </dl>
           {m.result !== null && (
             <div className={`rounded-2xl p-4 text-xl font-semibold ${m.result < 0 ? 'bg-rose-50 text-rose-800' : 'bg-emerald-50 text-emerald-800'}`}>
-              {m.result < 0 ? 'Loss' : 'Profit'}: {riel(Math.abs(m.result))}
+              {tx(m.result < 0 ? 'loss' : 'profit')}: {riel(Math.abs(m.result))}
             </div>
           )}
-          {m.result === null && <p className="text-base text-ink-muted">Profit is shown once the animal is sold.</p>}
-          <p className="text-sm text-ink-muted">Feed is this animal&apos;s share of its batch&apos;s daily feed: each day is shared evenly by the animals in the batch that day.</p>
+          {m.result === null && <p className="text-base text-ink-muted">{tx('profitOnceSold')}</p>}
+          <p className="text-sm text-ink-muted">{tx('feedShareNote')}</p>
         </div>
       )}
 
       {canDelete && (
         <div className="border-t border-slate-200 pt-6">
-          <Button variant="destructive" onClick={askDelete}><Trash2 /> Delete this animal</Button>
+          <Button variant="destructive" onClick={askDelete}><Trash2 /> {tx('deleteAnimal')}</Button>
         </div>
       )}
 

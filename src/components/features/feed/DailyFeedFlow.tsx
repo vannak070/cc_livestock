@@ -1,16 +1,18 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { khmerShortDay } from '@/lib/khmer-date';
 import { ChevronDown, ChevronUp, History, Minus, Plus } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { BatchItem, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import type { StockItem } from '@/lib/xlsx-parser';
 import {
-  addDays, amountText, farmHeadCount, farmRations, farmToday, farmsToRecord, feedUnit, kgPerUnit, previousUnits, recordedUnits, round1, unitWord,
+  addDays, farmHeadCount, farmRations, farmToday, farmsToRecord, feedUnit, kgPerUnit, previousUnits, recordedUnits, round1, unitWord,
   type DailyFeedInput
 } from '@/lib/daily-feed';
 import { Choice, FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, money } from '../flow/FlowShell';
+import { useText } from '@/hooks/useText';
 
 interface DailyFeedFlowProps {
   isOpen: boolean;
@@ -34,8 +36,29 @@ const OFFICE_ROLES = ['Super Admin', 'Admin', 'Company'];
 const key = (batchId: string, productId: string) => `${batchId}|${productId}`;
 
 /** "Mon 5 Oct" for a YYYY-MM-DD day. */
-export function dayLabel(day: string): string {
+export function dayLabel(day: string, language?: string): string {
+  // In Khmer the app writes the day itself (not every phone browser has Khmer dates); otherwise the browser's format, as before.
+  if (language === 'km') return khmerShortDay(day);
   return new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+/** Puts React parts (bold names, days) into a translated sentence with {placeholders}. */
+export function fillParts(template: string, parts: Record<string, React.ReactNode>): React.ReactNode {
+  return template.split(/\{(\w+)\}/).map((piece, i) => (i % 2 === 1 ? <React.Fragment key={i}>{piece in parts ? parts[piece] : `{${piece}}`}</React.Fragment> : piece));
+}
+
+/** Feed unit words (bag, bale, kg) and amounts ("6 bags") in the chosen language; other units show as typed. */
+export function useFeedUnits() {
+  const { tx } = useText('feedFlows');
+  const word = (unit: string, n: number): string => {
+    const one = Math.abs(n) === 1;
+    if (unit === 'kg') return tx('unitKg');
+    if (unit === 'bag') return tx(one ? 'unitBag' : 'unitBags');
+    if (unit === 'bale') return tx(one ? 'unitBale' : 'unitBales');
+    return unitWord(unit, n);
+  };
+  const amount = (p: Pick<FeedProductItem, 'unit'> | null | undefined, units: number) => `${round1(units).toLocaleString()} ${word(feedUnit(p), round1(units))}`;
+  return { word, amount };
 }
 
 export default function DailyFeedFlow(props: DailyFeedFlowProps) {
@@ -48,6 +71,9 @@ export default function DailyFeedFlow(props: DailyFeedFlowProps) {
 }
 
 function DailyFeedBody({ onClose, batches, stock, products, transactions, farms = [], currentUser, presetFarm, presetDay, onSave }: DailyFeedFlowProps) {
+  const { tx, language } = useText('feedFlows');
+  const flow = useText('flow').tx;
+  const { word, amount: amountText } = useFeedUnits();
   const todayDay = farmToday();
   const lockedFarm = currentUser?.farmLocation && !OFFICE_ROLES.includes(currentUser.role) ? currentUser.farmLocation : null;
   // Farms with a batch being fed come first; the office can still pick any farm.
@@ -122,7 +148,7 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
       });
       setStep('done');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save. Please try again.');
+      setError(e instanceof Error ? e.message : tx('errSave'));
     } finally {
       setSaving(false);
     }
@@ -130,13 +156,13 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
 
   const next = () => {
     if (step === 'where') {
-      if (!farm) { setError('Choose the farm.'); return; }
-      if (!day || day > todayDay) { setError('Choose today or an earlier day.'); return; }
-      if (rations.length === 0) { setError(`${farm} has no batch being fed. Turn feeding on in a batch's Feeding tab first.`); return; }
+      if (!farm) { setError(tx('errFarm')); return; }
+      if (!day || day > todayDay) { setError(tx('errDay')); return; }
+      if (rations.length === 0) { setError(tx('errNoBatch', { farm })); return; }
     }
     if (step === 'amounts') {
-      if (lines.length === 0) { setError('None of the feeds is in your feed list yet. Fix the feeding plan first (see the note above).'); return; }
-      if (lines.some(l => !(Number.isFinite(l.units) && l.units >= 0))) { setError('Type an amount of 0 or more for every feed.'); return; }
+      if (lines.length === 0) { setError(tx('errNoLinked')); return; }
+      if (lines.some(l => !(Number.isFinite(l.units) && l.units >= 0))) { setError(tx('errAmounts')); return; }
     }
     if (step === 'check') { save(); return; }
     setError('');
@@ -146,16 +172,16 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
   const anotherDay = () => { setValues({}); setError(''); setDay(d => addDays(d, -1)); setStep('where'); };
 
   const title = {
-    where: 'Record the day\'s feed',
-    amounts: alreadyRecorded ? `Change ${dayLabel(day)}` : `What did they eat on ${dayLabel(day)}?`,
-    check: 'Check and save',
-    done: 'Feed saved',
+    where: tx('dayWhereTitle'),
+    amounts: alreadyRecorded ? tx('dayChangeTitle', { day: dayLabel(day, language) }) : tx('dayAmountsTitle', { day: dayLabel(day, language) }),
+    check: tx('dayCheckTitle'),
+    done: tx('dayDoneTitle'),
   }[step];
   const subtitle = {
-    where: 'Which farm, and which day.',
-    amounts: alreadyRecorded ? 'This day was already recorded. Change what is different.' : 'Filled in from the feeding plan. Change only what was different.',
-    check: 'This is taken out of the feed stock.',
-    done: 'The day is written down and the stock has been updated.',
+    where: tx('dayWhereSub'),
+    amounts: alreadyRecorded ? tx('dayChangeSub') : tx('dayAmountsSub'),
+    check: tx('dayCheckSub'),
+    done: tx('dayDoneSub'),
   }[step];
 
   return (
@@ -164,30 +190,30 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
       step={step}
       title={title}
       subtitle={subtitle}
-      summary={step === 'amounts' || step === 'check' ? `${farm} · ${dayLabel(day)}` : ''}
+      summary={step === 'amounts' || step === 'check' ? `${farm} · ${dayLabel(day, language)}` : ''}
       error={error}
       onSubmit={step === 'done' ? undefined : next}
       footer={step === 'done' ? null : (
-        <FlowFooter onBack={at === 0 ? undefined : back} label={step === 'check' ? (saving ? 'Saving…' : 'Save') : 'Next'} busy={saving} />
+        <FlowFooter onBack={at === 0 ? undefined : back} label={step === 'check' ? (saving ? flow('saving') : flow('save')) : flow('next')} busy={saving} />
       )}
     >
       {step === 'where' && (
         <>
           {lockedFarm ? (
-            <Question label="Farm"><p className="rounded-xl bg-slate-50 px-4 py-3 text-lg font-medium text-ink">{lockedFarm}</p></Question>
+            <Question label={tx('farm')}><p className="rounded-xl bg-slate-50 px-4 py-3 text-lg font-medium text-ink">{lockedFarm}</p></Question>
           ) : farmOptions.length === 0 ? (
-            <p className="rounded-xl bg-amber-50 p-4 text-lg text-amber-900">There are no farms yet. Add one on the Farms page first.</p>
+            <p className="rounded-xl bg-amber-50 p-4 text-lg text-amber-900">{tx('noFarms')}</p>
           ) : (
-            <Question label="Which farm?" hint={farm && !fedFarms.includes(farm) ? `${farm} has no batch being fed yet. Turn feeding on in one of its batches (Feeding tab) to record its feed.` : undefined}>
-              <PickList options={farmOptions} value={farm} labelFor={o => (fedFarms.includes(o) ? o : `${o} (no feeding yet)`)} onChange={v => { setFarm(v); setValues({}); setError(''); }} />
+            <Question label={tx('whichFarm')} hint={farm && !fedFarms.includes(farm) ? tx('farmNotFedHint', { farm }) : undefined}>
+              <PickList options={farmOptions} value={farm} labelFor={o => (fedFarms.includes(o) ? o : tx('noFeedingYet', { farm: o }))} onChange={v => { setFarm(v); setValues({}); setError(''); }} />
             </Question>
           )}
-          <Question label="Which day?">
+          <Question label={tx('whichDay')}>
             <div className="flex gap-3">
-              <Choice selected={day === todayDay} onClick={() => { setDay(todayDay); setValues({}); }}>Today</Choice>
-              <Choice selected={day === addDays(todayDay, -1)} onClick={() => { setDay(addDays(todayDay, -1)); setValues({}); }}>Yesterday</Choice>
+              <Choice selected={day === todayDay} onClick={() => { setDay(todayDay); setValues({}); }}>{tx('today')}</Choice>
+              <Choice selected={day === addDays(todayDay, -1)} onClick={() => { setDay(addDays(todayDay, -1)); setValues({}); }}>{tx('yesterday')}</Choice>
             </div>
-            <Input aria-label="Day" type="date" value={day} max={todayDay} min={addDays(todayDay, -60)} onChange={e => { setDay(e.target.value); setValues({}); setError(''); }} className="mt-3 h-14 text-lg" />
+            <Input aria-label={tx('dayAria')} type="date" value={day} max={todayDay} min={addDays(todayDay, -60)} onChange={e => { setDay(e.target.value); setValues({}); setError(''); }} className="mt-3 h-14 text-lg" />
           </Question>
         </>
       )}
@@ -196,21 +222,21 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
         <div className="space-y-4 pb-2">
           {heads && (
             <div className="rounded-xl bg-slate-50 p-3 text-base text-ink">
-              <p><span className="font-semibold">{heads.onFarm} cattle</span> on {farm} in the app ({heads.bulls} bulls, {heads.cows} cows){heads.inFedBatches !== heads.onFarm ? `, ${heads.inFedBatches} of them in a batch being fed` : ''}.</p>
-              <p className="text-ink-muted">Different from your count? Update the cattle list (sold, dead or moved animals){heads.inFedBatches < heads.onFarm ? ' or add the others to a batch' : ''}.</p>
+              <p><span className="font-semibold">{tx('headsCattle', { n: heads.onFarm })}</span>{tx('headsOn', { farm, bulls: heads.bulls, cows: heads.cows })}{heads.inFedBatches !== heads.onFarm ? tx('headsFed', { n: heads.inFedBatches }) : ''}{tx('stop')}</p>
+              <p className="text-ink-muted">{heads.inFedBatches < heads.onFarm ? tx('headsHintOthers') : tx('headsHint')}</p>
             </div>
           )}
           {unlinked.length > 0 && (
             <p className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">
-              {unlinked.map(u => `${u.name} (${u.batch})`).join(', ')} {unlinked.length === 1 ? 'is' : 'are'} not in your feed list, so {unlinked.length === 1 ? 'it' : 'they'} cannot be recorded. Open the batch, Feeding tab, tap the pencil and choose the feed.
+              {tx(unlinked.length === 1 ? 'unlinkedOne' : 'unlinkedMany', { list: unlinked.map(u => `${u.name} (${u.batch})`).join(', ') })}
             </p>
           )}
           {rations.length > 1 && (
-            <p className="text-base text-ink-muted">{rations.length} batches on {farm}. Tap a batch to open it and change its amounts.</p>
+            <p className="text-base text-ink-muted">{tx('batchesOnFarm', { n: rations.length, farm })}</p>
           )}
           {lastTime.length > 0 && (
             <button type="button" onClick={useLastTime} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-200 px-4 text-lg font-medium text-ink hover:border-emerald-600">
-              <History className="h-5 w-5" aria-hidden /> Fill in the amounts from the last recorded day
+              <History className="h-5 w-5" aria-hidden /> {tx('useLastTime')}
             </button>
           )}
           {rations.map(r => (
@@ -219,12 +245,12 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
                 const feeds = r.items.filter(i => i.product);
                 const done = feeds.length > 0 && feeds.every(i => recordedUnits(transactions, r.batch.id, day, i.product!.id) !== null);
                 const changed = feeds.some(i => Number(valueOf(r.batch.id, i.product!.id, i.planUnits)) !== i.planUnits);
-                const chip = done ? { text: 'Recorded', cls: 'bg-emerald-100 text-emerald-800' } : changed ? { text: 'Changed', cls: 'bg-amber-100 text-amber-900' } : { text: 'As planned', cls: 'bg-slate-100 text-ink-muted' };
+                const chip = done ? { text: tx('chipRecorded'), cls: 'bg-emerald-100 text-emerald-800' } : changed ? { text: tx('chipChanged'), cls: 'bg-amber-100 text-amber-900' } : { text: tx('chipAsPlanned'), cls: 'bg-slate-100 text-ink-muted' };
                 return (
                   <button type="button" aria-expanded={isOpen(r.batch.id)} onClick={() => toggleOpen(r.batch.id)} className="flex w-full items-center justify-between gap-3 p-4 text-left">
                     <span className="min-w-0">
                       <span className="block text-xl font-semibold text-ink">{r.batch.name}</span>
-                      <span className="block text-base text-ink-muted">{r.head} head{r.bulls || r.cows ? ` (${[r.bulls ? `${r.bulls} bulls` : '', r.cows ? `${r.cows} cows` : ''].filter(Boolean).join(', ')})` : ''}</span>
+                      <span className="block text-base text-ink-muted">{tx('headN', { n: r.head })}{r.bulls || r.cows ? ` (${[r.bulls ? tx('bullsN', { n: r.bulls }) : '', r.cows ? tx('cowsN', { n: r.cows }) : ''].filter(Boolean).join(', ')})` : ''}</span>
                       {!isOpen(r.batch.id) && (
                         <span className="mt-1 block text-base text-ink">
                           {feeds.map(i => `${i.product!.name} ${amountText(i.product!, Number(valueOf(r.batch.id, i.product!.id, i.planUnits)) || 0)}`).join(' · ')}
@@ -250,14 +276,14 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
                   <div key={p.id}>
                     <p className="mb-1 text-lg font-medium text-ink">{p.name}</p>
                     <div className="flex items-center gap-2">
-                      <button type="button" aria-label={`Less ${p.name}`} onClick={() => bump(-step1)} className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-slate-200 text-ink hover:border-emerald-600"><Minus /></button>
-                      <Input aria-label={`${p.name}, ${unitWord(unit, 2)}`} type="number" step="any" inputMode="decimal" min={0} value={raw} onChange={e => setValue(r.batch.id, p.id, e.target.value)} className={`h-14 flex-1 text-center text-2xl font-semibold ${NUM}`} />
-                      <button type="button" aria-label={`More ${p.name}`} onClick={() => bump(step1)} className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-slate-200 text-ink hover:border-emerald-600"><Plus /></button>
-                      <span className="w-14 shrink-0 text-lg text-ink-muted">{unitWord(unit, Number.isFinite(n) ? n : 2)}</span>
+                      <button type="button" aria-label={tx('lessAria', { name: p.name })} onClick={() => bump(-step1)} className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-slate-200 text-ink hover:border-emerald-600"><Minus /></button>
+                      <Input aria-label={`${p.name}, ${word(unit, 2)}`} type="number" step="any" inputMode="decimal" min={0} value={raw} onChange={e => setValue(r.batch.id, p.id, e.target.value)} className={`h-14 flex-1 text-center text-2xl font-semibold ${NUM}`} />
+                      <button type="button" aria-label={tx('moreAria', { name: p.name })} onClick={() => bump(step1)} className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 border-slate-200 text-ink hover:border-emerald-600"><Plus /></button>
+                      <span className="w-14 shrink-0 text-lg text-ink-muted">{word(unit, Number.isFinite(n) ? n : 2)}</span>
                     </div>
                     <p className="mt-1 text-base text-ink-muted">
-                      Plan {amountText(p, i.planUnits)}{unit !== 'kg' && Number.isFinite(n) ? ` · ${round1(n * kgPerUnit(p)).toLocaleString()} kg` : ''}
-                      {Number.isFinite(n) && n !== i.planUnits && <button type="button" onClick={() => setValue(r.batch.id, p.id, String(i.planUnits))} className="ml-2 font-medium text-emerald-700 underline">Use the plan</button>}
+                      {tx('plan', { amount: amountText(p, i.planUnits) })}{unit !== 'kg' && Number.isFinite(n) ? ` · ${round1(n * kgPerUnit(p)).toLocaleString()} kg` : ''}
+                      {Number.isFinite(n) && n !== i.planUnits && <button type="button" onClick={() => setValue(r.batch.id, p.id, String(i.planUnits))} className="ml-2 font-medium text-emerald-700 underline">{tx('usePlan')}</button>}
                     </p>
                   </div>
                 );
@@ -265,7 +291,7 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
               </div>}
             </section>
           ))}
-          <p className="text-base text-ink-muted">To feed something every day (for example grass), add it to the batch&apos;s feeding plan.</p>
+          <p className="text-base text-ink-muted">{tx('everyDayNote')}</p>
         </div>
       )}
 
@@ -282,16 +308,16 @@ function DailyFeedBody({ onClose, batches, stock, products, transactions, farms 
               </li>
             ))}
           </ul>
-          <p className="rounded-xl bg-slate-50 p-4 text-lg text-ink">Feed cost for the day: <span className="font-semibold">{money(totalCost)}</span></p>
-          {alreadyRecorded && <p className="text-base text-ink-muted">This replaces what was recorded for {dayLabel(day)} before.</p>}
+          <p className="rounded-xl bg-slate-50 p-4 text-lg text-ink">{tx('dayCost')}<span className="font-semibold">{money(totalCost)}</span></p>
+          {alreadyRecorded && <p className="text-base text-ink-muted">{tx('replaces', { day: dayLabel(day, language) })}</p>}
         </div>
       )}
 
       {step === 'done' && (
         <FlowDone
-          message={<>Feed for <span className="font-semibold">{dayLabel(day)}</span> at <span className="font-semibold">{farm}</span> saved</>}
+          message={fillParts(tx('dayDoneMessage'), { day: <span className="font-semibold">{dayLabel(day, language)}</span>, farm: <span className="font-semibold">{farm}</span> })}
           detail={totals.map(t => amountText(t.product, t.units) + ' ' + t.product.name).join(' · ')}
-          again="Record the day before"
+          again={tx('againDayBefore')}
           onAgain={anotherDay}
           onClose={onClose}
         />

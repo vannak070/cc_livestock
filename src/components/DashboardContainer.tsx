@@ -67,6 +67,7 @@ import { ERPLivestockData, FeedProductItem, FeedStockTransaction, UserRoleItem }
 import { ProposalPlanParams } from '@/types';
 import { SalesRecord } from '@/lib/xlsx-parser';
 import { canUsePlanning, hasPermission } from '@/lib/utils';
+import { useLanguage } from '@/context/LanguageContext';
 import { canOpenPeople } from '@/lib/user-admin';
 import { scopeDataToFarm } from '@/lib/farm-view';
 import { readFocus, saveFocus, validFocus } from '@/lib/working-on';
@@ -84,6 +85,7 @@ interface DashboardContainerProps {
 export default function DashboardContainer({ initialData, currentUser }: DashboardContainerProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { t } = useLanguage();
   // Management is read-only oversight: it starts on the Summary. Everyone else
   // starts on Today, the list of what needs doing.
   const [activeTab, setActiveTab] = useState<ActiveTabType>(currentUser.role === 'Management' ? 'dashboard' : 'today');
@@ -455,13 +457,13 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   // What this person may record, shown on Today and behind the phone's Record
   // button. Each opens a guided dialog.
   const recordActions: RecordAction[] = ([
-    hasPermission(currentUser, 'feed_record') && { key: 'feed-day', label: 'Feed today', icon: <Wheat className="h-7 w-7" />, onClick: () => setDailyFeed({}) },
-    hasPermission(currentUser, 'weight_record') && { key: 'weigh', label: 'Weigh', icon: <Scale className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('weight') },
-    hasPermission(currentUser, 'health_record') && { key: 'treat', label: 'Treat', icon: <Syringe className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('treat') },
-    hasPermission(currentUser, 'stock_create') && { key: 'add', label: 'Add cattle', icon: <PlusCircle className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('add') },
-    hasPermission(currentUser, 'sales_record') && { key: 'sell', label: 'Sell', icon: <DollarSign className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('sale') },
-    (hasPermission(currentUser, 'feed_manage') || (hasPermission(currentUser, 'feed_own_products') && !!currentUser?.farmLocation)) && { key: 'feed', label: 'Feed in', icon: <Package className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('feed') },
-    hasPermission(currentUser, 'costs_record') && { key: 'cost', label: 'Cost', icon: <Receipt className="h-7 w-7" />, onClick: () => setCostOpen(true) }
+    hasPermission(currentUser, 'feed_record') && { key: 'feed-day', label: t('record.feedToday'), icon: <Wheat className="h-7 w-7" />, onClick: () => setDailyFeed({}) },
+    hasPermission(currentUser, 'weight_record') && { key: 'weigh', label: t('record.weigh'), icon: <Scale className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('weight') },
+    hasPermission(currentUser, 'health_record') && { key: 'treat', label: t('record.treat'), icon: <Syringe className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('treat') },
+    hasPermission(currentUser, 'stock_create') && { key: 'add', label: t('record.addCattle'), icon: <PlusCircle className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('add') },
+    hasPermission(currentUser, 'sales_record') && { key: 'sell', label: t('record.sell'), icon: <DollarSign className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('sale') },
+    (hasPermission(currentUser, 'feed_manage') || (hasPermission(currentUser, 'feed_own_products') && !!currentUser?.farmLocation)) && { key: 'feed', label: t('record.feedIn'), icon: <Package className="h-7 w-7" />, onClick: () => handleOpenQuickEntry('feed') },
+    hasPermission(currentUser, 'costs_record') && { key: 'cost', label: t('record.cost'), icon: <Receipt className="h-7 w-7" />, onClick: () => setCostOpen(true) }
   ] as (RecordAction | false)[]).filter((a): a is RecordAction => !!a);
 
   const handleViewDetails = (cowId: string) => {

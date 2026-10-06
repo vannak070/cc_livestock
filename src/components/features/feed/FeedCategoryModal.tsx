@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { updateSettingsAction } from '@/app/actions';
 import type { MasterSetup } from '@/lib/types';
 import { getErrorMessage } from '@/lib/utils';
+import { useText } from '@/hooks/useText';
 
 interface FeedCategoryModalProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ export const FeedCategoryModal: React.FC<FeedCategoryModalProps> = (props) => (
 );
 
 function KindsBody({ onClose, settings, onSettingsUpdated }: FeedCategoryModalProps) {
+  const { tx } = useText('feedFlows');
+  const flow = useText('flow').tx;
   const [kinds, setKinds] = useState<string[]>(settings?.feedTypes || DEFAULT_KINDS);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -34,14 +37,14 @@ function KindsBody({ onClose, settings, onSettingsUpdated }: FeedCategoryModalPr
   const add = () => {
     const n = name.trim();
     if (!n) return;
-    if (kinds.some(k => k.toLowerCase() === n.toLowerCase())) { setError(`"${n}" is already in the list.`); return; }
+    if (kinds.some(k => k.toLowerCase() === n.toLowerCase())) { setError(tx('errDup', { name: n })); return; }
     setKinds([...kinds, n]);
     setName('');
     setError('');
   };
 
   const remove = (k: string) => {
-    if (kinds.length <= 1) { setError('Keep at least one kind of feed.'); return; }
+    if (kinds.length <= 1) { setError(tx('errKeepOne')); return; }
     setKinds(kinds.filter(x => x !== k));
     setError('');
   };
@@ -52,9 +55,9 @@ function KindsBody({ onClose, settings, onSettingsUpdated }: FeedCategoryModalPr
     setError('');
     try {
       const res = await updateSettingsAction({ feedTypes: kinds });
-      if (res.success) { onSettingsUpdated?.(); onClose(); } else setError(res.error || 'Could not save the list.');
+      if (res.success) { onSettingsUpdated?.(); onClose(); } else setError(res.error || tx('errSaveList'));
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not save the list.'));
+      setError(getErrorMessage(e, tx('errSaveList')));
     } finally {
       setSaving(false);
     }
@@ -63,25 +66,25 @@ function KindsBody({ onClose, settings, onSettingsUpdated }: FeedCategoryModalPr
   return (
     <DialogContent className="max-w-md">
       <DialogHeader className="text-left">
-        <DialogTitle className="text-2xl font-semibold text-ink">Kinds of feed</DialogTitle>
-        <DialogDescription className="text-base text-ink-muted">Used to group your feeds, for example Silage or Medicine.</DialogDescription>
+        <DialogTitle className="text-2xl font-semibold text-ink">{tx('kindsTitle')}</DialogTitle>
+        <DialogDescription className="text-base text-ink-muted">{tx('kindsSub')}</DialogDescription>
       </DialogHeader>
       <form onSubmit={e => { e.preventDefault(); add(); }} className="flex gap-2">
-        <Input aria-label="New kind of feed" value={name} onChange={e => { setName(e.target.value); setError(''); }} placeholder="Add a kind, for example Mineral block" className="h-14 text-lg" />
-        <Button type="submit" size="lg" aria-label="Add kind"><Plus /></Button>
+        <Input aria-label={tx('newKindAria')} value={name} onChange={e => { setName(e.target.value); setError(''); }} placeholder={tx('newKindPlaceholder')} className="h-14 text-lg" />
+        <Button type="submit" size="lg" aria-label={tx('addKindAria')}><Plus /></Button>
       </form>
       <ul className="max-h-[40vh] space-y-2 overflow-y-auto">
         {kinds.map(k => (
           <li key={k} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
             <span className="break-words text-lg font-medium text-ink">{k}</span>
-            <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${k}`} onClick={() => remove(k)}><Trash2 className="text-rose-700" /></Button>
+            <Button type="button" variant="ghost" size="icon" aria-label={tx('removeKind', { kind: k })} onClick={() => remove(k)}><Trash2 className="text-rose-700" /></Button>
           </li>
         ))}
       </ul>
       {error && <p role="alert" className="text-base font-medium text-rose-700">{error}</p>}
       <div className="flex gap-3">
-        <Button type="button" variant="secondary" size="lg" onClick={onClose}>Cancel</Button>
-        <Button type="button" size="lg" className="flex-1" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+        <Button type="button" variant="secondary" size="lg" onClick={onClose}>{tx('cancel')}</Button>
+        <Button type="button" size="lg" className="flex-1" onClick={save} disabled={saving}>{saving ? flow('saving') : flow('save')}</Button>
       </div>
     </DialogContent>
   );

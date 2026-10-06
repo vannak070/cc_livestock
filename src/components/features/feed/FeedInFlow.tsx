@@ -4,8 +4,10 @@ import React, { useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { FarmItem, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
-import { feedUnit, kgPerUnit, unitWord } from '@/lib/daily-feed';
+import { feedUnit, kgPerUnit } from '@/lib/daily-feed';
 import { FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, RowButton, money, today } from '../flow/FlowShell';
+import { useText } from '@/hooks/useText';
+import { fillParts, useFeedUnits } from './DailyFeedFlow';
 
 interface FeedInFlowProps {
   isOpen: boolean;
@@ -35,6 +37,9 @@ export default function FeedInFlow(props: FeedInFlowProps) {
 }
 
 function FeedInBody({ onClose, products, farms, currentUser, defaultFarm, onSave, mode = 'in' }: FeedInFlowProps) {
+  const { tx } = useText('feedFlows');
+  const flow = useText('flow').tx;
+  const { word: unitWord } = useFeedUnits();
   const out = mode === 'out';
   // Feed grown on the farm is not kept as stock, so it never comes in or goes out by hand.
   const active = products.filter(p => p.status !== 'Inactive' && p.trackStock !== false);
@@ -90,15 +95,15 @@ function FeedInBody({ onClose, products, farms, currentUser, defaultFarm, onSave
       setReceived({ name: product.name, bags: count, kg, unit });
       setStep('done');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save. Please try again.');
+      setError(e instanceof Error ? e.message : tx('errSave'));
     } finally {
       setSaving(false);
     }
   };
 
   const next = () => {
-    if (step === 'bags' && !(count > 0)) { setError(out ? `Type how many ${packs} were used.` : `Type how many ${packs} arrived.`); return; }
-    if (step === 'where' && !farm) { setError('Choose which farm received it.'); return; }
+    if (step === 'bags' && !(count > 0)) { setError(tx(out ? 'errOutCount' : 'errInCount', { packs })); return; }
+    if (step === 'where' && !farm) { setError(tx('errWhere')); return; }
     if (step === 'extra') { save(); return; }
     setError('');
     setStep(steps[at + 1]);
@@ -115,18 +120,18 @@ function FeedInBody({ onClose, products, farms, currentUser, defaultFarm, onSave
     : '';
 
   const title = {
-    pick: out ? 'Which feed was used?' : 'Which feed arrived?',
-    bags: product ? (out ? `How much ${product.name} was used?` : `How much ${product.name}?`) : 'How much?',
-    where: out ? 'Taken from where?' : 'Where was it delivered?',
-    extra: 'Anything else?',
-    done: out ? 'Feed taken out' : 'Feed added',
+    pick: tx(out ? 'outPickTitle' : 'inPickTitle'),
+    bags: product ? tx(out ? 'outBagsTitle' : 'inBagsTitle', { name: product.name }) : tx('bagsTitle'),
+    where: tx(out ? 'outWhereTitle' : 'inWhereTitle'),
+    extra: tx('extraTitle'),
+    done: tx(out ? 'outDoneTitle' : 'inDoneTitle'),
   }[step];
   const subtitle = {
-    pick: out ? 'Choose the feed that was taken out of store.' : 'Choose the feed that was delivered.',
-    bags: unit === 'kg' ? (out ? 'Weigh how much was taken out.' : 'Weigh how much came in.') : out ? `Count the ${packs} taken out.` : `Count the ${packs} that came in.`,
-    where: out ? 'Which farm store, and when.' : 'Which farm received it, and when.',
-    extra: out ? 'Say why, for example spoiled or damaged (optional).' : 'Both are optional.',
-    done: out ? 'The stock count has gone down.' : 'The stock count has gone up.',
+    pick: tx(out ? 'outPickSub' : 'inPickSub'),
+    bags: unit === 'kg' ? tx(out ? 'outBagsSubKg' : 'inBagsSubKg') : tx(out ? 'outBagsSub' : 'inBagsSub', { packs }),
+    where: tx(out ? 'outWhereSub' : 'inWhereSub'),
+    extra: tx(out ? 'outExtraSub' : 'inExtraSub'),
+    done: tx(out ? 'outDoneSub' : 'inDoneSub'),
   }[step];
 
   return (
@@ -139,7 +144,7 @@ function FeedInBody({ onClose, products, farms, currentUser, defaultFarm, onSave
       error={error}
       onSubmit={step === 'pick' || step === 'done' ? undefined : next}
       footer={step === 'pick' || step === 'done' ? null : (
-        <FlowFooter onBack={at === 0 ? undefined : back} label={step === 'extra' ? (saving ? 'Saving…' : out ? 'Save' : 'Save feed') : 'Next'} busy={saving} />
+        <FlowFooter onBack={at === 0 ? undefined : back} label={step === 'extra' ? (saving ? flow('saving') : out ? flow('save') : tx('saveFeed')) : flow('next')} busy={saving} />
       )}
     >
       {step === 'pick' && (
@@ -149,20 +154,20 @@ function FeedInBody({ onClose, products, farms, currentUser, defaultFarm, onSave
               <RowButton onClick={() => { setProductId(p.id); setError(''); setStep('bags'); }}>
                 <span>
                   <span className="block text-xl font-semibold text-ink">{p.name}</span>
-                  <span className="block text-base text-ink-muted">{[p.category, feedUnit(p) === 'kg' ? 'counted in kg' : `${p.weightPerUnit} kg per ${feedUnit(p)}`].filter(Boolean).join(' · ')}</span>
+                  <span className="block text-base text-ink-muted">{[p.category, feedUnit(p) === 'kg' ? tx('countedInKg') : tx('kgPer', { kg: p.weightPerUnit, unit: unitWord(feedUnit(p), 1) })].filter(Boolean).join(' · ')}</span>
                 </span>
               </RowButton>
             </li>
           ))}
-          {active.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">No feed products yet. Add one on the Feed page first.</li>}
+          {active.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">{tx('noProducts')}</li>}
         </ul>
       )}
 
       {step === 'bags' && (
-        <Question label={unit === 'kg' ? 'Kg' : `Number of ${packs}`}>
-          <Input aria-label={unit === 'kg' ? 'Kg' : `Number of ${packs}`} type="number" step="any" inputMode="decimal" autoFocus value={bags} onChange={e => { setBags(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
+        <Question label={unit === 'kg' ? tx('kgLabel') : tx('numberOf', { packs })}>
+          <Input aria-label={unit === 'kg' ? tx('kgLabel') : tx('numberOf', { packs })} type="number" step="any" inputMode="decimal" autoFocus value={bags} onChange={e => { setBags(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
           <p className="mt-3 text-lg text-ink-muted">
-            {unit === 'kg' ? (count > 0 ? <>worth {money(cost)}</> : null) : count > 0 ? <>{kg.toLocaleString()} kg ({perBag} kg per {unit}) · worth {money(cost)}</> : `${perBag} kg per ${unit}`}
+            {unit === 'kg' ? (count > 0 ? tx('worth', { money: money(cost) }) : null) : count > 0 ? `${kg.toLocaleString()} kg (${tx('kgPer', { kg: perBag, unit: unitWord(unit, 1) })}) · ${tx('worth', { money: money(cost) })}` : tx('kgPer', { kg: perBag, unit: unitWord(unit, 1) })}
           </p>
         </Question>
       )}
@@ -170,28 +175,28 @@ function FeedInBody({ onClose, products, farms, currentUser, defaultFarm, onSave
       {step === 'where' && (
         <>
           {lockedFarm ? (
-            <Question label="Farm"><p className="rounded-xl bg-slate-50 px-4 py-3 text-lg font-medium text-ink">{lockedFarm}</p></Question>
+            <Question label={tx('farm')}><p className="rounded-xl bg-slate-50 px-4 py-3 text-lg font-medium text-ink">{lockedFarm}</p></Question>
           ) : (
-            <Question label="Which farm?">
+            <Question label={tx('whichFarm')}>
               <PickList options={farms.map(f => f.name)} value={farm} onChange={v => { setFarm(v); setError(''); }} />
             </Question>
           )}
-          <Question label="Date delivered"><Input aria-label="Date delivered" type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" /></Question>
+          <Question label={tx('dateDelivered')}><Input aria-label={tx('dateDelivered')} type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-14 text-lg" /></Question>
         </>
       )}
 
       {step === 'extra' && (
         <>
-          {!out && <Question label="Invoice number (optional)"><Input aria-label="Invoice number" value={ref} onChange={e => setRef(e.target.value)} className="h-14 text-lg" /></Question>}
-          <Question label={out ? 'Reason (optional)' : 'Note (optional)'}><Input aria-label="Note" value={notes} onChange={e => setNotes(e.target.value)} className="h-14 text-lg" /></Question>
+          {!out && <Question label={tx('invoiceOpt')}><Input aria-label={tx('invoiceAria')} value={ref} onChange={e => setRef(e.target.value)} className="h-14 text-lg" /></Question>}
+          <Question label={tx(out ? 'reasonOpt' : 'noteOpt')}><Input aria-label={tx('noteAria')} value={notes} onChange={e => setNotes(e.target.value)} className="h-14 text-lg" /></Question>
         </>
       )}
 
       {step === 'done' && received && (
         <FlowDone
-          message={<><span className="font-semibold">{received.bags} {unitWord(received.unit, received.bags)}</span> of <span className="font-semibold">{received.name}</span> {out ? 'taken out' : 'added'}</>}
+          message={fillParts(tx(out ? 'outDoneMessage' : 'inDoneMessage'), { amount: <span className="font-semibold">{received.bags} {unitWord(received.unit, received.bags)}</span>, name: <span className="font-semibold">{received.name}</span> })}
           detail={received.unit === 'kg' ? undefined : `${received.kg.toLocaleString()} kg`}
-          again={out ? 'Take out more' : 'Add more feed'}
+          again={tx(out ? 'againOut' : 'againIn')}
           onAgain={another}
           onClose={onClose}
         />
