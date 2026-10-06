@@ -1,6 +1,6 @@
 import type { FarmLoanAssumptions, FarmLoanTerms, LoanRepayment } from './types';
 import { farmToday } from './daily-feed';
-import { parseFeedLines } from './feed-lines';
+import { feedPerHeadDay, parseFeedLines } from './feed-lines';
 
 /**
  * A farm's 24-month loan plan: what the farm draws, owes, repays and has in

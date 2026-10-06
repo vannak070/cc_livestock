@@ -9,7 +9,7 @@ import { DEFAULT_REPAYMENTS } from '@/lib/farm-loan';
 import { Choice, NUM, Question } from '../flow/FlowShell';
 
 /**
- * Pieces shared by the farm loan dialog and the fattening plan dialog: one
+ * Pieces for the fattening plan dialog's bank loan and herd steps: one
  * number with its unit, how the cattle are bought, and the repayment months.
  */
 

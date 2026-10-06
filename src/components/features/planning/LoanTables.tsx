@@ -9,7 +9,7 @@ import { feedNeeds } from '@/lib/feed-lines';
 import { exportToExcel } from '@/lib/excel-export';
 
 /**
- * The two tables a loan plan shows, used by the farm loan and the fattening
+ * The tables a fattening plan's bank loan shows, used by the fattening
  * plans: payments to the bank month by month (all paid by the farm), and the
  * cattle and feed traded with CC Livestock, as separate payments.
  */
