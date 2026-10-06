@@ -24,6 +24,8 @@ interface PlanningPageProps {
   data: ERPLivestockData;
   onSaveLoan: (farm: string, terms: FarmLoanTerms, assumptions: FarmLoanAssumptions, notes: string) => Promise<void>;
   onDeleteLoan: (farm: string) => Promise<void>;
+  /** A Farm Owner: show only this farm's loan, read only (no fattening plans). */
+  ownFarm?: string;
 }
 
 type Tab = 'loans' | 'plans' | 'compare';
@@ -32,7 +34,7 @@ type View = { kind: 'list' } | { kind: 'edit'; slot: number; startFrom?: Proposa
 const riel = (n: number) => `${n < 0 ? '−' : ''}${Math.round(Math.abs(n)).toLocaleString()} ៛`;
 const day = (iso: string) => iso.slice(0, 10);
 
-export default function PlanningPage({ plans, onSavePlan, onDeletePlan, farms, loans, data, onSaveLoan, onDeleteLoan }: PlanningPageProps) {
+export default function PlanningPage({ plans, onSavePlan, onDeletePlan, farms, loans, data, onSaveLoan, onDeleteLoan, ownFarm }: PlanningPageProps) {
   const [tab, setTab] = useState<Tab>('loans');
   const [view, setView] = useState<View>({ kind: 'list' });
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger'; confirmText: string; onConfirm?: () => void }>(null);
@@ -43,13 +45,27 @@ export default function PlanningPage({ plans, onSavePlan, onDeletePlan, farms, l
   // A new plan takes the lowest free slot, and only shows in the list once it is saved.
   const firstEmpty = Array.from({ length: MAX_PLANS }, (_, i) => i + 1).find(n => !bySlot.has(n));
 
+  if (ownFarm) {
+    const farm = farms.find(f => f.name === ownFarm) ?? { id: ownFarm, name: ownFarm };
+    return (
+      <FarmLoanEditor
+        farm={farm}
+        loan={loans.find(l => l.farmLocation === ownFarm)}
+        data={data}
+        readOnly
+        onSave={async () => { throw new Error('Only the office can change a loan plan.'); }}
+        onDelete={async () => { throw new Error('Only the office can remove a loan plan.'); }}
+      />
+    );
+  }
+
   if (view.kind === 'loan') {
     const farm = farms.find(f => f.name === view.farm);
     if (farm) {
       const loan = loans.find(l => l.farmLocation === farm.name);
       return (
         <FarmLoanEditor
-          key={`${farm.name}-${loan?.updatedAt ?? 'new'}`}
+          key={farm.name}
           farm={farm}
           loan={loan}
           data={data}
@@ -65,13 +81,14 @@ export default function PlanningPage({ plans, onSavePlan, onDeletePlan, farms, l
     const slot = view.slot;
     return (
       <PlanEditor
-        // Remount when another plan is opened so it starts from its own numbers.
-        key={`${slot}-${bySlot.get(slot)?.updatedAt ?? 'new'}-${view.startFrom ? 'copy' : ''}`}
+        // A new key when another plan is opened; saving keeps the page (and its "saved" message).
+        key={`${slot}-${view.startFrom ? 'copy' : ''}`}
         slot={slot}
         plan={bySlot.get(slot)}
         startFrom={view.startFrom}
         onBack={() => setView({ kind: 'list' })}
         onSave={(name, params) => onSavePlan(slot, name, params)}
+        products={data.feedProducts ?? []}
       />
     );
   }

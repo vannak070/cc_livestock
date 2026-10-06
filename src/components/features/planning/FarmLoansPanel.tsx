@@ -21,7 +21,7 @@ export default function FarmLoansPanel({ farms, loans, onOpen }: FarmLoansPanelP
   if (farms.length === 0) return <p className="rounded-2xl bg-slate-50 p-8 text-center text-lg text-ink-muted">Add a farm on the Farms page first.</p>;
   return (
     <div className="space-y-3">
-      <p className="text-base text-ink-muted">Each farm borrows from the bank to buy cattle and repays 20% in month 8, 30% in month 11 and 50% in month 12, when CC Livestock buys the cattle back and pays the bank first. Open a farm to plan its loan for 24 months.</p>
+      <p className="text-base text-ink-muted">The bank pays each farm its loan once, in month 1. The farm buys its cattle and feed from CC Livestock with it and sells its cattle back to CC Livestock. The farm pays the bank interest every month and repays 20% in month 8, 30% in month 11 and 50% in month 12. CC Livestock does not repay the bank. Open a farm to plan its loan for 24 months.</p>
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {farms.map(f => {
           const loan = byFarm.get(f.name);
@@ -34,7 +34,7 @@ export default function FarmLoansPanel({ farms, loans, onOpen }: FarmLoansPanelP
                   {loan && plan ? (
                     <>
                       <span className="block text-base text-ink-muted">{[loan.terms.bank || 'Bank not set', `from ${monthLabel(loan.terms.startMonth)}`, `${loan.terms.annualRatePct}% a year`].join(' · ')}</span>
-                      <span className="block text-base text-ink">Loan year 1: {riel(plan.years[0]?.drawnKhr ?? 0)}</span>
+                      <span className="block text-base text-ink">Loan: {riel(plan.years[0]?.drawnKhr ?? 0)}, paid out in {monthLabel(loan.terms.startMonth)}</span>
                       <span className={`mt-1 inline-block rounded-full px-3 py-0.5 text-sm font-medium ${plan.moneyNeededKhr > 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
                         {plan.moneyNeededKhr > 0 ? `Needs ${riel(plan.moneyNeededKhr)} of its own money` : 'Covers every repayment'}
                       </span>

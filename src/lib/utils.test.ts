@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canUsePlanning, hasPermission } from './utils';
+import { canSeeOwnLoan, canUsePlanning, hasPermission } from './utils';
 
 describe('hasPermission', () => {
   it('denies everything without a user', () => {
@@ -26,6 +26,15 @@ describe('hasPermission', () => {
     expect(hasPermission({ role: 'Management' }, 'dashboard_view')).toBe(true);
     expect(hasPermission({ role: 'Management' }, 'stock_delete')).toBe(false);
     expect(hasPermission({ role: 'No Such Role' }, 'dashboard_view')).toBe(false);
+  });
+});
+
+describe('canSeeOwnLoan', () => {
+  it('is only for a Farm Owner tied to a farm', () => {
+    expect(canSeeOwnLoan({ role: 'Farm Owner', farmLocation: 'SNR Farm' })).toBe(true);
+    expect(canSeeOwnLoan({ role: 'Farm Owner' })).toBe(false);
+    expect(canSeeOwnLoan({ role: 'Farm Staff', farmLocation: 'SNR Farm' })).toBe(false);
+    expect(canSeeOwnLoan(null)).toBe(false);
   });
 });
 

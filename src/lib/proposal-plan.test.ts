@@ -44,7 +44,38 @@ describe('calculatePlan edge cases', () => {
 
 describe('feedForPeriod', () => {
   it('gives kg and cost of each feed', () => {
-    expect(feedForPeriod(DEFAULT_PLAN, 100, 30)).toEqual({ grassKg: 90_000, grassCostKhr: 18_000_000, concentrateKg: 21_000, concentrateCostKhr: 25_200_000, totalCostKhr: 43_200_000 });
+    expect(feedForPeriod(DEFAULT_PLAN, 100, 30)).toEqual({
+      lines: [{ name: 'Grass', kg: 90_000, costKhr: 18_000_000 }, { name: 'Concentrate', kg: 21_000, costKhr: 25_200_000 }],
+      totalKg: 111_000,
+      totalCostKhr: 43_200_000,
+    });
+  });
+});
+
+describe('feed by kind', () => {
+  const lines = [
+    { productId: 'DSR', name: 'DSR-16 Cow Feed', kgPerHeadDay: 6, pricePerKgKhr: 1367 },
+    { name: 'Rice straw', kgPerHeadDay: 3, pricePerKgKhr: 150 },
+    { name: 'Silage', kgPerHeadDay: 10, pricePerKgKhr: 250 },
+  ];
+  it('replaces grass and concentrate when a plan has feed lines', () => {
+    const r = calculatePlan({ ...DEFAULT_PLAN, feedLines: lines });
+    // 6 x 1367 + 3 x 150 + 10 x 250 = 11,152 riel per animal a day.
+    expect(r.dailyFeedPerHeadKhr).toBe(11_152);
+    expect(r.perHeadFeedCostKhr).toBe(11_152 * 120);
+    expect(r.feed.map(f => f.name)).toEqual(['DSR-16 Cow Feed', 'Rice straw', 'Silage']);
+    expect(r.feed[0].annualKg).toBe(6 * 400 * 360);
+    expect(r.batches[0].feedKg).toEqual([{ name: 'DSR-16 Cow Feed', kg: 6 * 120 * 40 }, { name: 'Rice straw', kg: 3 * 120 * 40 }, { name: 'Silage', kg: 10 * 120 * 40 }]);
+  });
+  it('keeps older plans (grass and concentrate) exactly as before', () => {
+    expect(calculatePlan(DEFAULT_PLAN).profitPerHeadKhr).toBe(calculatePlan({ ...DEFAULT_PLAN, feedLines: [
+      { name: 'Grass', kgPerHeadDay: 30, pricePerKgKhr: 200 }, { name: 'Concentrate', kgPerHeadDay: 7, pricePerKgKhr: 1200 },
+    ] }).profitPerHeadKhr);
+  });
+  it('saves feed lines and refuses bad ones', () => {
+    expect(parsePlanParams({ ...DEFAULT_PLAN, feedLines: lines })?.feedLines).toEqual(lines);
+    expect(parsePlanParams({ ...DEFAULT_PLAN, feedLines: [{ name: 'Silage', kgPerHeadDay: -1, pricePerKgKhr: 250 }] })).toBeNull();
+    expect(parsePlanParams({ ...DEFAULT_PLAN, feedLines: [{ name: '', kgPerHeadDay: 1, pricePerKgKhr: 250 }] })).toBeNull();
   });
 });
 

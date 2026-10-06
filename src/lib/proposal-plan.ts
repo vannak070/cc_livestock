@@ -1,3 +1,5 @@
+import { feedNeeds, parseFeedLines, planFeedLines } from './feed-lines';
+import { parsePlanLoan } from './plan-loan';
 import type { ProposalPlanParams } from '@/types';
 
 /**
@@ -42,8 +44,8 @@ export interface BatchPlan {
   cattleCount: number;
   purchaseMonth: number;
   saleMonth: number;
-  grassReqKg: number;
-  concentrateReqKg: number;
+  /** Feed the batch needs over its fattening, by kind. */
+  feedKg: { name: string; kg: number }[];
   cattleCostKhr: number;
   feedCostKhr: number;
   bankInterestCostKhr: number;
@@ -62,15 +64,13 @@ export function calculatePlan(p: ProposalPlanParams) {
   const purchasePricePerHeadKhr = p.initialWeightKg * p.purchasePricePerKgKhr;
   const sellingPricePerHeadKhr = finalWeightKgPerHead * p.sellingPricePerKgKhr;
 
-  // Feed for the whole herd, a month being 30 days.
-  const monthlyGrassCostKhr = totalCattle * p.grassKgPerHeadDay * 30 * p.grassCostPerKgKhr;
-  const monthlyConcentrateCostKhr = totalCattle * p.concentrateKgPerHeadDay * 30 * p.concentrateCostPerKgKhr;
-  const monthlyTotalFeedCostKhr = monthlyGrassCostKhr + monthlyConcentrateCostKhr;
+  // Feed by kind (older plans: grass and concentrate). A month is 30 days.
+  const lines = planFeedLines(p);
+  const dailyFeedPerHeadKhr = lines.reduce((s, l) => s + l.kgPerHeadDay * l.pricePerKgKhr, 0);
+  const monthlyTotalFeedCostKhr = totalCattle * 30 * dailyFeedPerHeadKhr;
 
   // One animal over its whole fattening period.
-  const perHeadGrassCostKhr = p.grassKgPerHeadDay * p.fatteningPeriodDays * p.grassCostPerKgKhr;
-  const perHeadConcentrateCostKhr = p.concentrateKgPerHeadDay * p.fatteningPeriodDays * p.concentrateCostPerKgKhr;
-  const perHeadFeedCostKhr = perHeadGrassCostKhr + perHeadConcentrateCostKhr;
+  const perHeadFeedCostKhr = dailyFeedPerHeadKhr * p.fatteningPeriodDays;
 
   const initialCattlePurchaseKhr = totalCattle * purchasePricePerHeadKhr;
   const monthlyInterestRate = p.bankInterestRateAnnual / 100 / 12;
@@ -83,9 +83,16 @@ export function calculatePlan(p: ProposalPlanParams) {
 
   const annualSalesRevenueKhr = monthlySalesRevenueKhr * 12;
   const annualCattlePurchasesKhr = monthlyReplacementPurchaseKhr * 12;
-  const annualGrassCostKhr = monthlyGrassCostKhr * 12;
-  const annualConcentrateCostKhr = monthlyConcentrateCostKhr * 12;
   const annualFeedCostKhr = monthlyTotalFeedCostKhr * 12;
+  // Each feed: for one animal over its fattening, and for the full herd over a year.
+  const feed = lines.map((l, i) => ({
+    name: l.name,
+    kgPerHeadDay: l.kgPerHeadDay,
+    pricePerKgKhr: l.pricePerKgKhr,
+    perHeadKhr: l.kgPerHeadDay * l.pricePerKgKhr * p.fatteningPeriodDays,
+    annualKg: feedNeeds(lines, totalCattle * 360)[i].kg,
+    annualKhr: l.kgPerHeadDay * l.pricePerKgKhr * totalCattle * 360,
+  }));
   const annualBankInterestKhr = monthlyBankInterestKhr * 12;
   const annualTotalCostKhr = annualCattlePurchasesKhr + annualFeedCostKhr + annualBankInterestKhr;
   const annualProfitKhr = annualSalesRevenueKhr - annualTotalCostKhr;
@@ -115,7 +122,7 @@ export function calculatePlan(p: ProposalPlanParams) {
       openingStock = totalCattle; purchaseQty = monthlyBatchQty; salesQty = monthlyBatchQty; closingStock = totalCattle;
     }
     const purchaseCostKhr = purchaseQty * purchasePricePerHeadKhr;
-    const feedCostKhr = closingStock * p.grassKgPerHeadDay * p.grassCostPerKgKhr * 30 + closingStock * p.concentrateKgPerHeadDay * p.concentrateCostPerKgKhr * 30;
+    const feedCostKhr = closingStock * 30 * dailyFeedPerHeadKhr;
     const bankInterestMonthKhr = closingStock * purchasePricePerHeadKhr * monthlyInterestRate;
     const totalCostKhr = purchaseCostKhr + feedCostKhr + bankInterestMonthKhr;
     const revenueKhr = salesQty * sellingPricePerHeadKhr;
@@ -127,8 +134,7 @@ export function calculatePlan(p: ProposalPlanParams) {
     cattleCount: p.cattlePerBatch,
     purchaseMonth: i + 1,
     saleMonth: i + 1 + fatteningMonths,
-    grassReqKg: p.grassKgPerHeadDay * p.fatteningPeriodDays * p.cattlePerBatch,
-    concentrateReqKg: p.concentrateKgPerHeadDay * p.fatteningPeriodDays * p.cattlePerBatch,
+    feedKg: feedNeeds(lines, p.fatteningPeriodDays * p.cattlePerBatch).map(f => ({ name: f.name, kg: f.kg })),
     cattleCostKhr: p.cattlePerBatch * purchasePricePerHeadKhr,
     feedCostKhr: perHeadFeedCostKhr * p.cattlePerBatch,
     bankInterestCostKhr: p.cattlePerBatch * interestPerHeadKhr,
@@ -140,24 +146,22 @@ export function calculatePlan(p: ProposalPlanParams) {
   return {
     totalCattle, fatteningMonths, monthlyBatchQty,
     weightGainKgPerHead, finalWeightKgPerHead, purchasePricePerHeadKhr, sellingPricePerHeadKhr,
-    perHeadGrassCostKhr, perHeadConcentrateCostKhr, perHeadFeedCostKhr, interestPerHeadKhr, costPerHeadKhr, profitPerHeadKhr, marginPerHeadPercent,
+    feed, dailyFeedPerHeadKhr, perHeadFeedCostKhr, interestPerHeadKhr, costPerHeadKhr, profitPerHeadKhr, marginPerHeadPercent,
     initialCattlePurchaseKhr, monthlyBankInterestKhr, monthlyTotalFeedCostKhr, monthlyReplacementPurchaseKhr, monthlySalesRevenueKhr, totalMonthlyCostKhr, monthlyProfitKhr,
-    annualSalesRevenueKhr, annualCattlePurchasesKhr, annualGrassCostKhr, annualConcentrateCostKhr, annualFeedCostKhr, annualBankInterestKhr, annualTotalCostKhr, annualProfitKhr, annualMarginPercent, annualRoiPercent,
+    annualSalesRevenueKhr, annualCattlePurchasesKhr, annualFeedCostKhr, annualBankInterestKhr, annualTotalCostKhr, annualProfitKhr, annualMarginPercent, annualRoiPercent,
     batchRevenueKhr, batchCostKhr, batchProfitKhr,
     months, batches,
   };
 }
 
-/** Feed needed, and what it costs, for some animals over some days. */
-export function feedForPeriod(p: Pick<ProposalPlanParams, 'grassKgPerHeadDay' | 'grassCostPerKgKhr' | 'concentrateKgPerHeadDay' | 'concentrateCostPerKgKhr'>, head: number, days: number) {
-  const grassKg = head * p.grassKgPerHeadDay * days;
-  const concentrateKg = head * p.concentrateKgPerHeadDay * days;
-  const grassCostKhr = grassKg * p.grassCostPerKgKhr;
-  const concentrateCostKhr = concentrateKg * p.concentrateCostPerKgKhr;
-  return { grassKg, grassCostKhr, concentrateKg, concentrateCostKhr, totalCostKhr: grassCostKhr + concentrateCostKhr };
+/** Feed needed, and what it costs, for some animals over some days: by kind, and the total. */
+export function feedForPeriod(p: ProposalPlanParams, head: number, days: number) {
+  const lines = feedNeeds(planFeedLines(p), head * days);
+  return { lines, totalKg: lines.reduce((s, l) => s + l.kg, 0), totalCostKhr: lines.reduce((s, l) => s + l.costKhr, 0) };
 }
 
-const PARAM_KEYS = Object.keys(DEFAULT_PLAN) as (keyof ProposalPlanParams)[];
+type NumberKey = Exclude<keyof ProposalPlanParams, 'feedLines' | 'loan'>;
+const PARAM_KEYS = (Object.keys(DEFAULT_PLAN) as (keyof ProposalPlanParams)[]).filter((k): k is NumberKey => k !== 'feedLines' && k !== 'loan');
 
 /** A plan's numbers from untrusted input, or null when anything is missing, not a number, or negative. */
 export function parsePlanParams(raw: unknown): ProposalPlanParams | null {
@@ -167,6 +171,15 @@ export function parsePlanParams(raw: unknown): ProposalPlanParams | null {
     const value = (raw as Record<string, unknown>)[key];
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
     out[key] = value;
+  }
+  const feedLines = parseFeedLines((raw as Record<string, unknown>).feedLines);
+  if (typeof feedLines === 'string') return null;
+  if (feedLines.length > 0) out.feedLines = feedLines;
+  const rawLoan = (raw as Record<string, unknown>).loan;
+  if (rawLoan !== undefined && rawLoan !== null) {
+    const loan = parsePlanLoan(rawLoan, out.bankInterestRateAnnual);
+    if (typeof loan === 'string') return null;
+    out.loan = loan;
   }
   return out;
 }

@@ -25,7 +25,7 @@ const data = {
   salesTracking: [{ cowId: 'A1' }, { cowId: 'B1' }],
   farmCosts: [{ id: 'C-A', farmLocation: 'Farm A' }, { id: 'C-B', farmLocation: 'Farm B' }],
   proposalPlans: [{ slot: 1, name: 'Plan' }],
-  farmLoans: [{ farmLocation: 'Farm A' }],
+  farmLoans: [{ farmLocation: 'Farm A' }, { farmLocation: 'Farm B' }],
   common: { locations: ['Farm A', 'Farm B'] },
   settings: { users: [{ id: 'u', email: 'e@x.test' }], breeds: [] }
 } as unknown as ERPLivestockData;
@@ -72,9 +72,11 @@ describe('scopeDataForActor', () => {
       expect(scopeDataForActor(data, user({ role, permissions: ['analytics_view'] })).proposalPlans).toEqual([]);
     }
     expect(scopeDataForActor(data, user({ role: 'Farm Owner', farmLocation: 'Farm A', permissions: ['analytics_view'] })).proposalPlans).toEqual([]);
-    expect(scopeDataForActor(data, user({ role: 'Management', permissions: [] })).farmLoans).toHaveLength(1);
+    expect(scopeDataForActor(data, user({ role: 'Management', permissions: [] })).farmLoans).toHaveLength(2);
     expect(scopeDataForActor(data, user({ role: 'Company', permissions: ['analytics_view'] })).farmLoans).toEqual([]);
-    expect(scopeDataForActor(data, user({ role: 'Farm Owner', farmLocation: 'Farm A', permissions: ['analytics_view'] })).farmLoans).toEqual([]);
+    // A Farm Owner sees only their own farm's loan; staff on the same farm see none.
+    expect(scopeDataForActor(data, user({ role: 'Farm Owner', farmLocation: 'Farm A', permissions: ['analytics_view'] })).farmLoans).toEqual([{ farmLocation: 'Farm A' }]);
+    expect(scopeDataForActor(data, user({ role: 'Farm Staff', farmLocation: 'Farm A', permissions: [] })).farmLoans).toEqual([]);
   });
 
   it('matches farm names case- and whitespace-insensitively', () => {

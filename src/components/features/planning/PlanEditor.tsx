@@ -2,14 +2,17 @@
 
 import React, { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowLeft, RotateCcw, Save } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { Input } from '@/components/ui/input';
-import type { ProposalPlanParams, ProposalPlanRecord } from '@/types';
+import type { FeedProductItem, ProposalPlanParams, ProposalPlanRecord } from '@/types';
 import { DEFAULT_PLAN, calculatePlan, feedForPeriod } from '@/lib/proposal-plan';
-import { getErrorMessage } from '@/lib/utils';
+import { bankSchedule, ccTrades, simulateLoan } from '@/lib/farm-loan';
+import { planLoanInputs } from '@/lib/plan-loan';
+import { BUY_PLAN_LABEL, buyingSentence } from './LoanParts';
+import { BankPaymentsTable, CcTradesTable, exportBankPlan, exportTrades, monthLabel } from './LoanTables';
 import { NUM } from '../flow/FlowShell';
+import PlanFlow from './PlanFlow';
 
 interface PlanEditorProps {
   /** Which of the ten plans this is, 1 to 10. */
@@ -20,17 +23,21 @@ interface PlanEditorProps {
   startFrom?: ProposalPlanParams;
   onBack: () => void;
   onSave: (name: string, params: ProposalPlanParams) => Promise<void>;
+  /** The feed list, to pick each feed from. */
+  products?: FeedProductItem[];
 }
 
-type Tab = 'overview' | 'months' | 'batches' | 'feed';
+type Tab = 'overview' | 'bank' | 'months' | 'batches' | 'feed' | 'numbers';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'overview', label: 'Overview' },
+  { key: 'bank', label: 'Bank loan' },
   { key: 'months', label: 'Months' },
   { key: 'batches', label: 'Batches' },
   { key: 'feed', label: 'Feed' },
+  { key: 'numbers', label: 'The numbers' },
 ];
 
-type Key = keyof ProposalPlanParams;
+type Key = Exclude<keyof ProposalPlanParams, 'feedLines' | 'loan'>;
 const GROUPS: { title: string; fields: { key: Key; label: string; unit: string; step?: string }[] }[] = [
   { title: 'The herd', fields: [
     { key: 'targetStockLevel', label: 'Cattle to keep', unit: 'head' },
@@ -45,12 +52,6 @@ const GROUPS: { title: string; fields: { key: Key; label: string; unit: string; 
   { title: 'Prices', fields: [
     { key: 'purchasePricePerKgKhr', label: 'Buy price for each kg', unit: '៛' },
     { key: 'sellingPricePerKgKhr', label: 'Sell price for each kg', unit: '៛' },
-  ] },
-  { title: 'Feed', fields: [
-    { key: 'grassKgPerHeadDay', label: 'Grass for each animal each day', unit: 'kg' },
-    { key: 'grassCostPerKgKhr', label: 'Grass price for each kg', unit: '៛' },
-    { key: 'concentrateKgPerHeadDay', label: 'Concentrate for each animal each day', unit: 'kg' },
-    { key: 'concentrateCostPerKgKhr', label: 'Concentrate price for each kg', unit: '៛' },
   ] },
   { title: 'Money', fields: [
     { key: 'bankInterestRateAnnual', label: 'Bank interest', unit: '% a year', step: '0.1' },
@@ -90,41 +91,33 @@ function Rows({ rows, total }: { rows: [string, string][]; total?: [string, stri
   );
 }
 
-const toFields = (p: ProposalPlanParams): Record<Key, string> =>
-  Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v)])) as Record<Key, string>;
-
-export default function PlanEditor({ slot, plan, startFrom, onBack, onSave }: PlanEditorProps) {
+/**
+ * One fattening plan, read first: what it earns and how. Changing it is a
+ * guided dialog (PlanFlow); the tabs below show the details.
+ */
+export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, products = [] }: PlanEditorProps) {
   const [tab, setTab] = useState<Tab>('overview');
-  const [fields, setFields] = useState<Record<Key, string>>(() => toFields({ ...DEFAULT_PLAN, ...(plan?.params ?? startFrom ?? {}) }));
-  const [name, setName] = useState(plan?.name ?? `Plan ${slot}`);
-  const [saving, setSaving] = useState(false);
+  // A new plan (not saved yet) opens the dialog straight away.
+  const [editing, setEditing] = useState(!plan);
   const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [error, setError] = useState('');
-  const [confirmReset, setConfirmReset] = useState(false);
   const [feedHead, setFeedHead] = useState('');
   const [feedDays, setFeedDays] = useState('30');
 
-  const params = useMemo<ProposalPlanParams>(
-    () => Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, Number(v) || 0])) as unknown as ProposalPlanParams,
-    [fields]
-  );
+  const params = useMemo<ProposalPlanParams>(() => ({ ...DEFAULT_PLAN, ...(plan?.params ?? startFrom ?? {}) }), [plan, startFrom]);
+  const name = plan?.name ?? `Plan ${slot}`;
   const r = useMemo(() => calculatePlan(params), [params]);
+  // The plan's bank loan, run like a farm loan: payments to the bank and trades with CC Livestock.
+  const loan = useMemo(() => {
+    const x = planLoanInputs(params);
+    const sim = simulateLoan(x.terms, x.assumptions);
+    return { ...x, sim, payments: bankSchedule(sim), trades: ccTrades(sim) };
+  }, [params]);
+  const [loanView, setLoanView] = useState<'payments' | 'trades'>('payments');
   const feed = useMemo(() => feedForPeriod(params, Number(feedHead) || params.targetStockLevel, Number(feedDays) || 0), [params, feedHead, feedDays]);
 
-  const set = (key: Key, value: string) => { setFields(f => ({ ...f, [key]: value })); setSavedAt(null); };
-
-  const save = async () => {
-    if (!name.trim()) { setError('Give the plan a name.'); return; }
-    setSaving(true);
-    setError('');
-    try {
-      await onSave(name.trim(), params);
-      setSavedAt(new Date().toLocaleTimeString());
-    } catch (e) {
-      setError(getErrorMessage(e, 'Could not save the plan.'));
-    } finally {
-      setSaving(false);
-    }
+  const save = async (n: string, p: ProposalPlanParams) => {
+    await onSave(n, p);
+    setSavedAt(new Date().toLocaleTimeString());
   };
 
   const mismatch = params.numberOfBatches * params.cattlePerBatch !== params.targetStockLevel;
@@ -134,17 +127,22 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave }: Pl
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <Button variant="ghost" onClick={onBack} className="-ml-3"><ArrowLeft /> All plans</Button>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <label className="block min-w-0 flex-1 sm:max-w-md">
-          <span className="mb-1 block text-base text-ink-muted">Plan {slot}{plan ? '' : ' (not saved yet)'}</span>
-          <Input aria-label="Name of the plan" value={name} maxLength={60} onChange={e => { setName(e.target.value); setSavedAt(null); setError(''); }} className="h-14 text-xl font-semibold" />
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setConfirmReset(true)}><RotateCcw /> Standard plan</Button>
-          <Button size="lg" onClick={save} disabled={saving}><Save /> {saving ? 'Saving…' : 'Save plan'}</Button>
+        <div className="min-w-0">
+          <p className="text-base text-ink-muted">Plan {slot}{plan ? '' : ' (not saved yet, standard numbers)'}</p>
+          <h2 className="break-words text-2xl font-semibold text-ink">{name}</h2>
+          {plan && <p className="text-sm text-ink-muted">Saved {plan.updatedAt.slice(0, 10)}{plan.updatedBy ? ` by ${plan.updatedBy}` : ''}</p>}
         </div>
+        <Button size="lg" onClick={() => setEditing(true)}><Pencil /> {plan ? 'Change the plan' : 'Set up the plan'}</Button>
       </div>
-      <p className="text-base text-ink-muted">Try the numbers and see what the plan earns. It does not change your real herd.</p>
-      {(savedAt || error) && <p role={error ? 'alert' : 'status'} className={`text-base font-medium ${error ? 'text-rose-700' : 'text-emerald-800'}`}>{error || `Plan saved at ${savedAt}.`}</p>}
+      {savedAt && <p role="status" className="text-base font-medium text-emerald-800">Plan saved at {savedAt}.</p>}
+
+      <section className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 text-lg text-ink">
+        <h3 className="text-lg font-semibold">In short</h3>
+        <p>Keep <span className="font-semibold">{r.totalCattle.toLocaleString()} cattle</span>, each fattened {params.fatteningPeriodDays} days ({r.fatteningMonths} months) from {params.initialWeightKg} kg to {Math.round(r.finalWeightKgPerHead)} kg. About {r.monthlyBatchQty.toLocaleString()} are bought and sold each month.</p>
+        <p>Each animal costs {riel(r.costPerHeadKhr)} (cattle, feed and interest) and sells for {riel(r.sellingPricePerHeadKhr)}: <span className={`font-semibold ${r.profitPerHeadKhr < 0 ? 'text-rose-700' : 'text-emerald-800'}`}>{r.profitPerHeadKhr < 0 ? 'a loss of ' : 'a profit of '}{riel(Math.abs(r.profitPerHeadKhr))}</span>.</p>
+        <p>{buyingSentence(loan.assumptions, loan.sim.months.filter(m => m.year === 1).reduce((s, m) => s + m.headBought, 0), 'The farm')} The bank pays out <span className="font-semibold">{riel(loan.sim.years[0]?.drawnKhr ?? 0)}</span> in {monthLabel(loan.terms.startMonth)}{loan.terms.loanCovers === 'all' && !loan.terms.loanAmountKhr ? ' for cattle, a year of feed and interest' : ''}; in year 1 the farm pays it {riel(loan.payments.years[0]?.totalKhr ?? 0)} itself (CC Livestock does not repay the bank).</p>
+        <p>Once the herd is full the farm makes <span className={`font-semibold ${r.annualProfitKhr < 0 ? 'text-rose-700' : 'text-emerald-800'}`}>{signedRiel(r.annualProfitKhr)} a year</span> on {riel(r.initialCattlePurchaseKhr)} to start ({Math.round(r.annualRoiPercent * 10) / 10}% a year).</p>
+      </section>
 
       <section className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <Tile label="Profit each year" value={signedRiel(r.annualProfitKhr)} sub="once the herd is full" tone={r.annualProfitKhr < 0 ? 'bad' : 'good'} />
@@ -152,37 +150,9 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave }: Pl
         <Tile label="Money to start" value={riel(r.initialCattlePurchaseKhr)} sub={`to buy ${r.totalCattle.toLocaleString()} cattle`} />
         <Tile label="Return each year" value={`${Math.round(r.annualRoiPercent * 10) / 10}%`} sub="profit over the money to start" tone={r.annualRoiPercent < 0 ? 'bad' : undefined} />
       </section>
+      {mismatch && <p className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">{params.numberOfBatches} batches of {params.cattlePerBatch} is {(params.numberOfBatches * params.cattlePerBatch).toLocaleString()} cattle, but the plan keeps {params.targetStockLevel.toLocaleString()}. The Batches tab uses the batch numbers; everything else uses the herd size.</p>}
 
-      <details open className="group rounded-2xl border border-slate-200 bg-white">
-        <summary className="flex min-h-14 cursor-pointer items-center justify-between gap-3 px-4 text-lg font-semibold text-ink">
-          <span>The plan</span>
-          <span className="text-base font-normal text-ink-muted group-open:hidden">Tap to change the numbers</span>
-        </summary>
-        <div className="grid grid-cols-1 gap-6 border-t border-slate-100 p-4 md:grid-cols-2">
-          {GROUPS.map(g => (
-            <fieldset key={g.title} className="space-y-3">
-              <legend className="mb-1 text-lg font-semibold text-ink">{g.title}</legend>
-              {g.fields.map(f => (
-                <label key={f.key} className="block">
-                  <span className="mb-1 block text-base text-ink">{f.label}</span>
-                  <div className="flex items-center gap-2">
-                    <Input type="number" inputMode="decimal" step={f.step} value={fields[f.key]} onChange={e => set(f.key, e.target.value)} className={`${SELECT_INPUT} ${NUM}`} />
-                    <span className="w-16 shrink-0 text-base text-ink-muted">{f.unit}</span>
-                  </div>
-                </label>
-              ))}
-              {g.title === 'The herd' && mismatch && (
-                <p className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">{params.numberOfBatches} batches of {params.cattlePerBatch} is {(params.numberOfBatches * params.cattlePerBatch).toLocaleString()} cattle, but you keep {params.targetStockLevel.toLocaleString()}. The Batches tab uses the batch numbers; everything else uses the herd size.</p>
-              )}
-              {g.title === 'Each animal' && <p className="text-base text-ink-muted">Weight when sold: <span className="font-semibold text-ink">{Math.round(r.finalWeightKgPerHead)} kg</span></p>}
-              {g.title === 'Prices' && <p className="text-base text-ink-muted">Buy {riel(r.purchasePricePerHeadKhr)} · sell {riel(r.sellingPricePerHeadKhr)} for each animal</p>}
-              {g.title === 'Feed' && <p className="text-base text-ink-muted">Feed for one animal for the whole time: <span className="font-semibold text-ink">{riel(r.perHeadFeedCostKhr)}</span></p>}
-            </fieldset>
-          ))}
-        </div>
-      </details>
-
-      <div role="tablist" aria-label="Plan results" className="flex rounded-xl bg-slate-100 p-1 sm:w-fit">
+      <div role="tablist" aria-label="Plan results" className="flex overflow-x-auto rounded-xl bg-slate-100 p-1 sm:w-fit">
         {TABS.map(t => (
           <button key={t.key} role="tab" type="button" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
             className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-3 text-base font-medium sm:px-5 ${tab === t.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
@@ -199,8 +169,7 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave }: Pl
               rows={[
                 ['Sells for', riel(r.sellingPricePerHeadKhr)],
                 ['Bought for', riel(r.purchasePricePerHeadKhr)],
-                ['Grass', riel(r.perHeadGrassCostKhr)],
-                ['Concentrate', riel(r.perHeadConcentrateCostKhr)],
+                ...r.feed.map(f => [f.name, riel(f.perHeadKhr)] as [string, string]),
                 ['Bank interest', riel(r.interestPerHeadKhr)],
                 ['Total cost', riel(r.costPerHeadKhr)],
               ]}
@@ -213,8 +182,7 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave }: Pl
               rows={[
                 ['Sales', riel(r.annualSalesRevenueKhr)],
                 ['Cattle bought', riel(r.annualCattlePurchasesKhr)],
-                ['Grass', riel(r.annualGrassCostKhr)],
-                ['Concentrate', riel(r.annualConcentrateCostKhr)],
+                ...r.feed.map(f => [f.name, riel(f.annualKhr)] as [string, string]),
                 ['Bank interest', riel(r.annualBankInterestKhr)],
                 ['Total cost', riel(r.annualTotalCostKhr)],
               ]}
@@ -222,6 +190,32 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave }: Pl
             />
             <p className="text-base text-ink-muted">About {r.monthlyBatchQty.toLocaleString()} animals are bought and sold each month, and each stays {params.fatteningPeriodDays} days.</p>
           </section>
+        </div>
+      )}
+
+      {tab === 'bank' && (
+        <div className="space-y-4">
+          <section className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+            <Tile label="Loan, paid out once" value={riel(loan.sim.years[0]?.drawnKhr ?? 0)} sub={`${monthLabel(loan.terms.startMonth)} · ${loan.terms.annualRatePct}% a year`} />
+            <Tile label="Paid to the bank, year 1" value={riel(loan.payments.years[0]?.totalKhr ?? 0)} sub={`interest ${riel(loan.payments.years[0]?.interestKhr ?? 0)}`} />
+            <Tile label="Feed from CC Livestock, year 1" value={riel(loan.sim.years[0]?.feedKhr ?? 0)} sub={`cattle ${riel(loan.sim.years[0]?.purchasesKhr ?? 0)}`} />
+            <Tile label="Own money needed" value={loan.sim.moneyNeededKhr > 0 ? riel(loan.sim.moneyNeededKhr) : 'None'} tone={loan.sim.moneyNeededKhr > 0 ? 'bad' : 'good'} />
+          </section>
+          <p className="text-base text-ink-muted">
+            {BUY_PLAN_LABEL[loan.assumptions.buyPlan ?? 'monthly']}. Repaid {loan.terms.repayments.map(x => `${x.pct}% in month ${x.month}`).join(', ')}{loan.terms.autoRenew ? '; renews in year 2' : ''}.{params.loan ? '' : ' Standard terms: change the plan to set the bank loan.'}
+            {' '}This uses the loan and buying plan month by month, so its profit can differ from the steady-state numbers on the Overview.
+          </p>
+          <div role="tablist" aria-label="Bank loan details" className="flex rounded-xl bg-slate-100 p-1 sm:w-fit">
+            {([['payments', 'Payments to the bank'], ['trades', 'Trades with CC Livestock']] as const).map(([k, label]) => (
+              <button key={k} role="tab" type="button" aria-selected={loanView === k} onClick={() => setLoanView(k)}
+                className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-4 text-base font-medium ${loanView === k ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {loanView === 'payments'
+            ? <BankPaymentsTable payments={loan.payments} intro="The loan is paid out once, in month 1 of each loan year, as one fund. The farm pays interest every month and pays the loan back in the repayment months (highlighted). Only the farm pays the bank." onDownload={() => exportBankPlan(name, loan.terms.startMonth, loan.payments)} />
+            : <CcTradesTable trades={loan.trades} farmName="the farm" onDownload={() => exportTrades(name, loan.terms.startMonth, loan.trades)} />}
         </div>
       )}
 
@@ -271,7 +265,7 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave }: Pl
                 </div>
                 <p className="text-base text-ink-muted">{b.cattleCount} cattle · bought month {b.purchaseMonth} · sold month {b.saleMonth}</p>
                 <p className="mt-1 text-base text-ink">Costs {riel(b.totalCostKhr)} · Sales {riel(b.revenueKhr)}</p>
-                <p className="text-base text-ink-muted">Needs {Math.round(b.grassReqKg).toLocaleString()} kg grass and {Math.round(b.concentrateReqKg).toLocaleString()} kg concentrate</p>
+                <p className="text-base text-ink-muted">Needs {b.feedKg.map(f => `${f.kg.toLocaleString()} kg ${f.name}`).join(', ')}</p>
               </li>
             ))}
           </ul>
@@ -288,26 +282,31 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave }: Pl
             </label>
           </section>
           <Rows
-            rows={[
-              ['Grass', `${Math.round(feed.grassKg).toLocaleString()} kg · ${riel(feed.grassCostKhr)}`],
-              ['Concentrate', `${Math.round(feed.concentrateKg).toLocaleString()} kg · ${riel(feed.concentrateCostKhr)}`],
-            ]}
+            rows={feed.lines.map(l => [l.name, `${l.kg.toLocaleString()} kg · ${riel(l.costKhr)}`] as [string, string])}
             total={['Feed cost', riel(feed.totalCostKhr)]}
           />
         </div>
       )}
 
-      {confirmReset && (
-        <ConfirmModal
-          isOpen
-          onClose={() => setConfirmReset(false)}
-          onConfirm={() => { setFields(toFields({ ...DEFAULT_PLAN })); setFeedHead(''); setFeedDays('30'); setSavedAt(null); }}
-          title="Go back to the standard plan?"
-          description="This puts every number back to the standard plan (400 cattle, 120 days, 1.25 kg a day). Your saved plan is not changed until you press Save plan."
-          type="warning"
-          confirmText="Use standard plan"
-        />
+      {tab === 'numbers' && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <section className="space-y-2">
+            <h3 className="text-lg font-semibold text-ink">Feed, each animal a day</h3>
+            <Rows
+              rows={r.feed.map(f => [f.name, `${f.kgPerHeadDay.toLocaleString()} kg × ${riel(f.pricePerKgKhr)} = ${riel(f.kgPerHeadDay * f.pricePerKgKhr)}`] as [string, string])}
+              total={['Feed a day', riel(r.dailyFeedPerHeadKhr)]}
+            />
+          </section>
+          {GROUPS.map(g => (
+            <section key={g.title} className="space-y-2">
+              <h3 className="text-lg font-semibold text-ink">{g.title}</h3>
+              <Rows rows={g.fields.map(f => [f.label, `${params[f.key].toLocaleString()} ${f.unit}`] as [string, string])} />
+            </section>
+          ))}
+        </div>
       )}
+
+      <PlanFlow isOpen={editing} onClose={() => setEditing(false)} slot={slot} name={name} params={params} products={products} onSave={save} />
     </div>
   );
 }
