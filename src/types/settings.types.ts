@@ -1,3 +1,5 @@
+import type { BillingSettings } from './billing.types';
+
 export type PermissionKey =
   | 'dashboard_view'
   | 'stock_view'
@@ -206,6 +208,10 @@ export interface MasterSetup {
   costCategories?: string[];
   /** How many days before a batch's selling date it is flagged for sale review. Missing: 15. */
   saleReviewDays?: number;
+  /** Months on the farm after which unsold cattle go on the long-stay list (src/lib/long-stay.ts); 6 when unset. */
+  longStayMonths?: number;
+  /** What CC Livestock is billed per registered animal (src/lib/billing.ts); only Super Admin and Admin see or change it. */
+  billing?: BillingSettings;
   /** Alerts sent outside the app (Telegram). The bot token is in the server environment, not here. */
   alerts?: { telegramEnabled?: boolean; chatId?: string; sendHour?: number };
   /** What the alert job last did; written by the server, never by a settings save. */

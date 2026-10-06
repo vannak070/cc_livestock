@@ -9,6 +9,8 @@ import { en as feedPageEn } from './sections/feedPage';
 import { en as feedFlowsEn } from './sections/feedFlows';
 import { en as summaryPageEn } from './sections/summaryPage';
 import { en as farmLimitsEn } from './sections/farmLimits';
+import { en as longStayEn } from './sections/longStay';
+import { en as billingEn } from './sections/billing';
 import { en as addCattleEn } from './sections/addCattle';
 import { en as batchesPageEn } from './sections/batchesPage';
 import { en as planningEn } from './sections/planning';
@@ -22,6 +24,7 @@ export const en = {
   nav: {
     dashboard: 'Summary',
     today: 'Today',
+    billing: 'Billing',
     summary: 'Summary',
     weights: 'Weights',
     dailyWork: 'Daily work',
@@ -363,6 +366,8 @@ export const en = {
   feedFlows: feedFlowsEn,
   summaryPage: summaryPageEn,
   farmLimits: farmLimitsEn,
+  longStay: longStayEn,
+  billing: billingEn,
   addCattle: addCattleEn,
   batchesPage: batchesPageEn,
   planning: planningEn,

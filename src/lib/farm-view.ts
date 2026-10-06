@@ -34,6 +34,7 @@ export function scopeDataToFarm(data: ERPLivestockData, farmLoc: string, options
     farmCosts: (data.farmCosts ?? []).filter(item => matchesFarm(item.farmLocation)),
     farmLimitRequests: (data.farmLimitRequests ?? []).filter(item => matchesFarm(item.farmLocation)),
     farmLimitChanges: (data.farmLimitChanges ?? []).filter(item => matchesFarm(item.farmLocation)),
+    cattleFollowUps: (data.cattleFollowUps ?? []).filter(item => stockIds.has(item.cowId)),
     // Default products, plus the ones this farm made; other farms' own products stay out of view.
     feedProducts: productsForFarm(data.feedProducts ?? [], farmLoc),
     ...(options.includeFeed ? { feedTransactions } : {}),

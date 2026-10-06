@@ -5,13 +5,15 @@ import { ArrowLeft, Beef, Scale, Syringe, DollarSign, Trash2 } from 'lucide-reac
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
-import type { BatchItem, FeedStockTransaction, HealthLogItem, UserRoleItem } from '@/lib/types';
+import type { BatchItem, CattleFollowUp, FeedStockTransaction, HealthLogItem, UserRoleItem } from '@/lib/types';
 import type { SalesRecord, StockItem, WeightRecord } from '@/lib/xlsx-parser';
 import { hasPermission, getErrorMessage } from '@/lib/utils';
 import { weighSchedules } from '@/lib/attention';
 import { feedShares } from '@/lib/farm-costs';
 import { daysOnFarm, growth, money, weighPoints } from '@/lib/cattle-stats';
 import { useText, useValueText } from '@/hooks/useText';
+import LongStaySection from './LongStaySection';
+import { canSetLimits } from '@/lib/farm-limit';
 
 interface CattleDetailPageProps {
   cowId: string;
@@ -22,7 +24,13 @@ interface CattleDetailPageProps {
   /** For this animal's share of its batch's daily feed. */
   feedTransactions?: FeedStockTransaction[];
   batches?: BatchItem[];
+  /** Next actions for long-stay cattle and the "months on the farm" setting. */
+  followUps?: CattleFollowUp[];
+  longStayMonthsSetting?: number;
   currentUser?: UserRoleItem;
+  /** Opens the dialog to record the next action, and marks one done; only given to people who may. */
+  onRecordFollowUp?: (cowId: string, months: number | undefined, current?: CattleFollowUp) => void;
+  onFinishFollowUp?: (id: string) => Promise<void>;
   onBack: () => void;
   onWeigh: (cowId: string) => void;
   onTreat: (cowId: string) => void;
@@ -64,7 +72,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default function CattleDetailPage({ cowId, stock, weightTracking, salesTracking, healthLogs, feedTransactions = [], batches = [], currentUser, onBack, onWeigh, onTreat, onSell, onDelete }: CattleDetailPageProps) {
+export default function CattleDetailPage({ cowId, stock, weightTracking, salesTracking, healthLogs, feedTransactions = [], batches = [], followUps = [], longStayMonthsSetting, currentUser, onRecordFollowUp, onFinishFollowUp, onBack, onWeigh, onTreat, onSell, onDelete }: CattleDetailPageProps) {
   const { tx } = useText('cattlePage');
   const val = useValueText();
   const [tab, setTab] = useState<Tab>('overview');
@@ -106,7 +114,8 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
   const canWeigh = isActive && hasPermission(currentUser, 'weight_record');
   const canTreat = isActive && hasPermission(currentUser, 'health_record');
   const canSell = isActive && hasPermission(currentUser, 'sales_record');
-  const canDelete = !!onDelete && hasPermission(currentUser, 'stock_delete');
+  // Registered animals are billed, so only a Super Admin or Admin can remove one (the server checks too).
+  const canDelete = !!onDelete && hasPermission(currentUser, 'stock_delete') && canSetLimits(currentUser);
   // Prices and profit only for people who see sales or costs; vets see neither.
   const canSeeMoney = hasPermission(currentUser, 'sales_view') || hasPermission(currentUser, 'costs_view');
 
@@ -167,6 +176,8 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
           {canSell && <Button size="lg" variant="outline" onClick={() => onSell(cow.id)}><DollarSign /> {tx('sell')}</Button>}
         </section>
       )}
+
+      {isActive && <LongStaySection cow={cow} followUps={followUps} monthsSetting={longStayMonthsSetting} onRecord={onRecordFollowUp} onFinish={onFinishFollowUp} />}
 
       {needsWeigh && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4">

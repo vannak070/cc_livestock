@@ -1,3 +1,4 @@
+import { capacityAlertService } from '../services/capacity-alert.service';
 import { saleAlertService } from '../services/sale-alert.service';
 import { telegramService } from '../services/telegram.service';
 
@@ -10,7 +11,7 @@ const FIRST_DELAY_MS = 30 * 1000;
  * real Telegram messages by accident.
  */
 export function startAlertScheduler(): void {
-  if (process.env.NODE_ENV !== 'production' && process.env.ALERTS_SCHEDULER !== 'on') {
+  if (!telegramService.sendingAllowedHere()) {
     console.log('[alerts] Scheduler is off outside production (set ALERTS_SCHEDULER=on to run it).');
     return;
   }
@@ -27,6 +28,13 @@ export function startAlertScheduler(): void {
       if (result.sent > 0) console.log(`[alerts] Sent a Telegram alert for ${result.sent} batch(es).`);
     } catch (err) {
       console.error('[alerts] Check failed:', err instanceof Error ? err.message : err);
+    }
+    // Cattle-limit warnings are independent of the sale alerts: one failing must not stop the other.
+    try {
+      const capacity = await capacityAlertService.run();
+      if (capacity.sent > 0) console.log(`[alerts] Sent ${capacity.sent} cattle-limit warning(s).`);
+    } catch (err) {
+      console.error('[alerts] Cattle-limit check failed:', err instanceof Error ? err.message : err);
     } finally {
       running = false;
     }

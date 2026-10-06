@@ -14,6 +14,8 @@ import {
   updateBatchAction, 
   recordBatchWeightsAction, 
   reviewBatchSaleAction,
+  recordFollowUpAction,
+  finishFollowUpAction,
   deleteStockItemAction,
   deleteBatchAction,
   deleteHealthLogAction,
@@ -48,6 +50,13 @@ import ReportsPage from './features/reports/ReportsPage';
 import PlanningPage from './features/planning/PlanningPage';
 import SettingsPage from './features/settings/SettingsPage';
 import FarmsPage from './features/farms/FarmsPage';
+import { LimitRequestFlow } from './features/farms/FarmLimitFlows';
+import FollowUpFlow from './features/cattle/FollowUpFlow';
+import BillingPage from './features/billing/BillingPage';
+import { canSeeBilling } from '@/lib/billing';
+import type { FollowUpInput } from '@/lib/long-stay';
+import type { CattleFollowUp } from '@/lib/types';
+import { limitState } from '@/lib/farm-limit';
 import { useOnChange } from '@/hooks/useOnChange';
 import CattleList from './features/cattle/CattleList';
 import CattleDetailPage from './features/cattle/CattleDetailPage';
@@ -97,10 +106,17 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   const [weighBatchId, setWeighBatchId] = useState<string | null>(null);
   // Alerts link straight to the sale review; any other way into Batches starts on the usual list.
   const [batchesShow, setBatchesShow] = useState<BatchesShow>('Active');
-  const changeTab = (tab: ActiveTabType) => { setBatchesShow('Active'); setActiveTab(tab); };
+  // Today can open the Cattle page already showing the long-stay list.
+  const [cattleLongStay, setCattleLongStay] = useState(false);
+  const changeTab = (tab: ActiveTabType) => { setBatchesShow('Active'); setCattleLongStay(false); setActiveTab(tab); };
+  const openLongStay = () => { setCattleLongStay(true); setSelectedCowDetailsId(null); setActiveTab('cow-inventory'); };
+  // The "what happens next" dialog for a long-stay animal.
+  const [followUpFor, setFollowUpFor] = useState<null | { cowId: string; months?: number; current?: CattleFollowUp }>(null);
   const openSaleReview = () => { setBatchesShow('Review'); setActiveTab('batch-management'); };
   // The day's feed dialog: optionally for one farm (the office helping a farm) and/or a missed day.
   const [dailyFeed, setDailyFeed] = useState<null | { farm?: string; day?: string }>(null);
+  // "Ask for more cattle" (a farm's cattle limit, src/lib/farm-limit.ts), opened from Today, Farms and Add cattle.
+  const [askLimitFarm, setAskLimitFarm] = useState<string | null>(null);
   // Several animals chosen up front for Treat, for example a whole batch.
   const [treatCowIds, setTreatCowIds] = useState<string[] | undefined>(undefined);
   const [costOpen, setCostOpen] = useState(false);
@@ -139,6 +155,10 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   const dbData = useMemo(() => (focusFarm ? scopeDataToFarm(fullData, focusFarm, { includeFeed: true }) : fullData), [fullData, focusFarm]);
   // The same person, tied to the chosen farm, for the pages that hide their own farm filters for farm staff.
   const pageUser = useMemo(() => (focusFarm ? { ...currentUser, farmLocation: focusFarm } : currentUser), [currentUser, focusFarm]);
+  // Who may ask for a higher cattle limit (same rule as farm-limit.service request()); admins set limits themselves.
+  const canAskMoreCattle = hasPermission(currentUser, 'stock_create') || hasPermission(currentUser, 'farms_manage');
+  // Who records next actions for long-stay cattle (same permission as the batch sale review).
+  const canReviewLongStay = hasPermission(currentUser, 'batch_review');
 
   // Mutations
   const addCowMutation = useMutation({
@@ -149,6 +169,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      queryClient.invalidateQueries({ queryKey: ['billing'] });
     }
   });
 
@@ -251,6 +272,27 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     }
   });
 
+  const recordFollowUpMutation = useMutation({
+    mutationFn: async ({ cowId, input }: { cowId: string; input: FollowUpInput }) => {
+      const res = await recordFollowUpAction(cowId, input);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+    }
+  });
+
+  const finishFollowUpMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await finishFollowUpAction(id);
+      if (!res.success) throw new Error(res.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+    }
+  });
+
   const deleteStockItemMutation = useMutation({
     mutationFn: async (cowId: string) => {
       const res = await deleteStockItemAction(cowId);
@@ -259,6 +301,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      queryClient.invalidateQueries({ queryKey: ['billing'] });
     }
   });
 
@@ -493,6 +536,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
 
     // Settings is also a farm owner's People page, and Planning is for a few roles only, so they have their own rules.
     const blocked = activeTab === 'settings' ? !canOpenPeople(currentUser)
+      : activeTab === 'billing' ? !canSeeBilling(currentUser)
       : activeTab === 'proposal-plan' ? !canUsePlanning(currentUser)
       : !!permissionKey && !hasPermission(currentUser, permissionKey);
     if (blocked && activeTab !== 'today') {
@@ -519,7 +563,9 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           recordActions={recordActions}
           onNavigate={changeTab}
           onOpenSaleReview={openSaleReview}
+          onOpenLongStay={openLongStay}
           onRecordFeed={hasPermission(currentUser, 'feed_record') ? (farm, day) => setDailyFeed({ farm, day }) : undefined}
+          onAskMore={canAskMoreCattle ? setAskLimitFarm : undefined}
         />
       )}
 
@@ -541,6 +587,10 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           healthLogs={dbData.healthLogs}
           feedTransactions={dbData.feedTransactions}
           batches={dbData.batches}
+          followUps={dbData.cattleFollowUps}
+          longStayMonthsSetting={dbData.settings?.longStayMonths}
+          onRecordFollowUp={canReviewLongStay ? (cowId, months, current) => setFollowUpFor({ cowId, months, current }) : undefined}
+          onFinishFollowUp={canReviewLongStay ? async id => { await finishFollowUpMutation.mutateAsync(id); } : undefined}
           currentUser={pageUser}
           onBack={() => setSelectedCowDetailsId(null)}
           onWeigh={cowId => handleOpenQuickEntry('weight', cowId)}
@@ -560,6 +610,9 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           onAddCowClick={() => handleOpenQuickEntry('add', null)}
           currentUser={pageUser}
           farms={dbData.settings?.farms ?? []}
+          followUps={dbData.cattleFollowUps}
+          longStayMonthsSetting={dbData.settings?.longStayMonths}
+          startLongStay={cattleLongStay}
         />
       )}
 
@@ -713,6 +766,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         />
       )}
 
+      {activeTab === 'billing' && canSeeBilling(currentUser) && <BillingPage />}
+
       {activeTab === 'farms' && (
         <FarmsPage
           settings={dbData.settings}
@@ -720,6 +775,9 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           stock={fullData.stock}
           batches={fullData.batches}
           onRecordFeed={hasPermission(currentUser, 'feed_record') ? farm => setDailyFeed({ farm }) : undefined}
+          limitRequests={fullData.farmLimitRequests}
+          limitChanges={fullData.farmLimitChanges}
+          onAskMore={canAskMoreCattle ? setAskLimitFarm : undefined}
         />
       )}
 
@@ -760,7 +818,31 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         onSave={async cow => {
           await addCowMutation.mutateAsync(cow);
         }}
+        registeredCattle={fullData.stock}
+        limitRequests={fullData.farmLimitRequests}
+        onAskMore={canAskMoreCattle ? setAskLimitFarm : undefined}
       />
+      <FollowUpFlow
+        isOpen={!!followUpFor}
+        onClose={() => setFollowUpFor(null)}
+        cowId={followUpFor?.cowId ?? ''}
+        months={followUpFor?.months}
+        current={followUpFor?.current}
+        onSave={async (cowId, input) => { await recordFollowUpMutation.mutateAsync({ cowId, input }); }}
+      />
+      {(() => {
+        const farm = (fullData.settings?.farms ?? []).find(f => f.name === askLimitFarm);
+        const ls = farm ? limitState(farm, fullData.stock) : { limit: 0, used: 0 };
+        return (
+          <LimitRequestFlow
+            isOpen={!!askLimitFarm}
+            onClose={() => setAskLimitFarm(null)}
+            farm={askLimitFarm ?? ''}
+            limit={ls.limit}
+            used={ls.used}
+          />
+        );
+      })()}
       <FeedInFlow
         isOpen={isQuickEntryOpen && quickEntryTab === 'feed'}
         onClose={() => setIsQuickEntryOpen(false)}

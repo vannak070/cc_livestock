@@ -20,6 +20,10 @@ interface FarmFlowProps {
   onSave: (input: FarmInput) => Promise<FarmItem>;
   /** After a new farm is saved, the person may go straight on to add its owner. */
   onAddOwner?: (farm: FarmItem) => void;
+  /** Only a Super Admin or Admin sets the cattle limit; others see it locked. */
+  canSetLimit?: boolean;
+  /** Cattle already registered on the farm being edited (the limit cannot go below it). */
+  used?: number;
 }
 
 type Step = 'farm' | 'more' | 'done';
@@ -33,8 +37,9 @@ export default function FarmFlow(props: FarmFlowProps) {
   );
 }
 
-function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps) {
+function FarmBody({ onClose, farm, settings, onSave, onAddOwner, canSetLimit = false, used = 0 }: FarmFlowProps) {
   const { tx } = useText('farmsPage');
+  const lim = useText('farmLimits');
   const flow = useText('flow');
   const edit = !!farm;
   const [step, setStep] = useState<Step>('farm');
@@ -52,7 +57,11 @@ function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps
 
   const problem = (): string | null => {
     const errors: FarmErrors = validateFarm(settings, input(), farm ?? null);
-    return errors.name ?? errors.capacity ?? null;
+    if (errors.name) return errors.name;
+    if (!canSetLimit) return null; // the server keeps the existing limit for everyone else
+    const n = Number(capacity);
+    if (!(Number.isInteger(n) && n >= used)) return lim.tx('eLimit', { min: used });
+    return null;
   };
 
   const save = async () => {
@@ -95,9 +104,40 @@ function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps
           <Question label={tx('fName')}>
             <Input aria-label={tx('fName')} autoFocus value={name} onChange={e => { setName(e.target.value); setError(''); }} className="h-16 text-xl font-semibold" />
           </Question>
-          <Question label={tx('fCapacity')} hint={tx('fCapacityHint')}>
-            <Input aria-label={tx('fCapacity')} type="number" inputMode="numeric" value={capacity} onChange={e => { setCapacity(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
-          </Question>
+          {canSetLimit ? (
+            <Question label={lim.tx('limitLabel')} hint={lim.tx('limitHint')}>
+              <Input aria-label={lim.tx('limitLabel')} type="number" inputMode="numeric" min={used} step="1" value={capacity} onChange={e => { setCapacity(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+              {/* How full the farm is, and quick ways to give it more room (every registered animal counts, sold ones too). */}
+              {(() => {
+                const typed = Number(capacity);
+                const valid = capacity.trim() !== '' && Number.isInteger(typed) && typed >= 0;
+                const left = valid ? typed - used : 0;
+                const tone = !valid || typed === 0 ? 'text-ink-muted' : left < 0 ? 'text-rose-700' : left === 0 ? 'text-amber-800' : 'text-emerald-800';
+                const line = !valid || typed === 0 ? lim.tx('limitNowNone') : left < 0 ? lim.tx('limitNowBelow', { used }) : left === 0 ? lim.tx('limitNowFull', { used }) : lim.tx('limitNow', { used, left });
+                const add = (n: number) => { setCapacity(String((valid ? typed : 0) + n)); setError(''); };
+                const was = farm?.capacity ?? 0;
+                return (
+                  <div className="mt-3 space-y-3">
+                    <p role="status" className={`text-base font-medium ${tone}`}>
+                      {line}{edit && valid && typed !== was ? ` · ${lim.tx('limitWas', { from: was })}` : ''}
+                    </p>
+                    <div>
+                      <p className="mb-2 text-base font-medium text-ink">{lim.tx('limitAdd')}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {[10, 50, 100].map(n => (
+                          <Button key={n} type="button" variant="outline" aria-label={lim.tx('limitAddAria', { n })} onClick={() => add(n)}>{lim.tx('limitAddBtn', { n })}</Button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </Question>
+          ) : (
+            <p className="rounded-xl bg-slate-50 px-4 py-3 text-base text-ink">
+              {farm?.capacity ? lim.tx('limitLocked', { limit: farm.capacity }) : lim.tx('limitLockedNone')}
+            </p>
+          )}
           <Question label={tx('fWhoRuns')} hint={companyRun ? tx('fCompanyHint') : tx('fOwnerHint')}>
             <div className="flex flex-wrap gap-3">
               <Choice selected={!companyRun} onClick={() => setCompanyRun(false)}>{tx('fAnOwner')}</Choice>

@@ -2,17 +2,20 @@
 
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Crown, MapPin, Pencil, Plus, Trash2, UserPlus, Users, Wheat } from 'lucide-react';
+import { ArrowLeft, Clock, Crown, MapPin, Pencil, Plus, Trash2, UserPlus, Users, Wheat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { createUserAction, deleteFarmAction, saveFarmAction, setFarmOwnerAction } from '@/app/actions';
-import type { BatchItem, FarmItem, MasterSetup, StockItem, UserRoleItem } from '@/lib/types';
+import type { BatchItem, FarmItem, FarmLimitChange, FarmLimitRequest, MasterSetup, StockItem, UserRoleItem } from '@/lib/types';
+import { canSetLimits, limitState, limitUsed } from '@/lib/farm-limit';
+import { shownDay } from '@/lib/khmer-date';
 import { farmOwners, farmPeople, type FarmInput } from '@/lib/farm-settings';
 import type { PersonInput } from '@/lib/user-admin';
 import { getErrorMessage } from '@/lib/utils';
 import PersonFlow from '../settings/PersonFlow';
 import PeoplePanel from '../settings/PeoplePanel';
 import FarmFlow from './FarmFlow';
+import { LimitDecisionFlow } from './FarmLimitFlows';
 import { useText } from '@/hooks/useText';
 
 interface FarmsPageProps {
@@ -22,7 +25,14 @@ interface FarmsPageProps {
   batches: BatchItem[];
   /** Opens the day's feed record for a farm (the office recording for the farm); only for people who may record feed. */
   onRecordFeed?: (farmName: string) => void;
+  /** Requests for a higher cattle limit and the record of limit changes. */
+  limitRequests?: FarmLimitRequest[];
+  limitChanges?: FarmLimitChange[];
+  /** Opens "Ask for more cattle" for a farm; only for people who may ask. */
+  onAskMore?: (farmName: string) => void;
 }
+
+const norm = (s?: string) => (s ?? '').trim().toLowerCase();
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
@@ -40,8 +50,14 @@ async function ok<T>(res: { success: true; data: T } | { success: false; error: 
 
 type Add = { farm: FarmItem; kind: 'owner' | 'staff' };
 
-export default function FarmsPage({ settings, currentUser, stock, batches, onRecordFeed }: FarmsPageProps) {
-  const { tx, txn } = useText('farmsPage');
+export default function FarmsPage({ settings, currentUser, stock, batches, onRecordFeed, limitRequests = [], limitChanges = [], onAskMore }: FarmsPageProps) {
+  const { tx, txn, language } = useText('farmsPage');
+  const lim = useText('farmLimits');
+  const isLimitAdmin = canSetLimits(currentUser);
+  const [deciding, setDeciding] = useState<FarmLimitRequest | null>(null);
+  const pending = limitRequests.filter(r => r.status === 'pending').sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const pendingFor = (farm: string) => pending.find(r => norm(r.farmLocation) === norm(farm));
+  const lastChangeFor = (farm: string) => limitChanges.filter(c => norm(c.farmLocation) === norm(farm)).sort((a, b) => b.changedAt.localeCompare(a.changedAt))[0];
   const queryClient = useQueryClient();
   const [flow, setFlow] = useState<null | { farm: FarmItem | null }>(null);
   // The farm whose people page is open; looked up by id so a rename shows straight away.
@@ -147,6 +163,28 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
         <Button size="lg" onClick={() => setFlow({ farm: null })}><Plus /> {tx('addFarm')}</Button>
       </div>
 
+      {isLimitAdmin && pending.length > 0 && (
+        <section aria-labelledby="limit-requests" className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <h3 id="limit-requests" className="text-lg font-semibold text-amber-900">{lim.tx('requestsTitle')}</h3>
+          <ul className="space-y-2">
+            {pending.map(r => {
+              const farm = farms.find(f => norm(f.name) === norm(r.farmLocation));
+              const ls = farm ? limitState(farm, stock) : { limit: 0, used: limitUsed(r.farmLocation, stock), left: 0 };
+              return (
+                <li key={r.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-base font-semibold text-ink">{lim.tx('requestLine', { farm: r.farmLocation, n: r.extra, limit: ls.limit, used: ls.used })}</p>
+                    <p className="text-sm text-ink-muted">{lim.tx('requestBy', { who: r.requestedBy, day: shownDay(r.createdAt, language) })}</p>
+                    {r.reason && <p className="mt-1 break-words text-sm text-ink">{lim.tx('decideReason', { reason: r.reason })}</p>}
+                  </div>
+                  <Button onClick={() => setDeciding(r)}>{lim.tx('answer')}</Button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       {farms.length === 0 ? (
         <div className="space-y-4 rounded-2xl bg-slate-50 p-8 text-center">
           <p className="text-lg text-ink-muted">{tx('noFarms')}</p>
@@ -156,12 +194,19 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {farms.map(farm => {
             const cows = stock.filter(c => c.location === farm.name && c.status.toLowerCase() === 'active');
-            const capacity = farm.capacity || 100;
-            const fill = Math.min(100, Math.round((cows.length / capacity) * 100));
             const owners = farmOwners(settings, farm.name);
             const people = farmPeople(settings, farm.name);
             const farmBatches = batches.filter(b => b.status === 'Active' && (b.farmLocation === farm.name || cows.some(c => b.cowIds.includes(c.id)))).length;
-            const state = fill > 90 ? { bar: 'bg-rose-600', text: tx('almostFull') } : fill > 75 ? { bar: 'bg-amber-500', text: tx('gettingFull') } : { bar: 'bg-emerald-600', text: '' };
+            // The cattle limit: every animal ever registered on the farm counts (sold ones too).
+            const ls = limitState(farm, stock);
+            const pct = ls.limit > 0 ? Math.min(100, Math.round((ls.used / ls.limit) * 100)) : 0;
+            const limitStatus = ls.limit === 0 ? null
+              : ls.left === 0 ? { bar: 'bg-rose-600', text: lim.tx('limitUsed'), tone: 'text-rose-700' }
+                : pct >= 90 ? { bar: 'bg-amber-500', text: lim.tx('almostUsed'), tone: 'text-amber-800' }
+                  : pct >= 80 ? { bar: 'bg-amber-400', text: lim.tx('nearLevel') + ' · ' + lim.tx('leftN', { n: ls.left }), tone: 'text-amber-800' }
+                    : { bar: 'bg-emerald-600', text: lim.tx('leftN', { n: ls.left }), tone: 'text-ink-muted' };
+            const waiting = pendingFor(farm.name);
+            const last = lastChangeFor(farm.name);
             return (
               <li key={farm.id} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -176,13 +221,36 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
                   </div>
                 </div>
 
-                <div>
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-lg font-semibold text-ink">{tx('ofCapacity', { n: cows.length, capacity })}</p>
-                    {state.text && <p className={`text-base font-medium ${fill > 90 ? 'text-rose-700' : 'text-amber-800'}`}>{state.text}</p>}
-                  </div>
-                  <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fill} aria-label={tx('fullAria', { name: farm.name, pct: fill })}>
-                    <div className={`h-full rounded-full ${state.bar}`} style={{ width: `${fill}%` }} />
+                <div className="space-y-2">
+                  {ls.limit === 0 ? (
+                    <div className="rounded-xl bg-amber-50 p-3">
+                      <p className="text-base font-semibold text-amber-900">{lim.tx('noLimit')}</p>
+                      <p className="text-sm text-amber-900">{lim.tx('noLimitHint')}</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <p className="text-lg font-semibold text-ink">{lim.tx('usedOf', { used: ls.used, limit: ls.limit })}</p>
+                        {limitStatus && <p className={`text-base font-medium ${limitStatus.tone}`}>{limitStatus.text}</p>}
+                      </div>
+                      <div className="h-3 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={lim.tx('usedAria', { farm: farm.name, pct })}>
+                        <div className={`h-full rounded-full ${limitStatus?.bar ?? 'bg-emerald-600'}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </>
+                  )}
+                  <p className="text-sm text-ink-muted">{lim.tx('onFarmNow', { n: cows.length })}</p>
+                  {waiting && (
+                    <p className="flex items-start gap-2 rounded-xl bg-sky-50 px-3 py-2 text-base text-sky-900">
+                      <Clock className="mt-0.5 h-5 w-5 shrink-0" aria-hidden /> {lim.tx('waiting', { n: waiting.extra })}
+                    </p>
+                  )}
+                  {last && (
+                    <p className="text-sm text-ink-muted">{lim.tx('lastChange', { from: last.oldLimit, to: last.newLimit, who: last.changedBy, day: shownDay(last.changedAt, language) })}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {isLimitAdmin && waiting && <Button size="sm" onClick={() => setDeciding(waiting)}>{lim.tx('answer')}</Button>}
+                    {isLimitAdmin && !waiting && ls.limit === 0 && <Button size="sm" onClick={() => setFlow({ farm })}>{lim.tx('setLimit')}</Button>}
+                    {!isLimitAdmin && !waiting && onAskMore && (ls.limit === 0 || pct >= 80) && <Button variant="outline" size="sm" onClick={() => onAskMore(farm.name)}>{lim.tx('askMore')}</Button>}
                   </div>
                 </div>
 
@@ -220,7 +288,22 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
       </>
       )}
 
-      <FarmFlow isOpen={!!flow} onClose={() => setFlow(null)} farm={flow?.farm ?? null} settings={settings} onSave={save} onAddOwner={farm => setAdd({ farm, kind: 'owner' })} />
+      <FarmFlow
+        isOpen={!!flow}
+        onClose={() => setFlow(null)}
+        farm={flow?.farm ?? null}
+        settings={settings}
+        onSave={save}
+        onAddOwner={farm => setAdd({ farm, kind: 'owner' })}
+        canSetLimit={isLimitAdmin}
+        used={flow?.farm ? limitUsed(flow.farm.name, stock) : 0}
+      />
+
+      {isLimitAdmin && (() => {
+        const farm = deciding ? farms.find(f => norm(f.name) === norm(deciding.farmLocation)) : undefined;
+        const ls = deciding ? (farm ? limitState(farm, stock) : { limit: 0, used: limitUsed(deciding.farmLocation, stock) }) : { limit: 0, used: 0 };
+        return <LimitDecisionFlow isOpen={!!deciding} onClose={() => setDeciding(null)} request={deciding} limit={ls.limit} used={ls.used} />;
+      })()}
 
       {currentUser && add && (
         <PersonFlow

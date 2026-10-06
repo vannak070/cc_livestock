@@ -6,6 +6,7 @@ import { FeedProductItem, FeedStockTransaction } from './feed.types';
 import { ProposalPlanRecord } from './proposal.types';
 import { FarmCostItem } from './cost.types';
 import { FarmLimitChange, FarmLimitRequest } from './farm-limit.types';
+import { CattleFollowUp } from './follow-up.types';
 
 export * from './stock.types';
 export * from './batch.types';
@@ -16,6 +17,8 @@ export * from './proposal.types';
 export * from './cost.types';
 export * from './loan.types';
 export * from './farm-limit.types';
+export * from './follow-up.types';
+export * from './billing.types';
 
 export interface ERPLivestockData {
   stock: StockItem[];
@@ -31,4 +34,5 @@ export interface ERPLivestockData {
   farmCosts?: FarmCostItem[];
   farmLimitRequests?: FarmLimitRequest[];
   farmLimitChanges?: FarmLimitChange[];
+  cattleFollowUps?: CattleFollowUp[];
 }

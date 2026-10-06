@@ -76,6 +76,20 @@ describe('canManageUsers / redactSettingsFor', () => {
   });
 });
 
+describe('redactSettingsFor and the billing price', () => {
+  const withBilling = { users: [], breeds: ['B'], billing: { prices: [{ from: '2026-10', price: 5000 }] } } as unknown as MasterSetup;
+
+  it('sends the price only to Super Admin and Admin', () => {
+    expect(redactSettingsFor(actor({ role: 'Super Admin' }), withBilling).billing).toBeDefined();
+    expect(redactSettingsFor(actor({ role: 'Admin' }), withBilling).billing).toBeDefined();
+    for (const role of ['Company', 'Management', 'Farm Owner', 'Farm Staff', 'Veterinarian']) {
+      const out = redactSettingsFor(actor({ role, permissions: ['settings_manage', 'farms_manage'] }), withBilling);
+      expect(out.billing).toBeUndefined();
+      expect(out.breeds).toEqual(['B']);
+    }
+  });
+});
+
 describe('loadActor', () => {
   it('returns null without an id and does not hit the database', async () => {
     expect(await loadActor(undefined)).toBeNull();

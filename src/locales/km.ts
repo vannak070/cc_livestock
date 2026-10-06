@@ -10,6 +10,8 @@ import { km as feedPageKm } from './sections/feedPage';
 import { km as feedFlowsKm } from './sections/feedFlows';
 import { km as summaryPageKm } from './sections/summaryPage';
 import { km as farmLimitsKm } from './sections/farmLimits';
+import { km as longStayKm } from './sections/longStay';
+import { km as billingKm } from './sections/billing';
 import { km as addCattleKm } from './sections/addCattle';
 import { km as batchesPageKm } from './sections/batchesPage';
 import { km as planningKm } from './sections/planning';
@@ -25,6 +27,7 @@ export const km: PartialTranslations = {
     dashboard: 'ផ្ទាំងគ្រប់គ្រង',
     // Short page names (2026-10-06): the long ones were cut off on phones. Drafted by Claude; need a native speaker's review.
     today: 'ថ្ងៃនេះ',
+    billing: 'វិក្កយបត្រ',
     summary: 'សង្ខេប',
     weights: 'ទម្ងន់',
     dailyWork: 'ការងារប្រចាំថ្ងៃ',
@@ -363,6 +366,8 @@ export const km: PartialTranslations = {
   feedFlows: feedFlowsKm,
   summaryPage: summaryPageKm,
   farmLimits: farmLimitsKm,
+  longStay: longStayKm,
+  billing: billingKm,
   addCattle: addCattleKm,
   batchesPage: batchesPageKm,
   planning: planningKm,

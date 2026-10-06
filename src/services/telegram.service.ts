@@ -25,6 +25,14 @@ export class TelegramService {
     return token().length > 0;
   }
 
+  /**
+   * True on servers meant to send real alerts: production, or when
+   * ALERTS_SCHEDULER=on. Keeps development from messaging the real group by accident.
+   */
+  sendingAllowedHere(): boolean {
+    return process.env.NODE_ENV === 'production' || process.env.ALERTS_SCHEDULER === 'on';
+  }
+
   private async call<T>(method: string, body?: Record<string, unknown>): Promise<T> {
     if (!this.isConfigured()) throw new Error('The Telegram bot token is not set on the server (TELEGRAM_BOT_TOKEN).');
     const controller = new AbortController();

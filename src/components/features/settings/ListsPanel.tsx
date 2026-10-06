@@ -9,6 +9,7 @@ import type { MasterSetup } from '@/types/settings.types';
 import { getErrorMessage } from '@/lib/utils';
 import { MAX_CATEGORY_LENGTH, costCategoriesFrom } from '@/lib/farm-costs';
 import { SALE_REVIEW_MAX_DAYS, SALE_REVIEW_MIN_DAYS, saleWindowDays, saleWindowProblem } from '@/lib/sale-review';
+import { LONG_STAY_MAX_MONTHS, LONG_STAY_MIN_MONTHS, longStayMonths, longStayMonthsProblem } from '@/lib/long-stay';
 import { useText } from '@/hooks/useText';
 
 type ListKey = 'breeds' | 'sexes' | 'healthStatuses' | 'vaccineTypes' | 'diseaseTypes' | 'feedTypes' | 'batchTypes' | 'weightUnits' | 'buyTypes' | 'purchaseTypes' | 'paymentMethods' | 'revenueTypes' | 'costCategories';
@@ -39,6 +40,10 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
   const [days, setDays] = useState(String(saleWindowDays(settings)));
   const [daysError, setDaysError] = useState('');
   const [daysSaved, setDaysSaved] = useState(false);
+  const stay = useText('longStay');
+  const [months, setMonths] = useState(String(longStayMonths(settings)));
+  const [monthsError, setMonthsError] = useState('');
+  const [monthsSaved, setMonthsSaved] = useState(false);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger'; confirmText: string; onConfirm?: () => void }>(null);
@@ -71,6 +76,20 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
     } catch (e) {
       setDaysSaved(false);
       setDaysError(getErrorMessage(e, tx('couldNotSaveIt')));
+    }
+  };
+
+  const saveMonths = async () => {
+    const n = Number(months);
+    const problem = longStayMonthsProblem(n);
+    if (months.trim() === '' || problem) { setMonthsError(problem ?? stay.tx('typeMonths')); setMonthsSaved(false); return; }
+    setMonthsError('');
+    try {
+      await onSettings({ longStayMonths: n });
+      setMonthsSaved(true);
+    } catch (e) {
+      setMonthsSaved(false);
+      setMonthsError(getErrorMessage(e, stay.tx('couldNotSave')));
     }
   };
 
@@ -134,6 +153,19 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
         </form>
         {daysError && <p role="alert" className="text-base font-medium text-rose-700">{daysError}</p>}
         {daysSaved && <p role="status" className="text-base font-medium text-emerald-700">{tx('daysSaved', { n: saleWindowDays({ saleReviewDays: Number(days) }) })}</p>}
+      </section>
+      <section className="space-y-3 rounded-2xl border-2 border-slate-200 bg-white p-4">
+        <div>
+          <h3 className="text-lg font-semibold text-ink">{stay.tx('settingTitle')}</h3>
+          <p className="text-base text-ink-muted">{stay.tx('settingHint')}</p>
+        </div>
+        <form noValidate onSubmit={e => { e.preventDefault(); saveMonths(); }} className="flex flex-wrap items-center gap-2">
+          <Input aria-label={stay.tx('monthsAria')} type="number" inputMode="numeric" min={LONG_STAY_MIN_MONTHS} max={LONG_STAY_MAX_MONTHS} value={months} onChange={e => { setMonths(e.target.value); setMonthsSaved(false); setMonthsError(''); }} className="h-14 w-28 text-center text-xl font-semibold" />
+          <span className="text-lg text-ink">{stay.tx('months')}</span>
+          <Button type="submit" size="lg" className="ml-auto">{tx('save')}</Button>
+        </form>
+        {monthsError && <p role="alert" className="text-base font-medium text-rose-700">{monthsError}</p>}
+        {monthsSaved && <p role="status" className="text-base font-medium text-emerald-700">{stay.tx('settingSaved', { n: longStayMonths({ longStayMonths: Number(months) }) })}</p>}
       </section>
       {GROUPS.map(g => (
         <section key={g.title}>

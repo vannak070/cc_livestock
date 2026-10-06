@@ -59,6 +59,11 @@ import { alertSettings, escapeHtml } from '@/lib/alerts';
 import { settingsRepository } from '@/repositories/settings.repository';
 import type { SaleReviewInput } from '@/lib/sale-review';
 import { farmLimitService } from '@/services/farm-limit.service';
+import { followUpService } from '@/services/follow-up.service';
+import { billingService } from '@/services/billing.service';
+import { capacityAlertService } from '@/services/capacity-alert.service';
+import type { BillingSettings } from '@/lib/types';
+import type { FollowUpInput } from '@/lib/long-stay';
 import type { LimitRequestInput } from '@/lib/farm-limit';
 
 // Every action below is a public endpoint as far as the network is
@@ -90,7 +95,7 @@ export async function getLivestockDataAction() {
 export async function addStockItemAction(item: Omit<StockItem, 'no'>) {
   return runAction('Failed to add stock item', ['stock_create'], async actor => {
     farmGuard.requireLocation(actor, item.location);
-    return addStockItem(item);
+    return addStockItem(item, actor.name);
   });
 }
 
@@ -105,7 +110,7 @@ export async function updateStockItemAction(id: string, updates: Partial<StockIt
 export async function deleteStockItemAction(cowId: string) {
   return runAction('Failed to delete stock item', ['stock_delete'], async actor => {
     await farmGuard.cows(actor, [cowId]);
-    return deleteStockItem(cowId);
+    return deleteStockItem(cowId, actor);
   });
 }
 
@@ -380,5 +385,28 @@ export async function sendTelegramTestAction() {
 
 // Checks for alerts right now, ignoring the send hour. Anything already sent is not sent again.
 export async function runSaleAlertsAction() {
-  return runAction('Failed to check for alerts', ['settings_manage'], () => saleAlertService.run({ force: true }), { revalidate: true });
+  return runAction('Failed to check for alerts', ['settings_manage'], async () => {
+    const sale = await saleAlertService.run({ force: true });
+    // Cattle-limit warnings are checked in the same go; they have their own count.
+    const capacity = await capacityAlertService.run({ force: true });
+    return { sent: sale.sent, capacitySent: capacity.sent, skipped: sale.skipped };
+  }, { revalidate: true });
+}
+
+// ─── Long-stay cattle: next actions ─────────────────────────────────────────
+export async function recordFollowUpAction(cowId: string, input: FollowUpInput) {
+  return runAction('Failed to save the next action', ['batch_review'], actor => followUpService.record(actor, cowId, input));
+}
+
+export async function finishFollowUpAction(id: string) {
+  return runAction('Failed to mark the next action done', ['batch_review'], actor => followUpService.finish(actor, id));
+}
+
+// ─── Billing for cattle registrations (Super Admin and Admin only) ──────────
+export async function getBillingAction(month?: string) {
+  return runAction('Failed to load the billing', [], actor => billingService.view(actor, month), { revalidate: false });
+}
+
+export async function saveBillingPricesAction(billing: BillingSettings) {
+  return runAction('Failed to save the price', [], actor => billingService.savePrices(actor, billing));
 }

@@ -35,7 +35,7 @@ export class StockController {
 
   async create(req: Request, res: Response): Promise<void> {
     farmGuard.requireLocation((req as AuthedRequest).actor!, req.body?.location);
-    const newItem = await stockService.createStock(req.body);
+    const newItem = await stockService.createStock(req.body, (req as AuthedRequest).actor!.name);
     res.status(201).json({
       success: true,
       message: 'Stock item created successfully',
@@ -58,7 +58,7 @@ export class StockController {
   async delete(req: Request, res: Response): Promise<void> {
     const id = String(req.params.id);
     await farmGuard.cows((req as AuthedRequest).actor!, [id]);
-    const deleted = await stockService.deleteStock(id);
+    const deleted = await stockService.deleteStock(id, (req as AuthedRequest).actor!);
     if (!deleted) {
       res.status(404).json({
         success: false,

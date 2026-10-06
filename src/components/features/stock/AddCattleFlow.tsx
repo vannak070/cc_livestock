@@ -5,7 +5,8 @@ import { Camera } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { MasterSetup, StockItem, UserRoleItem } from '@/lib/types';
+import type { FarmLimitRequest, MasterSetup, StockItem, UserRoleItem } from '@/lib/types';
+import { limitBlock, limitUsed, type LimitBlock } from '@/lib/farm-limit';
 import { Choice, FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, money as fmtMoney, today } from '../flow/FlowShell';
 import { useText, useValueText } from '@/hooks/useText';
 import { shownDay } from '@/lib/khmer-date';
@@ -22,6 +23,12 @@ interface AddCattleFlowProps {
   /** The farm an office account is working on; used as the starting choice. */
   defaultFarm?: string;
   onSave: (cow: NewCattle) => Promise<void>;
+  /** Every animal registered on the farms (any status): what counts toward a farm's cattle limit. */
+  registeredCattle?: Pick<StockItem, 'location'>[];
+  /** Requests for more cattle, to show when one is already waiting. */
+  limitRequests?: FarmLimitRequest[];
+  /** Opens "Ask for more cattle" for a farm (this dialog closes first). */
+  onAskMore?: (farm: string) => void;
 }
 
 type Step = 'origin' | 'tag' | 'kind' | 'where' | 'price' | 'review' | 'done';
@@ -42,7 +49,7 @@ export default function AddCattleFlow(props: AddCattleFlowProps) {
   );
 }
 
-function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFarm, onSave }: AddCattleFlowProps) {
+function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFarm, onSave, registeredCattle = [], limitRequests = [], onAskMore }: AddCattleFlowProps) {
   const lockedFarm = currentUser?.farmLocation && !['Super Admin', 'Admin', 'Company'].includes(currentUser.role)
     ? currentUser.farmLocation
     : null;
@@ -92,6 +99,28 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFa
 
   const fail = (msg: string) => { setError(msg); return false; };
 
+  // The farm's cattle limit (src/lib/farm-limit.ts); the server checks it again when saving.
+  const lim = useText('farmLimits');
+  const blockFor = (name: string): LimitBlock | null => {
+    if (!name) return null;
+    const item = (common.farms || []).find(f => f.name.trim().toLowerCase() === name.trim().toLowerCase());
+    return limitBlock(item, limitUsed(name, registeredCattle));
+  };
+  const blockText = (b: LimitBlock) => (b.reason === 'not-set' ? lim.tx('blockedNone', { farm: b.farm }) : lim.tx('blockedFull', { farm: b.farm, used: b.used, limit: b.limit }));
+  const block = blockFor(farm);
+  const waitingFor = (name: string) => limitRequests.find(r => r.status === 'pending' && r.farmLocation.trim().toLowerCase() === name.trim().toLowerCase());
+  const blockPanel = (b: LimitBlock) => {
+    const waiting = waitingFor(b.farm);
+    return (
+      <div role="alert" className="space-y-3 rounded-xl bg-amber-50 p-4">
+        <p className="text-base font-semibold text-amber-900">{blockText(b)}</p>
+        {waiting
+          ? <p className="text-base text-amber-900">{lim.tx('waiting', { n: waiting.extra })}</p>
+          : onAskMore && <Button type="button" onClick={() => { onClose(); onAskMore(b.farm); }}>{lim.tx('askMore')}</Button>}
+      </div>
+    );
+  };
+
   const valid: Record<string, () => boolean> = {
     tag: () => {
       const id = tag.trim();
@@ -107,6 +136,8 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFa
     },
     where: () => {
       if (!farm) return fail(tx('eFarm'));
+      // The panel under the farm explains it and offers "Ask for more cattle".
+      if (blockFor(farm)) { setError(''); return false; }
       if (!date) return fail(tx('eDate'));
       return true;
     },
@@ -206,7 +237,8 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFa
         <FlowFooter onBack={back} label={step === 'review' ? (saving ? flow.tx('saving') : tx('saveCattle')) : flow.tx('next')} busy={saving} />
       )}
     >
-          {step === 'origin' && (
+          {step === 'origin' && lockedFarm && block && blockPanel(block)}
+          {step === 'origin' && !(lockedFarm && block) && (
             <ul className="space-y-3">
               {origins.map(o => (
                 <li key={o}>
@@ -262,6 +294,7 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFa
                   <PickList options={farmNames} value={farm} onChange={v => { setFarm(v); setError(''); }} />
                 </Question>
               )}
+              {block && blockPanel(block)}
             </>
           )}
 

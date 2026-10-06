@@ -4,7 +4,10 @@ import React, { useMemo, useState } from 'react';
 import { Download, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { FarmItem, UserRoleItem } from '@/lib/types';
+import type { CattleFollowUp, FarmItem, UserRoleItem } from '@/lib/types';
+import { longStayCattle, longStayMonths, type LongStayRow } from '@/lib/long-stay';
+import { farmToday } from '@/lib/daily-feed';
+import { shownDay } from '@/lib/khmer-date';
 import type { StockItem, WeightRecord } from '@/lib/xlsx-parser';
 import { hasPermission, format2DecimalsWithCommas } from '@/lib/utils';
 import { sickCattle, weighSchedules } from '@/lib/attention';
@@ -21,6 +24,11 @@ interface CattleListProps {
   onAddCowClick?: () => void;
   currentUser?: UserRoleItem;
   farms?: FarmItem[];
+  /** Next actions for long-stay cattle and the "months on the farm" setting. */
+  followUps?: CattleFollowUp[];
+  longStayMonthsSetting?: number;
+  /** Start with the long-stay list showing (coming from Today). */
+  startLongStay?: boolean;
 }
 
 type Status = 'Active' | 'Sold' | 'All';
@@ -33,12 +41,14 @@ const SELECT = 'h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-3 t
 
 const TAB_KEY: Record<Status, string> = { Active: 'tabActive', Sold: 'tabSold', All: 'tabAll' };
 
-export default function CattleList({ stock, weightTracking, onViewDetails, onAddCowClick, currentUser, farms = [] }: CattleListProps) {
-  const { tx, txn } = useText('cattlePage');
+export default function CattleList({ stock, weightTracking, onViewDetails, onAddCowClick, currentUser, farms = [], followUps = [], longStayMonthsSetting, startLongStay = false }: CattleListProps) {
+  const { tx, txn, language } = useText('cattlePage');
+  const ls = useText('longStay');
   const val = useValueText();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<Status>('Active');
   const [attentionOnly, setAttentionOnly] = useState(false);
+  const [longStayOnly, setLongStayOnly] = useState(startLongStay);
   const [showFilters, setShowFilters] = useState(false);
   const [farm, setFarm] = useState('');
   const [breed, setBreed] = useState('');
@@ -47,7 +57,7 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
   const [endDate, setEndDate] = useState('');
   const [visible, setVisible] = useState(PAGE);
 
-  useOnChange(JSON.stringify([search, status, attentionOnly, farm, breed, sex, startDate, endDate]), () => setVisible(PAGE));
+  useOnChange(JSON.stringify([search, status, attentionOnly, longStayOnly, farm, breed, sex, startDate, endDate]), () => setVisible(PAGE));
 
   const farmName = (loc?: string) => {
     const l = loc?.trim();
@@ -81,6 +91,14 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
     return flags;
   }, [stock, weightTracking]);
 
+  // Active cattle on the farm for the set number of months or more (src/lib/long-stay.ts).
+  const stayMonths = longStayMonths({ longStayMonths: longStayMonthsSetting });
+  const longStay = useMemo(() => {
+    const map = new Map<string, LongStayRow>();
+    for (const row of longStayCattle(stock, stayMonths, followUps, farmToday())) map.set(row.cow.id, row);
+    return map;
+  }, [stock, stayMonths, followUps]);
+
   const counts = useMemo(() => ({
     Active: stock.filter(s => norm(s.status) === 'active').length,
     Sold: stock.filter(s => norm(s.status) === 'sold').length,
@@ -97,6 +115,7 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
       .filter(c => {
         if (status !== 'All' && norm(c.status) !== norm(status)) return false;
         if (attentionOnly && !attention.has(c.id)) return false;
+        if (longStayOnly && !longStay.has(c.id)) return false;
         if (farm && farmName(c.location) !== farm) return false;
         if (breed && c.breed !== breed) return false;
         if (sex && norm(c.sex) !== norm(sex)) return false;
@@ -111,11 +130,11 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
         return da !== db ? db - da : b.id.localeCompare(a.id);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stock, search, status, attentionOnly, attention, farm, breed, sex, startDate, endDate, farms]);
+  }, [stock, search, status, attentionOnly, attention, longStayOnly, longStay, farm, breed, sex, startDate, endDate, farms]);
 
   const activeFilters = [farm, breed, sex, startDate, endDate].filter(Boolean).length;
-  const clearAll = () => { setSearch(''); setStatus('Active'); setAttentionOnly(false); setFarm(''); setBreed(''); setSex(''); setStartDate(''); setEndDate(''); };
-  const anyChange = search || status !== 'Active' || attentionOnly || activeFilters > 0;
+  const clearAll = () => { setSearch(''); setStatus('Active'); setAttentionOnly(false); setLongStayOnly(false); setFarm(''); setBreed(''); setSex(''); setStartDate(''); setEndDate(''); };
+  const anyChange = search || status !== 'Active' || attentionOnly || longStayOnly || activeFilters > 0;
   const attentionCount = [...attention.keys()].filter(id => stock.find(c => c.id === id && norm(c.status) === 'active')).length;
 
   const exportList = () => exportToExcel({
@@ -134,6 +153,9 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
       { header: 'Health Status', key: 'healthStatus' },
       { header: 'Stock Status', key: 'status' },
       { header: 'Purchase Date', key: 'purchaseDate', formatter: (val) => val ? new Date(val).toLocaleDateString() : 'N/A' },
+      { header: 'Months on farm', key: 'id', formatter: (_, row) => longStay.get(row.id)?.months ?? '' },
+      { header: 'Next action', key: 'id', formatter: (_, row) => { const n = longStay.get(row.id)?.next; return n ? `${n.action}${n.note ? `: ${n.note}` : ''}` : ''; } },
+      { header: 'Next action due', key: 'id', formatter: (_, row) => longStay.get(row.id)?.next?.dueDate ?? '' },
     ],
   });
 
@@ -182,6 +204,17 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
               className={`min-h-11 rounded-xl border-2 px-4 text-base font-medium ${attentionOnly ? 'border-amber-500 bg-amber-100 text-amber-900' : 'border-slate-200 bg-white text-ink hover:border-amber-500'}`}
             >
               {tx('needsAttention', { n: attentionCount })}
+            </button>
+          )}
+
+          {longStay.size > 0 && (
+            <button
+              type="button"
+              aria-pressed={longStayOnly}
+              onClick={() => { setLongStayOnly(v => !v); if (!longStayOnly) setStatus('Active'); }}
+              className={`min-h-11 rounded-xl border-2 px-4 text-base font-medium ${longStayOnly ? 'border-amber-500 bg-amber-100 text-amber-900' : 'border-slate-200 bg-white text-ink hover:border-amber-500'}`}
+            >
+              {ls.tx('chip', { months: stayMonths, n: longStay.size })}
             </button>
           )}
 
@@ -275,6 +308,18 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
                     )}
                     {isSick && <span className="rounded-full bg-rose-100 px-3 py-1 text-sm font-medium text-rose-800">{tx('needsALook')}</span>}
                   </div>
+                  {longStay.get(c.id) && (() => {
+                    const row = longStay.get(c.id)!;
+                    return (
+                      <p className={`rounded-lg px-3 py-2 text-base ${row.overdue ? 'bg-rose-50 text-rose-800' : 'bg-amber-50 text-amber-900'}`}>
+                        <span className="font-medium">{ls.tx('monthsHere', { n: row.months })}</span>
+                        {' · '}
+                        {row.next
+                          ? <>{ls.tx('next', { action: ls.tx(`a_${row.next.action}`) })}{row.next.dueDate ? ` · ${row.overdue ? ls.tx('wasDue', { day: shownDay(row.next.dueDate, language) }) : ls.tx('byDay', { day: shownDay(row.next.dueDate, language) })}` : ''}</>
+                          : ls.tx('noNext')}
+                      </p>
+                    );
+                  })()}
                 </button>
               </li>
             );

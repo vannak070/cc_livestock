@@ -1,3 +1,4 @@
+import { canSeeBilling } from './billing';
 import { settingsRepository } from '../repositories/settings.repository';
 import { canUsePlanning, hasPermission } from './utils';
 import { isFarmOwner, visibleUsers } from './user-admin';
@@ -48,7 +49,11 @@ export function canManageUsers(actor: Actor): boolean {
  * owner gets just the staff and vets of their own farm, the people they manage.
  */
 export function redactSettingsFor(actor: Actor, settings: MasterSetup): MasterSetup {
-  if (canManageUsers(actor)) return settings;
-  if (isFarmOwner(actor) && actor.farmLocation) return { ...settings, users: visibleUsers(settings.users || [], actor) };
-  return { ...settings, users: [] };
+  // The price CC Livestock is billed is only for Super Admin and Admin.
+  const { billing, ...rest } = settings;
+  const visible = canSeeBilling(actor) ? settings : (rest as MasterSetup);
+  void billing;
+  if (canManageUsers(actor)) return visible;
+  if (isFarmOwner(actor) && actor.farmLocation) return { ...visible, users: visibleUsers(settings.users || [], actor) };
+  return { ...visible, users: [] };
 }

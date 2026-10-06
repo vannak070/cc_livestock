@@ -21,7 +21,9 @@ describe.skipIf(!enabled)('schema migrations (PostgreSQL)', () => {
     const cols = (await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'")).rows.map(r => r.column_name);
     expect(cols).toEqual(expect.arrayContaining(['farm_location', 'permissions', 'pin_hash']));
     const ledger = (await pool.query('SELECT version FROM schema_migrations ORDER BY version')).rows.map(r => r.version);
-    expect(ledger).toEqual(['001', '002', '003', '004', '005', '006', '007']);
+    // Every numbered file in migrations/sql, in order (kept in step with the folder instead of a hand-typed list).
+    const files = fs.readdirSync(path.join(__dirname, 'migrations', 'sql')).filter(f => /^\d+_.+\.sql$/.test(f)).sort().map(f => f.split('_')[0]);
+    expect(ledger).toEqual(files);
   });
 
   it('is idempotent: a second run applies nothing', async () => {

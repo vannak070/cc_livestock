@@ -27,6 +27,7 @@ import { UserRoleItem } from '@/lib/types';
 import { canUsePlanning, hasPermission } from '@/lib/utils';
 import { canOpenPeople, isFarmOwner } from '@/lib/user-admin';
 import { useLanguage } from '@/context/LanguageContext';
+import { canSeeBilling } from '@/lib/billing';
 import { khmerLongDate } from '@/lib/khmer-date';
 import LanguageSwitcher from '../LanguageSwitcher';
 import InstallAppButton from '../InstallAppButton';
@@ -45,6 +46,7 @@ export type ActiveTabType =
   | 'proposal-plan'
   | 'settings'
   | 'farms'
+  | 'billing'
   | 'costs';
 
 /** Something a person can record from Today or the phone's Record button. */
@@ -164,6 +166,7 @@ export default function SidebarLayout({
     'analytics': t('nav.analytics'),
     'proposal-plan': t('nav.proposalPlan'),
     'farms': t('nav.farmsBranches'),
+    'billing': t('nav.billing', 'Billing'),
     // A farm owner's Settings page is only the people on their farm.
     'settings': currentUser && isFarmOwner(currentUser) ? t('nav.people', 'People') : t('nav.masterSettings')
   };
@@ -171,7 +174,7 @@ export default function SidebarLayout({
   // "Office" pages are for people who look at money and reports; farm staff
   // and vets (who have none of these permissions) see only daily work.
   const showSummary = can('dashboard_view') && (can('sales_view') || can('analytics_view'));
-  const hasOffice = showSummary || can('sales_view') || can('analytics_view') || canUsePlanning(currentUser) || can('farms_manage') || canOpenPeople(currentUser);
+  const hasOffice = showSummary || can('sales_view') || can('analytics_view') || canUsePlanning(currentUser) || can('farms_manage') || canSeeBilling(currentUser) || canOpenPeople(currentUser);
 
   const userInitials = currentUser?.name
     ? currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
@@ -262,6 +265,9 @@ export default function SidebarLayout({
             )}
             {can('farms_manage') && (
               <NavItem icon={<Building className="h-5 w-5" />} label={tabLabels['farms']} isActive={activeTab === 'farms'} onClick={() => handleTabChange('farms')} />
+            )}
+            {canSeeBilling(currentUser) && (
+              <NavItem icon={<Receipt className="h-5 w-5" />} label={tabLabels['billing']} isActive={activeTab === 'billing'} onClick={() => handleTabChange('billing')} />
             )}
             {canOpenPeople(currentUser) && (
               <NavItem icon={currentUser && isFarmOwner(currentUser) ? <Users className="h-5 w-5" /> : <Settings className="h-5 w-5" />} label={tabLabels['settings']} isActive={activeTab === 'settings'} onClick={() => handleTabChange('settings')} />

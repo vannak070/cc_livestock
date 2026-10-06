@@ -5,6 +5,7 @@ import { Actor, AuthzError, assertPermission, can, redactSettingsFor } from '../
 import { costCategoriesProblem } from '../lib/farm-costs';
 import { knownPermissions } from '../lib/user-admin';
 import { saleWindowProblem } from '../lib/sale-review';
+import { longStayMonthsProblem } from '../lib/long-stay';
 import { alertSettings, alertSettingsProblem } from '../lib/alerts';
 
 // Master settings is one document, but different screens own different
@@ -23,7 +24,7 @@ interface RoleChanges {
 // Written only by their own operations, never by a settings save. `locations`
 // is the old copy of the farm names (removed by migration 005); an old screen
 // that still sends it is ignored.
-const OWNED_ELSEWHERE: string[] = ['users', 'farms', 'locations', 'alertStatus'];
+const OWNED_ELSEWHERE: string[] = ['users', 'farms', 'locations', 'alertStatus', 'billing'];
 
 export class SettingsService {
   async getSettings(): Promise<MasterSetup> {
@@ -59,6 +60,11 @@ export class SettingsService {
 
     if (patch.saleReviewDays !== undefined) {
       const problem = saleWindowProblem(patch.saleReviewDays);
+      if (problem) throw new Error(problem);
+    }
+
+    if (patch.longStayMonths !== undefined) {
+      const problem = longStayMonthsProblem(patch.longStayMonths);
       if (problem) throw new Error(problem);
     }
 

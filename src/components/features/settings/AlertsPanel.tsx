@@ -83,7 +83,11 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
     const res = await runSaleAlertsAction();
     setBusy('');
     if (!res.success) { say('bad', res.error); return; }
-    say('ok', res.data.sent > 0 ? tx('sentFor', { batches: txn(res.data.sent, 'batchOne', 'batchMany') }) : tx('nothingNew'));
+    const parts = [
+      res.data.sent > 0 ? tx('sentFor', { batches: txn(res.data.sent, 'batchOne', 'batchMany') }) : '',
+      res.data.capacitySent > 0 ? tx('sentForLimits', { n: res.data.capacitySent }) : '',
+    ].filter(Boolean);
+    say('ok', parts.length > 0 ? parts.join(' ') : tx('nothingNew'));
   };
 
   const last = settings.alertStatus;
@@ -158,6 +162,7 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
           <li>{tx('sent2', { n: saleWindowDays(settings) })}</li>
           <li>{tx('sent3')}</li>
           <li>{tx('sent4')}</li>
+          <li>{tx('sent5')}</li>
         </ul>
         <p className="text-base text-ink-muted">{tx('changeDays')}</p>
         {last?.lastSentAt && <p className="text-base text-ink">{tx('lastAlert', { time: last.lastSentAt.slice(0, 16).replace('T', ' '), batches: txn(last.lastSentCount ?? 0, 'batchOne', 'batchMany') })}</p>}

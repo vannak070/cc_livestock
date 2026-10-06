@@ -4,6 +4,10 @@ import { withTransaction } from '../config/database';
 import { StockItem, WeightRecord } from '../lib/xlsx-parser';
 import type { FarmScope } from '../lib/farm-scope';
 import { farmLimitService } from './farm-limit.service';
+import { registrationRepository } from '../repositories/registration.repository';
+import { capacityAlertService } from './capacity-alert.service';
+import { Actor, AuthzError } from '../lib/authz';
+import { canSetLimits } from '../lib/farm-limit';
 
 export class StockService {
   async getAllStock(scope?: FarmScope): Promise<StockItem[]> {
@@ -17,11 +21,21 @@ export class StockService {
   /**
    * Add a new stock item AND insert initial weight tracking record in a single SQL Transaction
    */
-  async createStock(item: Omit<StockItem, 'no'>): Promise<StockItem> {
+  async createStock(item: Omit<StockItem, 'no'>, registeredBy = ''): Promise<StockItem> {
+    const created = await this.createStockRecord(item, registeredBy);
+    // A farm that just reached 80%, 90% or 100% of its limit is warned straight away (best effort; the
+    // scheduler checks again every few minutes, and the log stops anything going out twice).
+    void capacityAlertService.run().catch(() => undefined);
+    return created;
+  }
+
+  private async createStockRecord(item: Omit<StockItem, 'no'>, registeredBy: string): Promise<StockItem> {
     return withTransaction(async (client) => {
       // Every animal registered on a farm counts toward its cattle limit.
       await farmLimitService.assertRoom(item.location, 1, client);
       const newStock = await stockRepository.create(item, client);
+      // The permanent record the monthly bill is built from (src/lib/billing.ts).
+      await registrationRepository.record(newStock.id, newStock.location, registeredBy, client);
 
       const initialWeightRecord: WeightRecord = {
         cowId: newStock.id,
@@ -79,9 +93,18 @@ export class StockService {
     });
   }
 
-  async deleteStock(id: string): Promise<boolean> {
+  /**
+   * Removes a cattle record. Registrations are billed, so only a Super Admin or
+   * Admin may do it, and only for an animal registered by mistake: the
+   * registration record stays (marked removed and not billed) and the removal
+   * is logged with who did it.
+   */
+  async deleteStock(id: string, actor: Actor): Promise<boolean> {
+    if (!canSetLimits(actor)) throw new AuthzError('Only a Super Admin or Admin can remove a registered animal, and only if it was registered by mistake.', 403);
     return withTransaction(async (client) => {
-      return stockRepository.delete(id, client);
+      const deleted = await stockRepository.delete(id, client);
+      if (deleted) await registrationRepository.markRemoved(id, actor.name, 'Removed by an admin (registered by mistake)', client);
+      return deleted;
     });
   }
 }

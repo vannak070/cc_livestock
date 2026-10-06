@@ -16,6 +16,7 @@ import { userAdminService } from '../services/user-admin.service';
 import { farmService } from '../services/farm.service';
 import { farmCostService } from '../services/farm-cost.service';
 import { farmLimitRepository } from '../repositories/farm-limit.repository';
+import { followUpRepository } from '../repositories/follow-up.repository';
 import type { PersonInput } from './user-admin';
 import type { FarmInput } from './farm-settings';
 import { FeedProductItem, FeedStockTransaction, ProposalPlanParams, ProposalPlanRecord } from './types';
@@ -97,7 +98,7 @@ async function requireDb<T>(operation: string, run: () => Promise<T>): Promise<T
  */
 export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
   try {
-    const [stock, weightTracking, salesTracking, batches, healthLogs, settings, feedProducts, feedTransactions, proposalPlans, farmCosts, farmLimitRequests, farmLimitChanges] = await Promise.all([
+    const [stock, weightTracking, salesTracking, batches, healthLogs, settings, feedProducts, feedTransactions, proposalPlans, farmCosts, farmLimitRequests, farmLimitChanges, cattleFollowUps] = await Promise.all([
       stockService.getAllStock(scope),
       weightService.getAllWeightRecords(scope),
       salesService.getAllSales(scope),
@@ -111,7 +112,8 @@ export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
       farmCostService.getAll(scope).catch(() => []),
       // Empty until migration 014 has created the tables.
       farmLimitRepository.findRequests(scope).catch(() => []),
-      farmLimitRepository.findChanges(scope).catch(() => [])
+      farmLimitRepository.findChanges(scope).catch(() => []),
+      followUpRepository.findAll(scope).catch(() => [])
     ]);
 
     const common = {
@@ -139,7 +141,8 @@ export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
       proposalPlans,
       farmCosts,
       farmLimitRequests,
-      farmLimitChanges
+      farmLimitChanges,
+      cattleFollowUps
     };
 
     // Reads must not write. Feed only leaves stock when a farm or the office
@@ -178,16 +181,16 @@ export async function deleteProposalPlan(slot: number): Promise<boolean> {
 }
 
 // ─── 1. Stock / Inventory ───────────────────────────────────────────────────
-export async function addStockItem(item: Omit<StockItem, 'no'>): Promise<StockItem> {
-  return requireDb('add cattle record', () => stockService.createStock(item));
+export async function addStockItem(item: Omit<StockItem, 'no'>, registeredBy = ''): Promise<StockItem> {
+  return requireDb('add cattle record', () => stockService.createStock(item, registeredBy));
 }
 
 export async function updateStockItem(id: string, updates: Partial<StockItem>): Promise<StockItem> {
   return requireDb('update cattle record', () => stockService.updateStock(id, updates));
 }
 
-export async function deleteStockItem(cowId: string): Promise<void> {
-  await requireDb('delete cattle record', () => stockService.deleteStock(cowId));
+export async function deleteStockItem(cowId: string, actor: Actor): Promise<void> {
+  await requireDb('delete cattle record', () => stockService.deleteStock(cowId, actor));
 }
 
 // ─── 2. Weight Tracking ─────────────────────────────────────────────────────

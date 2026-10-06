@@ -17,6 +17,9 @@ import { SALE_WEEK_DAYS, saleWindowDays } from '@/lib/sale-review';
 import { farmToday, farmsToRecord, missedFeedDays, todayNotRecorded, unlinkedRationFeeds } from '@/lib/daily-feed';
 import { dayLabel } from './features/feed/DailyFeedFlow';
 import { useText } from '@/hooks/useText';
+import { canSetLimits, limitBlock, limitUsed } from '@/lib/farm-limit';
+import { capacityLevels, nearLimit } from '@/lib/capacity-alerts';
+import { longStayCattle, longStayMonths } from '@/lib/long-stay';
 import type { ActiveTabType, RecordAction } from './layout/SidebarLayout';
 
 interface TodayTabProps {
@@ -28,6 +31,10 @@ interface TodayTabProps {
   onOpenSaleReview?: () => void;
   /** Opens the feed record for a farm and day (today when no day); only for people who may record feed. */
   onRecordFeed?: (farm: string, day?: string) => void;
+  /** Opens "Ask for more cattle" for a farm; only for people who may ask. */
+  onAskMore?: (farm: string) => void;
+  /** Opens the Cattle page showing the long-stay list. */
+  onOpenLongStay?: () => void;
 }
 
 type Severity = 'urgent' | 'attention';
@@ -37,8 +44,9 @@ interface AttentionItem {
   severity: Severity;
   title: string;
   detail: string;
-  actionLabel: string;
-  onAction: () => void;
+  /** No button when there is nothing to do but wait (e.g. a request already sent). */
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 function greeting(now: Date, tx: (key: string) => string): string {
@@ -51,8 +59,10 @@ function greeting(now: Date, tx: (key: string) => string): string {
  * today, each with one clear button, then big buttons to record things.
  * Every rule lives in src/lib/attention.ts so the pages behind it agree.
  */
-export default function TodayTab({ data, currentUser, recordActions, onNavigate, onOpenSaleReview, onRecordFeed }: TodayTabProps) {
+export default function TodayTab({ data, currentUser, recordActions, onNavigate, onOpenSaleReview, onRecordFeed, onAskMore, onOpenLongStay }: TodayTabProps) {
+  const lsText = useText('longStay');
   const { tx, txn, language } = useText('todayPage');
+  const lim = useText('farmLimits');
   const can = (key: Parameters<typeof hasPermission>[1]) => hasPermission(currentUser, key);
   const now = new Date();
   const onFarm = activeCattle(data.stock).length;
@@ -204,6 +214,92 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
     }
   }
 
+  // Cattle on the farm a long time (src/lib/long-stay.ts), for people who see cattle.
+  if (can('stock_view') && onOpenLongStay) {
+    const months = longStayMonths(data.settings);
+    const rows = longStayCattle(data.stock, months, data.cattleFollowUps ?? [], farmToday(now));
+    if (rows.length > 0) {
+      const none = rows.filter(r => !r.next).length;
+      const late = rows.filter(r => r.overdue).length;
+      items.push({
+        key: 'long-stay',
+        severity: 'attention',
+        title: rows.length === 1 ? lsText.tx('todayOne', { months }) : lsText.tx('todayMany', { n: rows.length, months }),
+        detail: [none > 0 ? lsText.tx('noNextN', { n: none }) : lsText.tx('allPlanned'), late > 0 ? lsText.tx('overdueN', { n: late }) : ''].filter(Boolean).join(' · '),
+        actionLabel: lsText.tx('seeThem'),
+        onAction: onOpenLongStay
+      });
+    }
+  }
+
+  // Cattle limits (src/lib/farm-limit.ts): admins answer requests; a farm sees when its limit is used up.
+  const limitRequests = data.farmLimitRequests ?? [];
+  if (canSetLimits(currentUser)) {
+    const waiting = limitRequests.filter(r => r.status === 'pending').length;
+    // Farms at 80% or more of their cattle limit (src/lib/capacity-alerts.ts), fullest first.
+    const near = nearLimit(capacityLevels(data.settings?.farms ?? [], data.stock));
+    if (near.length > 0) {
+      const full = near.filter(l => l.step === 100).length;
+      items.push({
+        key: 'limit-near',
+        severity: full > 0 ? 'urgent' : 'attention',
+        title: near.length === 1 ? lim.tx('adminNearOne') : lim.tx('adminNearMany', { n: near.length }),
+        detail: near.slice(0, 4).map(l => lim.tx('adminNearLine', { farm: l.farm, used: l.used, limit: l.limit, pct: l.percent })).join(' · ') + (near.length > 4 ? ` · +${near.length - 4}` : ''),
+        actionLabel: lim.tx('openFarms'),
+        onAction: () => onNavigate('farms')
+      });
+    }
+    if (waiting > 0) {
+      items.push({
+        key: 'limit-requests',
+        severity: 'attention',
+        title: waiting === 1 ? lim.tx('todayRequestOne') : lim.tx('todayRequests', { n: waiting }),
+        detail: lim.tx('todayRequestsSub'),
+        actionLabel: lim.tx('answer'),
+        onAction: () => onNavigate('farms')
+      });
+    }
+  } else if (currentUser.farmLocation && can('stock_create')) {
+    const farmName = currentUser.farmLocation;
+    const same = (a: string) => a.trim().toLowerCase() === farmName.trim().toLowerCase();
+    const farm = (data.settings?.farms ?? []).find(f => same(f.name));
+    const block = farm ? limitBlock(farm, limitUsed(farm.name, data.stock)) : null;
+    const pending = limitRequests.find(r => r.status === 'pending' && same(r.farmLocation));
+    const level = farm ? capacityLevels([farm], data.stock)[0] : undefined;
+    if (!block && level && level.step > 0 && level.step < 100) {
+      items.push({
+        key: 'limit-near',
+        severity: 'attention',
+        title: lim.tx('farmNearTitle', { pct: level.percent }),
+        detail: pending ? lim.tx('waiting', { n: pending.extra }) : lim.tx('farmNearDetail', { used: level.used, limit: level.limit, left: level.left }),
+        ...(pending || !onAskMore ? {} : { actionLabel: lim.tx('askMore'), onAction: () => onAskMore(level.farm) })
+      });
+    }
+    if (block) {
+      items.push({
+        key: 'limit-full',
+        severity: pending ? 'attention' : 'urgent',
+        title: block.reason === 'not-set' ? lim.tx('noLimit') : lim.tx('todayFull', { farm: block.farm }),
+        detail: pending ? lim.tx('waiting', { n: pending.extra })
+          : block.reason === 'not-set' ? lim.tx('noLimitHint') : lim.tx('todayFullSub', { used: block.used, limit: block.limit }),
+        ...(pending || !onAskMore ? {} : { actionLabel: lim.tx('askMore'), onAction: () => onAskMore(block.farm) })
+      });
+    }
+    // The answer to the farm's latest request, for a week after it was given.
+    const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
+    const answered = limitRequests
+      .filter(r => r.status !== 'pending' && same(r.farmLocation) && (r.decidedAt ?? '') >= weekAgo)
+      .sort((a, b) => (b.decidedAt ?? '').localeCompare(a.decidedAt ?? ''))[0];
+    if (answered && !pending) {
+      items.push({
+        key: `limit-answer-${answered.id}`,
+        severity: 'attention',
+        title: lim.tx('todayAnswered', { n: answered.extra, result: lim.tx(answered.status === 'approved' ? 'approved' : 'declined') }),
+        detail: answered.decisionNote || (answered.status === 'approved' && answered.newLimit ? lim.tx('usedOf', { used: limitUsed(farmName, data.stock), limit: answered.newLimit }) : '')
+      });
+    }
+  }
+
   items.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'urgent' ? -1 : 1));
 
   const farmLine = currentUser.farmLocation
@@ -241,17 +337,19 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
                   </span>
                   <div className="min-w-0">
                     <p className="text-base md:text-lg font-semibold text-ink">{item.title}</p>
-                    <p className="text-sm text-ink-muted mt-0.5">{item.detail}</p>
+                    {item.detail && <p className="text-sm text-ink-muted mt-0.5">{item.detail}</p>}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={item.onAction}
-                  className="h-12 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-base font-semibold flex items-center justify-center gap-1 cursor-pointer sm:flex-shrink-0"
-                >
-                  {item.actionLabel}
-                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                </button>
+                {item.actionLabel && item.onAction && (
+                  <button
+                    type="button"
+                    onClick={item.onAction}
+                    className="h-12 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-base font-semibold flex items-center justify-center gap-1 cursor-pointer sm:flex-shrink-0"
+                  >
+                    {item.actionLabel}
+                    <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>

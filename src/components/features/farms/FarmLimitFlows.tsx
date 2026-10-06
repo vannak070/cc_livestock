@@ -148,7 +148,7 @@ function DecideBody({ onClose, request, limit, used }: DecideProps & { request: 
             <Choice selected={!approve} onClick={() => { setApprove(false); setError(''); }}>{tx('decline')}</Choice>
           </div>
           {approve && (
-            <Question label={tx('newLimit')} hint={tx('newLimitHint', { used })}>
+            <Question label={tx('newLimit')} hint={used > 0 ? tx('newLimitHint', { used }) : undefined}>
               <Input aria-label={tx('newLimitAria')} type="number" inputMode="numeric" min={Math.max(1, used)} step="1" value={newLimit} onChange={e => { setNewLimit(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
             </Question>
           )}
