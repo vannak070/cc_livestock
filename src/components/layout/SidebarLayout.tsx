@@ -186,11 +186,14 @@ export default function SidebarLayout({
   };
   const roleBadgeClass = roleColors[currentUser?.role || ''] || 'bg-slate-100 text-ink border-slate-200';
 
+  // On a phone the whole menu scrolls as one (logo bar stays on top), so the
+  // page list gets the full height and Share app / Sign out follow it; on a
+  // computer only the page list scrolls.
   const navContent = (
-    <div className="flex flex-col h-full bg-white border-r border-slate-200">
+    <div className="flex flex-col h-full bg-white border-r border-slate-200 max-md:overflow-y-auto">
 
       {/* ─── Logo ─── */}
-      <div className="flex items-center justify-between h-20 px-4 border-b-4 border-brand flex-shrink-0">
+      <div className="flex items-center justify-between h-20 px-4 border-b-4 border-brand flex-shrink-0 bg-white max-md:sticky max-md:top-0 max-md:z-10">
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 flex items-center justify-center flex-shrink-0">
             <img src="/logo.png" alt="CC Livestock logo" className="h-full w-full object-contain" />
@@ -210,7 +213,7 @@ export default function SidebarLayout({
       </div>
 
       {/* ─── Navigation Links ─── */}
-      <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+      <nav aria-label="Main" className="flex-1 md:overflow-y-auto max-md:flex-none px-3 py-3 space-y-3">
         <NavSection label={t('nav.dailyWork', 'Daily work')}>
           {can('dashboard_view') && (
             <NavItem icon={<Home className="h-5 w-5" />} label={tabLabels['today']} isActive={activeTab === 'today'} onClick={() => handleTabChange('today')} onBottomBar />
