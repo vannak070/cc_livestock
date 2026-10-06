@@ -6,7 +6,7 @@ import { saleTier } from './sale-review';
 
 const row = (id: string, days: number, over: Partial<SaleReviewRow> = {}, target = '2026-10-10'): SaleReviewRow => ({
   batch: { id, name: id, type: 'Fattening', startDate: '2026-07-01', status: 'Active', cowIds: [], sellingTargetDate: target } as SaleReviewRow['batch'],
-  farm: 'SNR Farm', daysRemaining: days, tier: saleTier(days), decided: false, head: 12, avgWeight: 295.4, perDay: 0.8, expectedValue: 7440000, standardDate: false, ...over,
+  farm: 'SNR Farm', daysRemaining: days, tier: saleTier(days), decided: false, head: 12, avgWeight: 295.4, perDay: 0.8, males: 12, females: 0, minWeight: 280, maxWeight: 310, pricePerKg: 2100, expectedValue: 7440000, standardDate: false, ...over,
 });
 const sent = (batchId: string, stage: SentAlert['stage'], sentOn: string, targetDate = '2026-10-10'): SentAlert => ({ batchId, targetDate, stage, sentOn });
 const TODAY = '2026-10-05';

@@ -50,6 +50,13 @@ export interface SaleReviewRow {
   head: number;
   avgWeight: number;
   perDay: number | null;
+  males: number;
+  females: number;
+  /** Lowest and highest current weight, kg; null with no cattle. */
+  minWeight: number | null;
+  maxWeight: number | null;
+  /** The batch's expected selling price, ៛ per kg; null when not set. */
+  pricePerKg: number | null;
   /** Average weight x head x the batch's expected price per kg; null when no price is set. */
   expectedValue: number | null;
   /** The date is the app's standard 90 days from the start, so nobody may have chosen it. */
@@ -87,6 +94,11 @@ export function saleReviewRows(
       head: s.head,
       avgWeight: Math.round(s.avgWeight * 10) / 10,
       perDay: s.perDay,
+      males: s.males,
+      females: s.females,
+      minWeight: s.minWeight === null ? null : Math.round(s.minWeight * 10) / 10,
+      maxWeight: s.maxWeight === null ? null : Math.round(s.maxWeight * 10) / 10,
+      pricePerKg: price > 0 ? price : null,
       expectedValue: price > 0 && s.head > 0 ? Math.round(s.avgWeight * s.head * price) : null,
       standardDate: batch.sellingTargetDate.slice(0, 10) === addDaysToDay((batch.startDate ?? '').slice(0, 10), STANDARD_CYCLE_DAYS),
     });

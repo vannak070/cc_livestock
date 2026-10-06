@@ -30,6 +30,7 @@ export interface FarmMessage {
   message: string;
 }
 
+const riel = (n: number) => `${Math.round(n).toLocaleString('en-US')} ៛`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const shortDay = (day: string) => prettyDay(day).replace(/ \d{4}$/, '');
 const listIds = (ids: string[], max = 8) => ids.slice(0, max).map(escapeHtml).join(', ') + (ids.length > max ? ` and ${ids.length - max} more` : '');
@@ -68,7 +69,10 @@ export function buildMorningMessages(data: DigestData, now: Date, opts: { appUrl
     if (rows.length > 0) {
       const body = rows.map(r => {
         const when = r.daysRemaining < 0 ? `${plural(-r.daysRemaining, 'day', 'days')} late` : r.daysRemaining === 0 ? 'today' : `in ${plural(r.daysRemaining, 'day', 'days')}`;
-        return `<b>${escapeHtml(r.batch.name)}</b>: ${plural(r.head, 'animal', 'animals')}, average ${r.avgWeight} kg\nSell by ${shortDay(r.batch.sellingTargetDate ?? '')} (${when})`;
+        const sexes = [r.males > 0 ? `${r.males} male` : '', r.females > 0 ? `${r.females} female` : ''].filter(Boolean).join(', ');
+        const weight = r.minWeight === null || r.maxWeight === null ? `Average weight: ${r.avgWeight} kg` : `Weight: ${r.minWeight} to ${r.maxWeight} kg (average ${r.avgWeight} kg)`;
+        const price = r.pricePerKg === null ? 'Selling price: not set yet' : `Selling price: ${riel(r.pricePerKg)} per kg${r.expectedValue ? ` (about ${riel(r.expectedValue)} in total)` : ''}`;
+        return [`<b>${escapeHtml(r.batch.name)}</b>: ${plural(r.head, 'animal', 'animals')}${sexes ? ` (${sexes})` : ''}`, weight, price, `Sell by ${shortDay(r.batch.sellingTargetDate ?? '')} (${when})`].join('\n');
       });
       out.push({ farm, kind: 'sale', message: wrap('💰', 'Selling reminder', farm, today, [...body.flatMap(b => [b, '']), 'Please decide: sell, or keep feeding.'], opts.appUrl) });
     }

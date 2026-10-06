@@ -44,6 +44,23 @@ describe('selling reminder, per farm', () => {
     expect(sale[0].message).toContain('<b>Batch 1</b>');
   });
 
+  it('gives males and females, lowest and highest weight, and the selling price', () => {
+    const d = data({
+      stock: [cow('A1', 'Farm A'), cow('A2', 'Farm A', { sex: 'Female' }), cow('A3', 'Farm A', { sex: 'ញី' })],
+      weightTracking: [{ cowId: 'A1', trackingDate: '2026-10-05', currentWeight: 360 }, { cowId: 'A2', trackingDate: '2026-10-05', currentWeight: 465 }, { cowId: 'A3', trackingDate: '2026-10-05', currentWeight: 411 }],
+      batches: [batch('1', 'Farm A', '2026-10-10', { cowIds: ['A1', 'A2', 'A3'], expectedSellingPrice: 12500 })],
+    });
+    const msg = byKind(buildMorningMessages(d, NOW), 'sale')[0].message;
+    expect(msg).toContain('<b>Batch 1</b>: 3 animals (1 male, 2 female)');
+    expect(msg).toContain('Weight: 360 to 465 kg (average 412 kg)');
+    expect(msg).toContain('Selling price: 12,500 ៛ per kg (about 15,450,000 ៛ in total)');
+  });
+
+  it('says plainly when no selling price is set', () => {
+    const d = data({ batches: [batch('1', 'Farm A', '2026-10-10')] });
+    expect(byKind(buildMorningMessages(d, NOW), 'sale')[0].message).toContain('Selling price: not set yet');
+  });
+
   it('says how late a batch is', () => {
     const d = data({ batches: [batch('1', 'Farm B', '2026-10-04')] });
     expect(byKind(buildMorningMessages(d, NOW), 'sale')[0].message).toContain('Sell by 4 Oct (2 days late)');

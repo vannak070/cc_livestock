@@ -89,6 +89,19 @@ export interface BatchSummary {
   daysToTarget: number | null;
   feedCostPerDay: number;
   feedKgPerDay: number;
+  males: number;
+  females: number;
+  /** Lowest and highest current weight in the batch, kg; null with no cattle. */
+  minWeight: number | null;
+  maxWeight: number | null;
+}
+
+/** 'male' or 'female' for the sex values in use (English or Khmer); null for anything else. */
+export function sexOf(sex: string | undefined): 'male' | 'female' | null {
+  const v = (sex ?? '').trim().toLowerCase();
+  if (v === 'male' || v === 'm' || v.includes('ឈ្មោល')) return 'male';
+  if (v === 'female' || v === 'f' || v.includes('ញី')) return 'female';
+  return null;
 }
 
 export function batchSummary(batch: BatchItem, stock: StockItem[], weightTracking: WeightRecord[], products: FeedProductItem[], now: Date = new Date()): BatchSummary {
@@ -111,6 +124,10 @@ export function batchSummary(batch: BatchItem, stock: StockItem[], weightTrackin
     daysToTarget: target === null ? null : target - today(now),
     feedCostPerDay: lines.reduce((s, l) => s + l.costPerHead, 0) * cattle.length,
     feedKgPerDay: lines.reduce((s, l) => s + l.kgPerHead, 0) * cattle.length,
+    males: cattle.filter(c => sexOf(c.sex) === 'male').length,
+    females: cattle.filter(c => sexOf(c.sex) === 'female').length,
+    minWeight: stats.length ? Math.min(...stats.map(x => x.currentWeight)) : null,
+    maxWeight: stats.length ? Math.max(...stats.map(x => x.currentWeight)) : null,
   };
 }
 
