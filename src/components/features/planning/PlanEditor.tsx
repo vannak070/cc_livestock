@@ -208,7 +208,7 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, prod
             ))}
           </div>
           {loanView === 'payments'
-            ? <BankPaymentsTable payments={loan.payments} intro="The loan is paid out once, in month 1 of each loan year, as one fund. The farm pays interest every month and pays the loan back in the repayment months (highlighted). Only the farm pays the bank." onDownload={() => exportBankPlan(name, loan.terms.startMonth, loan.payments)} />
+            ? <BankPaymentsTable payments={loan.payments} terms={loan.terms} intro="The loan is paid out once, in month 1 of each loan year, as one fund. The farm pays interest every month and pays the loan back in the repayment months (highlighted). Only the farm pays the bank." onDownload={() => exportBankPlan(name, loan.terms, loan.payments)} />
             : <CcTradesTable trades={loan.trades} farmName="the farm" onDownload={() => exportTrades(name, loan.terms.startMonth, loan.trades)} />}
         </div>
       )}

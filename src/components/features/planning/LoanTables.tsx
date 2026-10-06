@@ -4,7 +4,8 @@ import React from 'react';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CcTradeRow, LoanMonth, bankSchedule, ccTrades } from '@/lib/farm-loan';
-import type { PlanFeedLine } from '@/lib/types';
+import type { FarmLoanTerms, PlanFeedLine } from '@/lib/types';
+import * as xlsx from 'xlsx';
 import { feedNeeds } from '@/lib/feed-lines';
 import { exportToExcel } from '@/lib/excel-export';
 
@@ -22,24 +23,42 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export const monthLabel = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
 const fileSafe = (s: string) => s.replace(/[^\p{L}\p{N}]+/gu, '_');
 
-export function exportBankPlan(name: string, startMonth: string, payments: Payments) {
-  exportToExcel({
-    filename: `CC_Livestock_Bank_Payment_Plan_${fileSafe(name)}_${startMonth}.xlsx`,
-    sheetName: 'Bank payments',
-    data: [
-      ...payments.rows.map(r => ({ ...r, label: `${monthLabel(r.month)} (year ${r.year}, month ${r.monthInYear})` })),
-      ...payments.years.map(y => ({ label: `Year ${y.year} total`, openingKhr: '', drawKhr: y.drawKhr, interestKhr: y.interestKhr, principalKhr: y.principalKhr, totalKhr: y.totalKhr, closingKhr: '' })),
-    ],
-    columns: [
-      { header: 'Month', key: 'label' },
-      { header: 'Owed at start (៛)', key: 'openingKhr' },
-      { header: 'Drawn (៛)', key: 'drawKhr' },
-      { header: 'Interest (៛)', key: 'interestKhr' },
-      { header: 'Principal (៛)', key: 'principalKhr' },
-      { header: 'Farm pays the bank (៛)', key: 'totalKhr' },
-      { header: 'Owed at end (៛)', key: 'closingKhr' },
-    ],
-  });
+/** The loan's terms as label / value rows, for the top of the bank plan. */
+function termRows(name: string, terms: FarmLoanTerms, payments: Payments): [string, string | number][] {
+  const payout = payments.rows[0]?.drawKhr ?? 0;
+  return [
+    ['Plan', name],
+    ['Bank', terms.bank || 'Not set'],
+    ['Month 1 of the loan', monthLabel(terms.startMonth)],
+    ['Paid out (month 1 of each loan year)', payout],
+    ['Interest', `${terms.annualRatePct}% a year, paid every month on what is owed`],
+    ['Paid back', terms.repayments.map(r => `${r.pct}% in month ${r.month}`).join(', ')],
+    ['Renews each year', terms.autoRenew ? 'Yes' : 'No'],
+    ['Credit limit', terms.creditLimitKhr > 0 ? terms.creditLimitKhr : 'No limit set'],
+    ['Interest over the plan', payments.total.interestKhr],
+    ['Paid to the bank over the plan', payments.total.totalKhr],
+    ['Who pays the bank', 'The farm (CC Livestock does not repay the bank)'],
+  ];
+}
+
+/** Excel for the bank: the loan terms on one sheet, every month's payment on the next. */
+export function exportBankPlan(name: string, terms: FarmLoanTerms, payments: Payments) {
+  const header = ['Month', 'Owed at start (៛)', 'Borrowed (៛)', 'Interest (៛)', 'Paid back (៛)', 'Farm pays the bank (៛)', 'Owed at end (៛)', 'Farm cash after (៛)'];
+  const rows: (string | number)[][] = [
+    header,
+    ...payments.rows.map(r => [`${monthLabel(r.month)} (year ${r.year}, month ${r.monthInYear})`, r.openingKhr, r.drawKhr, r.interestKhr, r.principalKhr, r.totalKhr, r.closingKhr, r.cashAfterKhr]),
+    [],
+    ...payments.years.map(y => [`Year ${y.year} total`, '', y.drawKhr, y.interestKhr, y.principalKhr, y.totalKhr, '', '']),
+    ['Whole plan', '', payments.total.drawKhr, payments.total.interestKhr, payments.total.principalKhr, payments.total.totalKhr, '', ''],
+  ];
+  const termsSheet = xlsx.utils.aoa_to_sheet([['Bank loan', ''], ...termRows(name, terms, payments)]);
+  termsSheet['!cols'] = [{ wch: 38 }, { wch: 60 }];
+  const paymentSheet = xlsx.utils.aoa_to_sheet(rows);
+  paymentSheet['!cols'] = header.map((h, i) => ({ wch: i === 0 ? 30 : Math.max(16, h.length + 2) }));
+  const book = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(book, termsSheet, 'Loan terms');
+  xlsx.utils.book_append_sheet(book, paymentSheet, 'Bank payments');
+  xlsx.writeFile(book, `CC_Livestock_Bank_Payment_Plan_${fileSafe(name)}_${terms.startMonth}.xlsx`);
 }
 
 export function exportTrades(name: string, startMonth: string, trades: Trades) {
@@ -61,16 +80,55 @@ export function exportTrades(name: string, startMonth: string, trades: Trades) {
   });
 }
 
-/** Payments to the bank, every month of the plan, with the year totals. */
-export function BankPaymentsTable({ payments, intro, onDownload }: { payments: Payments; intro: string; onDownload: () => void }) {
+/** Payments to the bank, every month of the plan: the big payments first, then each month, with the year and plan totals. */
+export function BankPaymentsTable({ payments, terms, intro, onDownload }: { payments: Payments; terms: Pick<FarmLoanTerms, 'repayments'>; intro: string; onDownload: () => void }) {
+  const big = payments.rows.filter(r => r.drawKhr > 0 || r.principalKhr > 0);
+  const interestOnly = payments.rows.filter(r => r.principalKhr === 0 && r.interestKhr > 0).map(r => r.interestKhr);
+  const share = (monthInYear: number) => terms.repayments.find(x => x.month === monthInYear)?.pct;
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-2xl text-base text-ink-muted">{intro}</p>
         <Button variant="outline" onClick={onDownload}><Download /> Download Excel</Button>
       </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <h3 className="text-lg font-semibold text-ink">Big payments</h3>
+        {interestOnly.length > 0 && (
+          <p className="mb-2 text-base text-ink-muted">
+            Other months the farm pays interest only: {riel(Math.min(...interestOnly))}{Math.min(...interestOnly) !== Math.max(...interestOnly) ? ` to ${riel(Math.max(...interestOnly))}` : ''} a month.
+          </p>
+        )}
+        <ul className="divide-y divide-slate-100">
+          {big.map(r => {
+            const short = r.principalKhr > 0 && r.cashAfterKhr < 0;
+            const pct = share(r.monthInYear);
+            return (
+              <li key={r.index} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
+                <span className="text-base text-ink">
+                  <span className="font-semibold">{monthLabel(r.month)}</span>
+                  <span className="text-ink-muted"> · year {r.year}, month {r.monthInYear}</span>
+                  <span className="block text-sm text-ink-muted">
+                    {[r.drawKhr > 0 ? `bank pays out ${riel(r.drawKhr)}` : null, r.principalKhr > 0 ? `farm pays back ${pct ? `${pct}%, ` : ''}${riel(r.principalKhr)} + interest ${riel(r.interestKhr)}` : null].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+                <span className="text-right">
+                  {r.principalKhr > 0 ? (
+                    <>
+                      <span className="text-base font-semibold text-ink">{riel(r.totalKhr)}</span>
+                      <span className={`ml-3 rounded-full px-2.5 py-0.5 text-sm font-medium ${short ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>{short ? `Short ${riel(-r.cashAfterKhr)}` : 'Covered'}</span>
+                    </>
+                  ) : <span className="text-base font-semibold text-emerald-800">+{riel(r.drawKhr)}</span>}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-sm text-ink-muted">Covered means the farm still has money left after paying, from its sales and the loan. Short is what it would need from elsewhere that month.</p>
+      </div>
+
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-        <table className="w-full min-w-[52rem] text-right text-base">
+        <table className="w-full min-w-[60rem] text-right text-base">
           <thead className="bg-slate-50 text-sm text-ink-muted">
             <tr>
               <th scope="col" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium">Month</th>
@@ -80,6 +138,7 @@ export function BankPaymentsTable({ payments, intro, onDownload }: { payments: P
               <th scope="col" className="px-3 py-2 font-medium">Paid back</th>
               <th scope="col" className="px-3 py-2 font-medium">Farm pays the bank</th>
               <th scope="col" className="px-3 py-2 font-medium">Owed at end</th>
+              <th scope="col" className="px-3 py-2 font-medium">Farm cash after</th>
             </tr>
           </thead>
           <tbody>
@@ -95,6 +154,7 @@ export function BankPaymentsTable({ payments, intro, onDownload }: { payments: P
                 <td className="px-3 py-2 font-medium text-ink">{r.principalKhr ? riel(r.principalKhr) : '—'}</td>
                 <td className="px-3 py-2 font-semibold text-ink">{r.totalKhr ? riel(r.totalKhr) : '—'}</td>
                 <td className="px-3 py-2 text-ink">{riel(r.closingKhr)}</td>
+                <td className={`px-3 py-2 font-medium ${r.cashAfterKhr < 0 ? 'bg-rose-50 text-rose-700' : 'text-emerald-800'}`}>{riel(r.cashAfterKhr)}</td>
               </tr>
             ))}
           </tbody>
@@ -107,9 +167,20 @@ export function BankPaymentsTable({ payments, intro, onDownload }: { payments: P
                 <td className="px-3 py-2">{riel(y.interestKhr)}</td>
                 <td className="px-3 py-2">{riel(y.principalKhr)}</td>
                 <td className="px-3 py-2 font-semibold">{riel(y.totalKhr)}</td>
-                <td className="px-3 py-2" />
+                <td className="px-3 py-2" colSpan={2} />
               </tr>
             ))}
+            {payments.years.length > 1 && (
+              <tr className="border-t-2 border-slate-300">
+                <th scope="row" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-semibold">Whole plan</th>
+                <td className="px-3 py-2" />
+                <td className="px-3 py-2 font-semibold">{riel(payments.total.drawKhr)}</td>
+                <td className="px-3 py-2 font-semibold">{riel(payments.total.interestKhr)}</td>
+                <td className="px-3 py-2 font-semibold">{riel(payments.total.principalKhr)}</td>
+                <td className="px-3 py-2 font-semibold">{riel(payments.total.totalKhr)}</td>
+                <td className="px-3 py-2" colSpan={2} />
+              </tr>
+            )}
           </tfoot>
         </table>
       </div>

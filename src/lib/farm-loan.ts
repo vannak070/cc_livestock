@@ -436,6 +436,8 @@ export interface BankPaymentRow {
   totalKhr: number;
   /** Owed at the end of the month. */
   closingKhr: number;
+  /** The farm's money at the end of the month, after paying the bank; below 0 means it cannot pay from its own cash. */
+  cashAfterKhr: number;
 }
 
 export interface BankPaymentYear {
@@ -447,7 +449,7 @@ export interface BankPaymentYear {
 }
 
 /** What the farm owes and pays the bank each month, and each year's totals. The farm pays all of it. */
-export function bankSchedule(plan: LoanPlan): { rows: BankPaymentRow[]; years: BankPaymentYear[] } {
+export function bankSchedule(plan: LoanPlan): { rows: BankPaymentRow[]; years: BankPaymentYear[]; total: Omit<BankPaymentYear, 'year'> } {
   const rows = plan.months.map((m, i): BankPaymentRow => {
     const total = m.interestKhr + m.principalKhr;
     return {
@@ -461,6 +463,7 @@ export function bankSchedule(plan: LoanPlan): { rows: BankPaymentRow[]; years: B
       principalKhr: m.principalKhr,
       totalKhr: total,
       closingKhr: m.balanceKhr,
+      cashAfterKhr: m.cashKhr,
     };
   });
   const years = [...new Set(rows.map(r => r.year))].map(year => {
@@ -468,7 +471,8 @@ export function bankSchedule(plan: LoanPlan): { rows: BankPaymentRow[]; years: B
     const sum = (k: keyof BankPaymentRow) => ys.reduce((s, r) => s + (r[k] as number), 0);
     return { year, drawKhr: sum('drawKhr'), interestKhr: sum('interestKhr'), principalKhr: sum('principalKhr'), totalKhr: sum('totalKhr') };
   });
-  return { rows, years };
+  const add = (k: 'drawKhr' | 'interestKhr' | 'principalKhr' | 'totalKhr') => years.reduce((s, y) => s + y[k], 0);
+  return { rows, years, total: { drawKhr: add('drawKhr'), interestKhr: add('interestKhr'), principalKhr: add('principalKhr'), totalKhr: add('totalKhr') } };
 }
 
 /** One month's trade between the farm and CC Livestock, as separate payments. */

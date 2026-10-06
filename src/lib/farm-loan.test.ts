@@ -142,6 +142,16 @@ describe('bankSchedule', () => {
     expect(rows[0]).not.toHaveProperty('paidByCcKhr');
   });
 
+  it('shows the farm cash left after each payment', () => {
+    rows.forEach((r, i) => expect(r.cashAfterKhr).toBe(plan.months[i].cashKhr));
+  });
+
+  it('adds up the whole plan as well as each year', () => {
+    const { total } = bankSchedule(plan);
+    expect(total.totalKhr).toBe(years[0].totalKhr + years[1].totalKhr);
+    expect(total.interestKhr).toBe(rows.reduce((s, r) => s + r.interestKhr, 0));
+  });
+
   it('adds up each year: everything drawn is repaid', () => {
     expect(years.map(y => y.year)).toEqual([1, 2]);
     expect(years[0].principalKhr).toBe(years[0].drawKhr);
