@@ -6,6 +6,7 @@ import type { BatchItem } from '@/lib/types';
 import type { StockItem } from '@/lib/xlsx-parser';
 import { FlowDone, FlowFooter, FlowShell } from '../flow/FlowShell';
 import CattlePicker from './CattlePicker';
+import { useText } from '@/hooks/useText';
 
 interface AddToBatchFlowProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ export default function AddToBatchFlow(props: AddToBatchFlowProps) {
 }
 
 function AddBody({ onClose, batch, freeCattle, onAssign }: AddToBatchFlowProps) {
+  const { tx, txn } = useText('batchesPage');
+  const flow = useText('flow');
   const [picked, setPicked] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -35,14 +38,14 @@ function AddBody({ onClose, batch, freeCattle, onAssign }: AddToBatchFlowProps) 
   const pool = batch.farmLocation ? freeCattle.filter(c => c.location === batch.farmLocation) : freeCattle;
 
   const save = async () => {
-    if (picked.length === 0) { setError('Tap at least one animal.'); return; }
+    if (picked.length === 0) { setError(tx('eTapOne')); return; }
     setSaving(true);
     setError('');
     try {
       await onAssign(batch.id, picked);
       setAdded(picked.length);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not add them. Please try again.');
+      setError(e instanceof Error ? e.message : tx('eAdd'));
     } finally {
       setSaving(false);
     }
@@ -53,21 +56,21 @@ function AddBody({ onClose, batch, freeCattle, onAssign }: AddToBatchFlowProps) 
     <FlowShell
       steps={[]}
       step={done ? 'done' : 'pick'}
-      title={done ? 'Added' : 'Add cattle'}
-      subtitle={done ? undefined : `To ${batch.name}. Animals already in a batch are not listed.`}
+      title={done ? tx('aTitleDone') : tx('aTitle')}
+      subtitle={done ? undefined : tx('aSub', { batch: batch.name })}
       error={error}
       onSubmit={done ? undefined : save}
-      footer={done ? null : <FlowFooter label={saving ? 'Saving…' : picked.length ? `Add ${picked.length}` : 'Add'} busy={saving} />}
+      footer={done ? null : <FlowFooter label={saving ? flow.tx('saving') : picked.length ? tx('aAddN', { n: picked.length }) : tx('aAdd')} busy={saving} />}
     >
       {done ? (
         <FlowDone
-          message={<><span className="font-semibold">{added} {added === 1 ? 'animal' : 'animals'}</span> added to {batch.name}</>}
-          again="Add more"
+          message={tx('aAdded', { n: txn(added ?? 0, 'animalOne', 'animalMany'), batch: batch.name })}
+          again={tx('aAgain')}
           onAgain={() => { setAdded(null); setPicked([]); }}
           onClose={onClose}
         />
       ) : (
-        <CattlePicker cattle={pool} selected={picked} onChange={ids => { setPicked(ids); setError(''); }} emptyText="No free animals. Everyone is already in a batch." />
+        <CattlePicker cattle={pool} selected={picked} onChange={ids => { setPicked(ids); setError(''); }}  emptyText={tx('aNoFree')} />
       )}
     </FlowShell>
   );

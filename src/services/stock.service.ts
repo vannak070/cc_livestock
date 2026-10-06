@@ -3,6 +3,7 @@ import { weightRepository } from '../repositories/weight.repository';
 import { withTransaction } from '../config/database';
 import { StockItem, WeightRecord } from '../lib/xlsx-parser';
 import type { FarmScope } from '../lib/farm-scope';
+import { farmLimitService } from './farm-limit.service';
 
 export class StockService {
   async getAllStock(scope?: FarmScope): Promise<StockItem[]> {
@@ -18,6 +19,8 @@ export class StockService {
    */
   async createStock(item: Omit<StockItem, 'no'>): Promise<StockItem> {
     return withTransaction(async (client) => {
+      // Every animal registered on a farm counts toward its cattle limit.
+      await farmLimitService.assertRoom(item.location, 1, client);
       const newStock = await stockRepository.create(item, client);
 
       const initialWeightRecord: WeightRecord = {
@@ -45,6 +48,10 @@ export class StockService {
       const original = await stockRepository.findById(id);
       if (!original) {
         throw new Error(`Cow with ID ${id} not found`);
+      }
+      // Moving an animal onto another farm takes a place in that farm's cattle limit.
+      if (updates.location && (updates.location ?? '').trim().toLowerCase() !== (original.location ?? '').trim().toLowerCase()) {
+        await farmLimitService.assertRoom(updates.location, 1, client);
       }
 
       const updatedStock = await stockRepository.update(id, updates, client);

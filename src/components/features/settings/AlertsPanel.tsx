@@ -10,6 +10,7 @@ import { alertSettings, alertSettingsProblem } from '@/lib/alerts';
 import { saleWindowDays } from '@/lib/sale-review';
 import { getErrorMessage } from '@/lib/utils';
 import { Choice } from '../flow/FlowShell';
+import { useText } from '@/hooks/useText';
 
 interface AlertsPanelProps {
   settings: MasterSetup;
@@ -24,6 +25,7 @@ const hourText = (h: number) => `${String(h).padStart(2, '0')}:00`;
 const SELECT = 'h-12 rounded-xl border-2 border-slate-200 bg-white px-3 text-lg text-ink focus:border-emerald-600 focus:outline-none';
 
 export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) {
+  const { tx, txn } = useText('settingsPage');
   const saved = alertSettings(settings);
   const [enabled, setEnabled] = useState(saved.telegramEnabled);
   const [chatId, setChatId] = useState(saved.chatId);
@@ -49,9 +51,9 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
     setBusy('save');
     try {
       await onSettings({ alerts: next });
-      say('ok', 'Saved.');
+      say('ok', tx('savedDot'));
     } catch (e) {
-      say('bad', getErrorMessage(e, 'Could not save.'));
+      say('bad', getErrorMessage(e, tx('couldNotSave')));
     } finally {
       setBusy('');
     }
@@ -64,7 +66,7 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
     setBusy('');
     if (!res.success) { say('bad', res.error); return; }
     setChats(res.data);
-    if (res.data.length === 0) say('bad', 'No group found yet. Add the bot to your group, send any message in it, then tap Find again.');
+    if (res.data.length === 0) say('bad', tx('noGroup'));
   };
 
   const test = async () => {
@@ -72,7 +74,7 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
     setMessage(null);
     const res = await sendTelegramTestAction();
     setBusy('');
-    say(res.success ? 'ok' : 'bad', res.success ? 'Test message sent. Check your Telegram group.' : res.error);
+    say(res.success ? 'ok' : 'bad', res.success ? tx('testSent') : res.error);
   };
 
   const runNow = async () => {
@@ -81,7 +83,7 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
     const res = await runSaleAlertsAction();
     setBusy('');
     if (!res.success) { say('bad', res.error); return; }
-    say('ok', res.data.sent > 0 ? `Sent an alert for ${res.data.sent} ${res.data.sent === 1 ? 'batch' : 'batches'}.` : 'Nothing new to send: every batch near its selling date has already been reported.');
+    say('ok', res.data.sent > 0 ? tx('sentFor', { batches: txn(res.data.sent, 'batchOne', 'batchMany') }) : tx('nothingNew'));
   };
 
   const last = settings.alertStatus;
@@ -89,34 +91,34 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
 
   return (
     <div className="space-y-5">
-      <p className="text-base text-ink-muted">Send alerts to a Telegram group when a batch nears its selling date.</p>
+      <p className="text-base text-ink-muted">{tx('alertsIntro')}</p>
 
       <section className="space-y-2 rounded-2xl border-2 border-slate-200 bg-white p-4">
-        <h3 className="text-lg font-semibold text-ink">The bot</h3>
-        {status === null && <p className="text-base text-ink-muted">Checking…</p>}
+        <h3 className="text-lg font-semibold text-ink">{tx('theBot')}</h3>
+        {status === null && <p className="text-base text-ink-muted">{tx('checking')}</p>}
         {status && !status.configured && (
-          <p className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">No bot is connected yet. Create one with @BotFather in Telegram, then put its token in the server&apos;s <span className="font-mono">.env</span> file as <span className="font-mono">TELEGRAM_BOT_TOKEN</span> and restart the server.</p>
+          <p className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">{tx('noBot')}</p>
         )}
-        {status && status.configured && status.error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-base text-rose-800">The bot token is set, but Telegram said: {status.error}</p>}
-        {connected && <p className="text-lg text-ink">Connected as <span className="font-semibold">@{status.bot!.username}</span> ({status.bot!.name})</p>}
+        {status && status.configured && status.error && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-base text-rose-800">{tx('botError', { error: status.error })}</p>}
+        {connected && <p className="text-lg text-ink">{tx('connectedAs', { username: status.bot!.username, name: status.bot!.name })}</p>}
       </section>
 
       <section className="space-y-4 rounded-2xl border-2 border-slate-200 bg-white p-4">
-        <h3 className="text-lg font-semibold text-ink">The group</h3>
+        <h3 className="text-lg font-semibold text-ink">{tx('theGroup')}</h3>
         <div className="space-y-2">
-          <p className="text-base font-medium text-ink">Telegram group</p>
+          <p className="text-base font-medium text-ink">{tx('tgGroup')}</p>
           <div className="flex flex-wrap gap-2">
-            <Input aria-label="Telegram chat id" value={chatId} onChange={e => { setChatId(e.target.value); setMessage(null); }} placeholder="Not chosen yet" className="h-14 min-w-0 flex-1 font-mono text-lg" />
-            <Button type="button" variant="outline" size="lg" onClick={find} disabled={!connected || busy !== ''}><Search /> {busy === 'find' ? 'Looking…' : 'Find my group'}</Button>
+            <Input aria-label={tx('chatIdAria')} value={chatId} onChange={e => { setChatId(e.target.value); setMessage(null); }} placeholder={tx('notChosen')} className="h-14 min-w-0 flex-1 font-mono text-lg" />
+            <Button type="button" variant="outline" size="lg" onClick={find} disabled={!connected || busy !== ''}><Search /> {busy === 'find' ? tx('looking') : tx('findGroup')}</Button>
           </div>
-          <p className="text-base text-ink-muted">Add the bot to your group first, then send any message in the group so the bot can see it.</p>
+          <p className="text-base text-ink-muted">{tx('addBotFirst')}</p>
           {chats && chats.length > 0 && (
             <ul className="space-y-2">
               {chats.map(c => (
                 <li key={c.id}>
                   <button type="button" onClick={() => { setChatId(c.id); setChats(null); setMessage(null); }} className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-200 px-4 py-2 text-left hover:border-emerald-600">
                     <span className="min-w-0 break-words text-lg font-semibold text-ink">{c.title}</span>
-                    <span className="shrink-0 text-base text-ink-muted">{c.type === 'private' ? 'a person' : c.type}</span>
+                    <span className="shrink-0 text-base text-ink-muted">{c.type === 'private' ? tx('aPerson') : c.type}</span>
                   </button>
                 </li>
               ))}
@@ -125,43 +127,43 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
         </div>
 
         <div className="space-y-2">
-          <p className="text-base font-medium text-ink">Send alerts</p>
+          <p className="text-base font-medium text-ink">{tx('sendAlerts')}</p>
           <div className="flex gap-3">
-            <Choice selected={!enabled} onClick={() => { setEnabled(false); setMessage(null); }}>Off</Choice>
-            <Choice selected={enabled} onClick={() => { setEnabled(true); setMessage(null); }}>On</Choice>
+            <Choice selected={!enabled} onClick={() => { setEnabled(false); setMessage(null); }}>{tx('off')}</Choice>
+            <Choice selected={enabled} onClick={() => { setEnabled(true); setMessage(null); }}>{tx('on')}</Choice>
           </div>
         </div>
 
         <label className="block space-y-2">
-          <span className="text-base font-medium text-ink">Send the daily alert at</span>
-          <select aria-label="Hour of the daily alert" value={hour} onChange={e => { setHour(Number(e.target.value)); setMessage(null); }} className={SELECT}>
+          <span className="text-base font-medium text-ink">{tx('sendAt')}</span>
+          <select aria-label={tx('hourAria')} value={hour} onChange={e => { setHour(Number(e.target.value)); setMessage(null); }} className={SELECT}>
             {HOURS.map(h => <option key={h} value={h}>{hourText(h)}</option>)}
           </select>
-          <span className="block text-base text-ink-muted">Cambodia time.</span>
+          <span className="block text-base text-ink-muted">{tx('cambodiaTime')}</span>
         </label>
 
         {message && <p role={message.tone === 'bad' ? 'alert' : 'status'} className={`text-base font-medium ${message.tone === 'bad' ? 'text-rose-700' : 'text-emerald-700'}`}>{message.text}</p>}
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="lg" onClick={save} disabled={!dirty || busy !== ''}>{busy === 'save' ? 'Saving…' : 'Save'}</Button>
-          <Button type="button" size="lg" variant="outline" onClick={test} disabled={!connected || !saved.chatId || dirty || busy !== ''}><Send /> {busy === 'test' ? 'Sending…' : 'Send test message'}</Button>
+          <Button type="button" size="lg" onClick={save} disabled={!dirty || busy !== ''}>{busy === 'save' ? tx('saving') : tx('save')}</Button>
+          <Button type="button" size="lg" variant="outline" onClick={test} disabled={!connected || !saved.chatId || dirty || busy !== ''}><Send /> {busy === 'test' ? tx('sending') : tx('sendTest')}</Button>
         </div>
-        {dirty && saved.chatId && <p className="text-base text-ink-muted">Save your changes before sending a test.</p>}
+        {dirty && saved.chatId && <p className="text-base text-ink-muted">{tx('saveFirst')}</p>}
       </section>
 
       <section className="space-y-3 rounded-2xl border-2 border-slate-200 bg-white p-4">
-        <h3 className="text-lg font-semibold text-ink">What is sent</h3>
+        <h3 className="text-lg font-semibold text-ink">{tx('whatSent')}</h3>
         <ul className="list-disc space-y-1 pl-5 text-base text-ink">
-          <li>One message a day, at the hour above, only when something is new.</li>
-          <li>A batch is reported when it comes within {saleWindowDays(settings)} days of its selling date, again at 7 days, and when it passes the date.</li>
-          <li>While a batch stays past its date and nobody has decided, a reminder follows every 3 days.</li>
-          <li>A batch marked &quot;Ready to sell&quot; is never reported. Choosing &quot;Keep feeding&quot; with a new date starts it over.</li>
+          <li>{tx('sent1')}</li>
+          <li>{tx('sent2', { n: saleWindowDays(settings) })}</li>
+          <li>{tx('sent3')}</li>
+          <li>{tx('sent4')}</li>
         </ul>
-        <p className="text-base text-ink-muted">Change how many days ahead in Settings, Lists, Selling reminder.</p>
-        {last?.lastSentAt && <p className="text-base text-ink">Last alert: {last.lastSentAt.slice(0, 16).replace('T', ' ')} UTC, {last.lastSentCount ?? 0} {last.lastSentCount === 1 ? 'batch' : 'batches'}.</p>}
-        {last?.lastError && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-base text-rose-800">The last attempt failed: {last.lastError}. It tries again every 10 minutes.</p>}
-        <Button type="button" size="lg" variant="outline" onClick={runNow} disabled={!connected || !saved.telegramEnabled || !saved.chatId || dirty || busy !== ''}>{busy === 'run' ? 'Checking…' : 'Check and send now'}</Button>
-        {!saved.telegramEnabled && <p className="text-base text-ink-muted">Switch alerts on and save to use this.</p>}
+        <p className="text-base text-ink-muted">{tx('changeDays')}</p>
+        {last?.lastSentAt && <p className="text-base text-ink">{tx('lastAlert', { time: last.lastSentAt.slice(0, 16).replace('T', ' '), batches: txn(last.lastSentCount ?? 0, 'batchOne', 'batchMany') })}</p>}
+        {last?.lastError && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-base text-rose-800">{tx('lastFailed', { error: last.lastError })}</p>}
+        <Button type="button" size="lg" variant="outline" onClick={runNow} disabled={!connected || !saved.telegramEnabled || !saved.chatId || dirty || busy !== ''}>{busy === 'run' ? tx('checking') : tx('checkSend')}</Button>
+        {!saved.telegramEnabled && <p className="text-base text-ink-muted">{tx('switchOn')}</p>}
       </section>
     </div>
   );

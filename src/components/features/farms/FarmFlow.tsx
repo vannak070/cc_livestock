@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import type { FarmItem, MasterSetup } from '@/lib/types';
 import { validateFarm, type FarmErrors, type FarmInput } from '@/lib/farm-settings';
 import { Choice, FlowFooter, FlowShell, NUM, Question } from '../flow/FlowShell';
+import { useText } from '@/hooks/useText';
 
 interface FarmFlowProps {
   isOpen: boolean;
@@ -33,6 +34,8 @@ export default function FarmFlow(props: FarmFlowProps) {
 }
 
 function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps) {
+  const { tx } = useText('farmsPage');
+  const flow = useText('flow');
   const edit = !!farm;
   const [step, setStep] = useState<Step>('farm');
   const [name, setName] = useState(farm?.name ?? '');
@@ -61,7 +64,7 @@ function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps
       setSaved(result);
       setStep('done');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save. Please try again.');
+      setError(e instanceof Error ? e.message : tx('fErrSave'));
     } finally {
       setSaving(false);
     }
@@ -80,25 +83,25 @@ function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps
     <FlowShell
       steps={steps}
       step={step}
-      title={step === 'done' ? 'Farm added' : edit ? 'Edit farm' : 'Add a farm'}
-      subtitle={step === 'farm' ? 'Its name, and how many cattle it can hold.' : step === 'more' ? 'Both are optional.' : 'It is ready to use.'}
+      title={step === 'done' ? tx('fTitleDone') : edit ? tx('fTitleEdit') : tx('fTitleAdd')}
+      subtitle={step === 'farm' ? tx('fSubFarm') : step === 'more' ? tx('fSubMore') : tx('fSubDone')}
       summary={step === 'more' ? name.trim() : ''}
       error={error}
       onSubmit={step === 'done' ? undefined : next}
-      footer={step === 'done' ? null : <FlowFooter onBack={step === 'more' ? () => { setError(''); setStep('farm'); } : undefined} label={step === 'more' ? (saving ? 'Saving…' : 'Save farm') : 'Next'} busy={saving} />}
+      footer={step === 'done' ? null : <FlowFooter onBack={step === 'more' ? () => { setError(''); setStep('farm'); } : undefined} label={step === 'more' ? (saving ? flow.tx('saving') : tx('fSave')) : flow.tx('next')} busy={saving} />}
     >
       {step === 'farm' && (
         <>
-          <Question label="Name of the farm">
-            <Input aria-label="Name of the farm" autoFocus value={name} onChange={e => { setName(e.target.value); setError(''); }} className="h-16 text-xl font-semibold" />
+          <Question label={tx('fName')}>
+            <Input aria-label={tx('fName')} autoFocus value={name} onChange={e => { setName(e.target.value); setError(''); }} className="h-16 text-xl font-semibold" />
           </Question>
-          <Question label="Cattle it can hold" hint="Used to show how full the farm is.">
-            <Input aria-label="Cattle it can hold" type="number" inputMode="numeric" value={capacity} onChange={e => { setCapacity(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
+          <Question label={tx('fCapacity')} hint={tx('fCapacityHint')}>
+            <Input aria-label={tx('fCapacity')} type="number" inputMode="numeric" value={capacity} onChange={e => { setCapacity(e.target.value); setError(''); }} className={`h-16 text-2xl font-semibold ${NUM}`} />
           </Question>
-          <Question label="Who runs this farm?" hint={companyRun ? 'The company runs it. Office accounts record its work, so it needs no farm owner.' : 'A farm owner signs in and runs it. You add the owner after saving.'}>
+          <Question label={tx('fWhoRuns')} hint={companyRun ? tx('fCompanyHint') : tx('fOwnerHint')}>
             <div className="flex flex-wrap gap-3">
-              <Choice selected={!companyRun} onClick={() => setCompanyRun(false)}>A farm owner</Choice>
-              <Choice selected={companyRun} onClick={() => setCompanyRun(true)}>The company</Choice>
+              <Choice selected={!companyRun} onClick={() => setCompanyRun(false)}>{tx('fAnOwner')}</Choice>
+              <Choice selected={companyRun} onClick={() => setCompanyRun(true)}>{tx('fCompany')}</Choice>
             </div>
           </Question>
         </>
@@ -106,8 +109,8 @@ function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps
 
       {step === 'more' && (
         <>
-          <Question label="Address (optional)"><Input aria-label="Address" autoFocus value={address} onChange={e => setAddress(e.target.value)} placeholder="District, province" className="h-14 text-lg" /></Question>
-          <Question label="Notes (optional)"><Input aria-label="Notes" value={notes} onChange={e => setNotes(e.target.value)} className="h-14 text-lg" /></Question>
+          <Question label={tx('fAddress')}><Input aria-label={tx('fAddressAria')} autoFocus value={address} onChange={e => setAddress(e.target.value)} placeholder={tx('fAddressPh')} className="h-14 text-lg" /></Question>
+          <Question label={tx('fNotes')}><Input aria-label={tx('fNotesAria')} value={notes} onChange={e => setNotes(e.target.value)} className="h-14 text-lg" /></Question>
         </>
       )}
 
@@ -115,12 +118,12 @@ function FarmBody({ onClose, farm, settings, onSave, onAddOwner }: FarmFlowProps
         <div className="flex h-full flex-col justify-between gap-6">
           <div className="space-y-5 pt-4 text-center">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-11 w-11" aria-hidden /></div>
-            <p className="text-2xl text-ink"><span className="font-semibold">{saved.name}</span> was added</p>
-            <p className="text-lg text-ink-muted">{saved.companyRun ? 'The company runs this farm. Office accounts can record its work, and you can still add people to it later.' : 'Next, add the person who owns and runs it. They sign in with their own email and password.'}</p>
+            <p className="text-2xl font-semibold text-ink">{tx('fAdded', { name: saved.name })}</p>
+            <p className="text-lg text-ink-muted">{saved.companyRun ? tx('fAddedCompany') : tx('fAddedOwner')}</p>
           </div>
           <div className="flex flex-col gap-3">
-            {onAddOwner && !saved.companyRun && <Button type="button" size="lg" onClick={() => { onAddOwner(saved); onClose(); }}>Add the owner</Button>}
-            <Button type="button" size="lg" variant={saved.companyRun ? 'default' : 'secondary'} onClick={onClose}>{saved.companyRun ? 'Done' : 'Later'}</Button>
+            {onAddOwner && !saved.companyRun && <Button type="button" size="lg" onClick={() => { onAddOwner(saved); onClose(); }}>{tx('addTheOwner')}</Button>}
+            <Button type="button" size="lg" variant={saved.companyRun ? 'default' : 'secondary'} onClick={onClose}>{saved.companyRun ? tx('fDone') : tx('fLater')}</Button>
           </div>
         </div>
       )}

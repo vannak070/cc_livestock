@@ -13,15 +13,42 @@ export const PRIVILEGED_ROLES = ['Super Admin', 'Admin'];
 export const FARM_ROLES = ['Farm Owner', 'Farm Staff', 'Veterinarian'];
 export const MIN_PASSWORD_LENGTH = 8;
 
+/** The built-in roles. Their descriptions are plain English; the screens show them in the chosen language (roles.desc_<name>). */
 export const SYSTEM_ROLES: CustomRoleDefinition[] = [
-  { id: 'ROLE-01', name: 'Super Admin', description: 'Full system management and security authority.', permissions: DEFAULT_ROLE_PERMISSIONS['Super Admin'], isSystem: true },
-  { id: 'ROLE-02', name: 'Admin', description: 'Full business operations control and user creation privileges.', permissions: DEFAULT_ROLE_PERMISSIONS['Admin'], isSystem: true },
-  { id: 'ROLE-03', name: 'Company', description: 'Manages user accounts, permissions, and multiple farms under them.', permissions: DEFAULT_ROLE_PERMISSIONS['Company'], isSystem: true },
-  { id: 'ROLE-04', name: 'Farm Owner', description: 'Full operational control of their own farm.', permissions: DEFAULT_ROLE_PERMISSIONS['Farm Owner'], isSystem: true },
-  { id: 'ROLE-05', name: 'Farm Staff', description: 'Records weights, health and daily work on their farm.', permissions: DEFAULT_ROLE_PERMISSIONS['Farm Staff'], isSystem: true },
-  { id: 'ROLE-06', name: 'Veterinarian', description: 'Health tracking, medical records and treatments.', permissions: DEFAULT_ROLE_PERMISSIONS['Veterinarian'], isSystem: true },
-  { id: 'ROLE-07', name: 'Management', description: 'Sees every report, changes nothing.', permissions: DEFAULT_ROLE_PERMISSIONS['Management'], isSystem: true },
+  { id: 'ROLE-01', name: 'Super Admin', description: 'Can do everything, including adding other Super Admins. For one or two trusted people.', permissions: DEFAULT_ROLE_PERMISSIONS['Super Admin'], isSystem: true },
+  { id: 'ROLE-02', name: 'Admin', description: 'Can do everything, and adds and changes people and roles, except Super Admin accounts.', permissions: DEFAULT_ROLE_PERMISSIONS['Admin'], isSystem: true },
+  { id: 'ROLE-03', name: 'Company', description: 'Office account: works on every farm, records for any farm, and looks after farms and their people.', permissions: DEFAULT_ROLE_PERMISSIONS['Company'], isSystem: true },
+  { id: 'ROLE-04', name: 'Farm Owner', description: 'Runs one farm: sees and records everything on it, and adds its staff and vets.', permissions: DEFAULT_ROLE_PERMISSIONS['Farm Owner'], isSystem: true },
+  { id: 'ROLE-05', name: 'Farm Staff', description: 'Records the daily work on one farm: feed, weights, treatments and costs.', permissions: DEFAULT_ROLE_PERMISSIONS['Farm Staff'], isSystem: true },
+  { id: 'ROLE-06', name: 'Veterinarian', description: 'Looks after health on one farm: treatments, weights and cattle details.', permissions: DEFAULT_ROLE_PERMISSIONS['Veterinarian'], isSystem: true },
+  { id: 'ROLE-07', name: 'Management', description: 'Sees every page and report and reviews batches before sale. Changes no farm records; can make Planning plans.', permissions: DEFAULT_ROLE_PERMISSIONS['Management'], isSystem: true },
 ];
+
+/**
+ * Descriptions the app itself once stored for built-in roles (older versions,
+ * still in some databases). A role whose stored description is one of these,
+ * or empty, shows the current wording; anything an admin typed is kept.
+ */
+export const OLD_ROLE_DESCRIPTIONS = new Set([
+  'Full system management and security authority.',
+  'Full business operations control and user creation privileges.',
+  'Manages user accounts, permissions, and multiple farms under them.',
+  'Full operational control and lifecycle management of their specific farm.',
+  'Full operational control of their own farm.',
+  'Records weights, health logs, and tracks daily checklists based on custom permissions.',
+  'Records weights, health and daily work on their farm.',
+  'Responsible for health tracking, medical records, deworming, and diagnostics.',
+  'Health tracking, medical records and treatments.',
+  'Read-only reporting access — no create, edit, or delete permissions. Intended for PIN sign-in on the mobile app.',
+  'Sees every report, changes nothing.',
+  'Custom ERP User Role',
+]);
+
+/** Whether a role shows the app's own description (built in, not described by an admin), and the stored one otherwise. */
+export function usesStandardDescription(role: Pick<CustomRoleDefinition, 'name' | 'description' | 'isSystem'>): boolean {
+  const d = (role.description ?? '').trim();
+  return d === '' || OLD_ROLE_DESCRIPTIONS.has(d) || SYSTEM_ROLES.some(r => r.name === role.name && r.description === d);
+}
 
 type Actor = Pick<UserRoleItem, 'id' | 'role' | 'permissions' | 'farmLocation'>;
 

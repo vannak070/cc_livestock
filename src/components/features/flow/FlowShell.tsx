@@ -117,7 +117,7 @@ export function FlowFooter({ onBack, label, busy }: { onBack?: () => void; label
   );
 }
 
-export function FlowDone({ message, detail, again, onAgain, onClose, doneText }: { message: React.ReactNode; detail?: React.ReactNode; again: string; onAgain: () => void; onClose: () => void; doneText?: string }) {
+export function FlowDone({ message, detail, again, onAgain, onClose, doneText }: { message: React.ReactNode; detail?: React.ReactNode; again?: string; onAgain?: () => void; onClose: () => void; doneText?: string }) {
   const { t } = useLanguage();
   doneText = doneText ?? t('flow.done');
   return (
@@ -130,8 +130,8 @@ export function FlowDone({ message, detail, again, onAgain, onClose, doneText }:
         {detail && <p className="text-lg text-ink-muted">{detail}</p>}
       </div>
       <div className="flex flex-col gap-3">
-        <Button type="button" size="lg" onClick={onAgain}>{again}</Button>
-        <Button type="button" size="lg" variant="secondary" onClick={onClose}>{doneText}</Button>
+        {again && onAgain && <Button type="button" size="lg" onClick={onAgain}>{again}</Button>}
+        <Button type="button" size="lg" variant={again && onAgain ? 'secondary' : 'default'} onClick={onClose}>{doneText}</Button>
       </div>
     </div>
   );
@@ -154,6 +154,7 @@ interface FlowShellProps {
 }
 
 export function FlowShell({ steps, step, title, subtitle, summary, error, onSubmit, footer, children }: FlowShellProps) {
+  const { t } = useLanguage();
   const bodyRef = useRef<HTMLDivElement>(null);
   // Each step starts at the top, not wherever the last one was scrolled to.
   useEffect(() => { bodyRef.current?.scrollTo({ top: 0 }); }, [step]);
@@ -163,7 +164,7 @@ export function FlowShell({ steps, step, title, subtitle, summary, error, onSubm
     <DialogContent className="flex max-w-lg flex-col gap-0 overflow-hidden p-0 max-sm:left-0 max-sm:top-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none sm:h-[40rem]">
       <div className="shrink-0 px-6 pb-4 pt-6">
         {index >= 0 && (
-          <div className="mb-4 flex gap-1.5 pr-8" role="progressbar" aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={index + 1} aria-label={`Step ${index + 1} of ${steps.length}`}>
+          <div className="mb-4 flex gap-1.5 pr-8" role="progressbar" aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={index + 1} aria-label={t('flow.stepOf').replace('{n}', String(index + 1)).replace('{total}', String(steps.length))}>
             {steps.map((s, i) => <span key={s} className={`h-2 flex-1 rounded-full ${i <= index ? 'bg-emerald-600' : 'bg-slate-200'}`} />)}
           </div>
         )}

@@ -13,3 +13,15 @@ describe('khmer dates', () => {
     expect(khmerLongDate(new Date(2026, 9, 6))).toBe('ថ្ងៃអង្គារ 6 តុលា 2026');
   });
 });
+
+describe('month and day labels', () => {
+  it('names months in either language', async () => {
+    const { monthLabel, shownDay } = await import('./khmer-date');
+    expect(monthLabel('2026-10')).toBe('Oct 2026');
+    expect(monthLabel('2026-10', 'km')).toBe('តុលា 2026');
+    expect(monthLabel('bad')).toBe('bad');
+    expect(shownDay('2026-10-02T00:00:00Z', 'km')).toBe('2 តុលា 2026');
+    expect(shownDay('2026-01-15T07:00:00Z')).toBe('2026-01-15');
+    expect(shownDay(null)).toBe('—');
+  });
+});

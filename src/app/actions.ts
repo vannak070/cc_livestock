@@ -58,6 +58,8 @@ import { saleAlertService } from '@/services/sale-alert.service';
 import { alertSettings, escapeHtml } from '@/lib/alerts';
 import { settingsRepository } from '@/repositories/settings.repository';
 import type { SaleReviewInput } from '@/lib/sale-review';
+import { farmLimitService } from '@/services/farm-limit.service';
+import type { LimitRequestInput } from '@/lib/farm-limit';
 
 // Every action below is a public endpoint as far as the network is
 // concerned. runAction (src/lib/run-action.ts) checks the caller's session and
@@ -281,6 +283,16 @@ export async function addFarmCostAction(input: FarmCostInput) {
 
 export async function deleteFarmCostAction(id: string) {
   return runAction('Failed to delete the cost', ['costs_delete'], actor => farmCostService.remove(actor, id));
+}
+
+// ─── Farm cattle limits ─────────────────────────────────────────────────────
+// Who may ask and who may answer is checked in the service (farm accounts for their own farm; Super Admin and Admin answer).
+export async function requestFarmLimitAction(input: LimitRequestInput) {
+  return runAction('Failed to send the request', [], actor => farmLimitService.request(actor, input));
+}
+
+export async function decideFarmLimitAction(id: string, approve: boolean, newLimit: number, note: string) {
+  return runAction('Failed to answer the request', [], actor => farmLimitService.decide(actor, id, approve, newLimit, note));
 }
 
 

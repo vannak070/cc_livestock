@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import type { FarmLoanAssumptions } from '@/lib/types';
 import { DEFAULT_REPAYMENTS } from '@/lib/farm-loan';
 import { Choice, NUM, Question } from '../flow/FlowShell';
+import { useText, type Tx } from '@/hooks/useText';
 
 /**
  * Pieces for the fattening plan dialog's bank loan and herd steps: one
@@ -15,37 +16,35 @@ import { Choice, NUM, Question } from '../flow/FlowShell';
 
 export type BuyPlan = NonNullable<FarmLoanAssumptions['buyPlan']>;
 
-export const BUY_PLANS: { key: BuyPlan; title: string; hint: string }[] = [
-  { key: 'monthly', title: 'Trade every month (keeps the herd full)', hint: 'Stock up a share a month from CC Livestock. Then every month the cattle that are ready are sold to CC Livestock, and CC Livestock sells the farm new cattle the same day for fattening. The herd carries on into the next loan year.' },
-  { key: 'rounds', title: 'Swap the whole herd when fattening ends', hint: 'Buy the herd from CC Livestock in month 1. Each time fattening ends, sell it all to CC Livestock and take a new herd the same day. The last herd is sold in month 12.' },
-  { key: 'once', title: 'All at once, in month 1', hint: 'Buy the whole herd from CC Livestock in month 1 and keep it until month 12, when CC Livestock buys it.' },
-  { key: 'split', title: 'Two purchases', hint: 'Part of the herd from CC Livestock in month 1, the rest in a later month. All sold to CC Livestock in month 12.' },
-];
+/** The four ways of buying cattle, in the order they are offered. Names and hints: planning.b_<key>, bh_<key>. */
+export const BUY_PLANS: BuyPlan[] = ['monthly', 'rounds', 'once', 'split'];
 
-export const BUY_PLAN_LABEL: Record<BuyPlan, string> = Object.fromEntries(BUY_PLANS.map(p => [p.key, p.title])) as Record<BuyPlan, string>;
+export const buyPlanLabel = (plan: BuyPlan, tx: Tx) => tx(`b_${plan}`);
 
 /** One sentence on how the farm trades its cattle with CC Livestock in a loan year. */
-export function buyingSentence(a: Pick<FarmLoanAssumptions, 'buyPlan' | 'herdTarget' | 'firstBuyPct' | 'secondBuyMonth'>, boughtY1: number, who = 'The farm'): string {
+export function buyingSentence(a: Pick<FarmLoanAssumptions, 'buyPlan' | 'herdTarget' | 'firstBuyPct' | 'secondBuyMonth'>, boughtY1: number, tx: Tx): string {
   const n = boughtY1.toLocaleString();
+  const herd = a.herdTarget.toLocaleString();
   switch (a.buyPlan ?? 'monthly') {
-    case 'once': return `${who} buys all ${n} cattle from CC Livestock in month 1 and sells them to CC Livestock in month 12.`;
-    case 'rounds': return `${who} keeps ${a.herdTarget.toLocaleString()} cattle all year: each time fattening ends it sells them to CC Livestock and takes a new herd from CC Livestock the same day (${n} bought in the year).`;
-    case 'split': return `${who} buys ${a.firstBuyPct}% of the herd from CC Livestock in month 1 and the rest in month ${a.secondBuyMonth}, and sells them all to CC Livestock in month 12 (${n} in the year).`;
-    default: return `${who} keeps ${a.herdTarget.toLocaleString()} cattle: every month the cattle that are ready are sold to CC Livestock and CC Livestock sells it new cattle the same day (${n} bought in the year).`;
+    case 'once': return tx('s_once', { n });
+    case 'rounds': return tx('s_rounds', { herd, n });
+    case 'split': return tx('s_split', { pct: a.firstBuyPct ?? 50, month: a.secondBuyMonth ?? 4, n });
+    default: return tx('s_monthly', { herd, n });
   }
 }
 
 /** The hint under "Days fattening" for a buying plan. */
-export function fatteningHint(plan: BuyPlan): string | undefined {
-  if (plan === 'once' || plan === 'split') return 'Not used here: the cattle stay until month 12 and keep gaining.';
-  if (plan === 'rounds') return 'Each herd is swapped with CC Livestock after this many days; the last one stays until month 12.';
-  return 'Cattle are sold to CC Livestock once they have fattened this long, and replaced the same day.';
+export function fatteningHint(plan: BuyPlan, tx: Tx): string {
+  if (plan === 'once' || plan === 'split') return tx('hintKept');
+  if (plan === 'rounds') return tx('hintRounds');
+  return tx('hintMonthly');
 }
 
 /** One number with its unit beside it, and an optional hint below. */
 export function NumberField({ label, unit, value, onChange, hint, from, step = 'any' }: { label: string; unit: string; value: string; onChange: (v: string) => void; hint?: string; from?: string; step?: string }) {
+  const { tx } = useText('planning');
   return (
-    <Question label={label} hint={from ? `From ${from}` : hint}>
+    <Question label={label} hint={from ? tx('fromX', { x: from }) : hint}>
       <div className="flex items-center gap-2">
         <Input aria-label={label} type="number" step={step} inputMode="decimal" min="0" value={value} onChange={e => onChange(e.target.value)} className={`h-14 text-xl font-semibold ${NUM}`} />
         <span className="w-20 shrink-0 text-lg text-ink-muted">{unit}</span>
@@ -75,24 +74,25 @@ export const fromBuyDraft = (d: BuyDraft) => ({
 
 /** "How are the cattle bought?": the four ways, and the extra boxes the chosen one needs. */
 export function BuyPlanPicker({ value, onChange }: { value: BuyDraft; onChange: (d: BuyDraft) => void }) {
+  const { tx } = useText('planning');
   const set = (patch: Partial<BuyDraft>) => onChange({ ...value, ...patch });
   return (
     <>
-      <Question label="How are the cattle bought?" hint="The farm buys its cattle from CC Livestock and sells them back to CC Livestock.">
+      <Question label={tx('howBought')} hint={tx('howBoughtHint')}>
         <div className="grid grid-cols-1 gap-2">
           {BUY_PLANS.map(p => (
-            <button key={p.key} type="button" aria-pressed={value.plan === p.key} onClick={() => set({ plan: p.key })}
-              className={`rounded-xl border-2 px-4 py-3 text-left ${value.plan === p.key ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-600'}`}>
-              <span className="block text-lg font-semibold text-ink">{p.title}</span>
-              <span className="block text-base text-ink-muted">{p.hint}</span>
+            <button key={p} type="button" aria-pressed={value.plan === p} onClick={() => set({ plan: p })}
+              className={`rounded-xl border-2 px-4 py-3 text-left ${value.plan === p ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-600'}`}>
+              <span className="block text-lg font-semibold text-ink">{tx(`b_${p}`)}</span>
+              <span className="block text-base text-ink-muted">{tx(`bh_${p}`)}</span>
             </button>
           ))}
         </div>
       </Question>
       {value.plan === 'split' && (
         <div className="grid grid-cols-2 gap-3">
-          <NumberField label="Bought in month 1" unit="% of herd" value={value.firstPct} onChange={v => set({ firstPct: v })} />
-          <NumberField label="Month of the second purchase" unit="month" step="1" value={value.secondMonth} onChange={v => set({ secondMonth: v })} hint="From 2 to 12." />
+          <NumberField label={tx('firstPct')} unit={tx('ofHerd')} value={value.firstPct} onChange={v => set({ firstPct: v })} />
+          <NumberField label={tx('secondMonth')} unit={tx('month')} step="1" value={value.secondMonth} onChange={v => set({ secondMonth: v })} hint={tx('from2to12')} />
         </div>
       )}
     </>
@@ -115,34 +115,35 @@ export const fromRepayDraft = (d: RepayDraft) =>
 
 /** When the loan is paid back each year: the usual 20/30/50%, or months and shares typed in. */
 export function RepaymentPicker({ value, onChange }: { value: RepayDraft; onChange: (d: RepayDraft) => void }) {
+  const { tx } = useText('planning');
   const total = value.rows.reduce((s, r) => s + (Number(r.pct) || 0), 0);
   const setRow = (i: number, patch: Partial<{ month: string; pct: string }>) => onChange({ ...value, rows: value.rows.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
   return (
     <>
       <div className="grid grid-cols-1 gap-3">
-        <Choice selected={!value.custom} onClick={() => onChange({ ...value, custom: false })}>The usual: 20% in month 8, 30% in month 11, 50% in month 12</Choice>
-        <Choice selected={value.custom} onClick={() => onChange({ ...value, custom: true })}>Different months or shares</Choice>
+        <Choice selected={!value.custom} onClick={() => onChange({ ...value, custom: false })}>{tx('usualRepay')}</Choice>
+        <Choice selected={value.custom} onClick={() => onChange({ ...value, custom: true })}>{tx('otherRepay')}</Choice>
       </div>
-      <p className="text-base text-ink-muted">The farm pays the interest every month and the loan back in these months. Only the farm pays the bank; CC Livestock does not.</p>
+      <p className="text-base text-ink-muted">{tx('repayNote')}</p>
       {value.custom && (
         <div className="space-y-2">
-          <p className="text-base text-ink-muted">Share of everything borrowed that year, paid in that month of the loan year.</p>
+          <p className="text-base text-ink-muted">{tx('repayShare')}</p>
           <ul className="space-y-2">
             {value.rows.map((r, i) => (
               <li key={i} className="flex items-center gap-2">
-                <span className="shrink-0 text-lg text-ink">Month</span>
-                <Input aria-label={`Repayment ${i + 1}: month`} type="number" min="1" max="12" value={r.month} onChange={e => setRow(i, { month: e.target.value })} className={`h-14 w-20 text-xl ${NUM}`} />
-                <Input aria-label={`Repayment ${i + 1}: share`} type="number" step="any" min="0" max="100" value={r.pct} onChange={e => setRow(i, { pct: e.target.value })} className={`h-14 w-24 text-xl ${NUM}`} />
+                <span className="shrink-0 text-lg text-ink">{tx('monthWord')}</span>
+                <Input aria-label={tx('repayMonthAria', { n: i + 1 })} type="number" min="1" max="12" value={r.month} onChange={e => setRow(i, { month: e.target.value })} className={`h-14 w-20 text-xl ${NUM}`} />
+                <Input aria-label={tx('repayShareAria', { n: i + 1 })} type="number" step="any" min="0" max="100" value={r.pct} onChange={e => setRow(i, { pct: e.target.value })} className={`h-14 w-24 text-xl ${NUM}`} />
                 <span className="text-lg text-ink-muted">%</span>
-                <Button type="button" variant="ghost" size="icon" aria-label={`Remove repayment ${i + 1}`} onClick={() => onChange({ ...value, rows: value.rows.filter((_, j) => j !== i) })}><Trash2 className="text-rose-700" /></Button>
+                <Button type="button" variant="ghost" size="icon" aria-label={tx('removeRepayAria', { n: i + 1 })} onClick={() => onChange({ ...value, rows: value.rows.filter((_, j) => j !== i) })}><Trash2 className="text-rose-700" /></Button>
               </li>
             ))}
           </ul>
           <div className="flex items-center justify-between gap-3">
-            <Button type="button" variant="outline" onClick={() => onChange({ ...value, rows: [...value.rows, { month: '', pct: '' }] })} disabled={value.rows.length >= 12}><Plus /> Add a month</Button>
-            <span className={`text-lg font-medium ${total === 100 ? 'text-emerald-800' : 'text-amber-800'}`}>Total {total}%</span>
+            <Button type="button" variant="outline" onClick={() => onChange({ ...value, rows: [...value.rows, { month: '', pct: '' }] })} disabled={value.rows.length >= 12}><Plus /> {tx('addMonth')}</Button>
+            <span className={`text-lg font-medium ${total === 100 ? 'text-emerald-800' : 'text-amber-800'}`}>{tx('totalPct', { n: total })}</span>
           </div>
-          {total !== 100 && <p className="text-base text-amber-900">Below 100% leaves money owed at the end of the year.</p>}
+          {total !== 100 && <p className="text-base text-amber-900">{tx('below100')}</p>}
         </div>
       )}
     </>
@@ -159,24 +160,23 @@ export function LoanAmountPicker({ kind, onKind, amount, onAmount, financed, onF
   /** The payout with the numbers now, to show beside a worked-out fund. */
   payout?: number;
 }) {
+  const { tx } = useText('planning');
   return (
     <>
-      <Question label="How much does the bank lend?" hint="One fund, paid out once in month 1 of each loan year. The farm buys its cattle from CC Livestock with it.">
+      <Question label={tx('howMuch')} hint={tx('howMuchHint')}>
         <div className="grid grid-cols-1 gap-3">
-          <Choice selected={kind === 'all'} onClick={() => onKind('all')}>Cattle, feed and interest for the year</Choice>
-          <Choice selected={kind === 'cattle'} onClick={() => onKind('cattle')}>Enough to buy the herd (cattle only)</Choice>
-          <Choice selected={kind === 'fixed'} onClick={() => onKind('fixed')}>An agreed amount</Choice>
+          <Choice selected={kind === 'all'} onClick={() => onKind('all')}>{tx('lendAll')}</Choice>
+          <Choice selected={kind === 'cattle'} onClick={() => onKind('cattle')}>{tx('lendCattle')}</Choice>
+          <Choice selected={kind === 'fixed'} onClick={() => onKind('fixed')}>{tx('lendFixed')}</Choice>
         </div>
       </Question>
       {kind === 'fixed'
-        ? <NumberField label="Loan amount" unit="៛" value={amount} onChange={onAmount} hint="Paid out once, in month 1 of each loan year." />
+        ? <NumberField label={tx('loanAmount')} unit="៛" value={amount} onChange={onAmount} hint={tx('loanAmountHint')} />
         : (
           <>
-            <NumberField label="Share it covers" unit="%" value={financed} onChange={onFinanced}
-              hint={kind === 'all'
-                ? 'Of the cattle bought until the first sale to CC Livestock, a year of feed, and a year of interest on the loan. After the first sale, new cattle are paid from the sales.'
-                : 'Of the cattle bought until the first sale to CC Livestock. After that, new cattle are paid from the sales; feed and interest from the farm’s money.'} />
-            {payout !== undefined && <p className="rounded-xl bg-slate-50 p-3 text-base text-ink">With the numbers now, the bank pays out <span className="font-semibold">{Math.round(payout).toLocaleString()} ៛</span> in month 1. It changes if you change the cattle or feed.</p>}
+            <NumberField label={tx('shareCovers')} unit="%" value={financed} onChange={onFinanced}
+              hint={kind === 'all' ? tx('shareAllHint') : tx('shareCattleHint')} />
+            {payout !== undefined && <p className="rounded-xl bg-slate-50 p-3 text-base text-ink">{tx('payoutNow', { amount: `${Math.round(payout).toLocaleString()} ៛` })}</p>}
           </>
         )}
     </>

@@ -13,6 +13,7 @@ import { getErrorMessage } from '@/lib/utils';
 import PersonFlow from '../settings/PersonFlow';
 import PeoplePanel from '../settings/PeoplePanel';
 import FarmFlow from './FarmFlow';
+import { useText } from '@/hooks/useText';
 
 interface FarmsPageProps {
   settings: MasterSetup;
@@ -40,6 +41,7 @@ async function ok<T>(res: { success: true; data: T } | { success: false; error: 
 type Add = { farm: FarmItem; kind: 'owner' | 'staff' };
 
 export default function FarmsPage({ settings, currentUser, stock, batches, onRecordFeed }: FarmsPageProps) {
+  const { tx, txn } = useText('farmsPage');
   const queryClient = useQueryClient();
   const [flow, setFlow] = useState<null | { farm: FarmItem | null }>(null);
   // The farm whose people page is open; looked up by id so a rename shows straight away.
@@ -50,7 +52,7 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
   const farms = settings.farms || [];
   const peopleOf = farms.find(f => f.id === peopleOfId) ?? null;
   const refresh = () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); };
-  const fail = (e: unknown) => setConfirm({ title: 'That did not work', description: getErrorMessage(e, 'The change could not be saved.'), type: 'info', confirmText: 'OK' });
+  const fail = (e: unknown) => setConfirm({ title: tx('failTitle'), description: getErrorMessage(e, tx('failDesc')), type: 'info', confirmText: tx('ok') });
 
   // One request for one farm: a rename moves its cattle, batches, feed movements and people together on the server.
   const save = async (input: FarmInput): Promise<FarmItem> => {
@@ -64,19 +66,19 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
     const batchCount = batches.filter(b => b.status === 'Active' && b.farmLocation === farm.name).length;
     const people = farmPeople(settings, farm.name).length;
     const parts = [
-      cattle > 0 ? `${cattle} active ${cattle === 1 ? 'animal' : 'animals'}` : '',
-      batchCount > 0 ? `${batchCount} active ${batchCount === 1 ? 'batch' : 'batches'}` : '',
-      people > 0 ? `${people} ${people === 1 ? 'person' : 'people'}` : '',
+      cattle > 0 ? txn(cattle, 'activeAnimalOne', 'activeAnimalMany') : '',
+      batchCount > 0 ? txn(batchCount, 'activeBatchOne', 'activeBatchMany') : '',
+      people > 0 ? txn(people, 'personOne', 'personMany') : '',
     ].filter(Boolean);
     if (parts.length > 0) {
-      setConfirm({ title: `${farm.name} cannot be deleted yet`, description: `It still has ${parts.join(', ')}. Move, sell or remove them first, then delete the farm.`, type: 'info', confirmText: 'OK' });
+      setConfirm({ title: tx('cantDelete', { name: farm.name }), description: tx('cantDeleteDesc', { list: parts.join(', ') }), type: 'info', confirmText: tx('ok') });
       return;
     }
     setConfirm({
-      title: 'Delete this farm?',
-      description: `${farm.name} will be removed. It has no active cattle, batches or people. This cannot be undone.`,
+      title: tx('deleteTitle'),
+      description: tx('deleteDesc', { name: farm.name }),
       type: 'danger',
-      confirmText: 'Delete farm',
+      confirmText: tx('deleteConfirm'),
       onConfirm: async () => { try { await ok(await deleteFarmAction(farm.id)); refresh(); } catch (e) { fail(e); } },
     });
   };
@@ -84,10 +86,10 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
   const askMakeOwner = (farm: FarmItem, userId: string, name: string) => {
     const owners = farmOwners(settings, farm.name).filter(o => o.id !== userId);
     setConfirm({
-      title: `Make ${name} the owner of ${farm.name}?`,
-      description: `${name} gets the Farm Owner access for ${farm.name}.${owners.length ? ` ${owners.map(o => o.name).join(' and ')} becomes Farm Staff of the same farm.` : ''} A farm has one owner.`,
+      title: tx('ownerTitle', { name, farm: farm.name }),
+      description: tx('ownerDesc', { name, farm: farm.name }) + (owners.length ? tx('ownerDescOthers', { others: owners.map(o => o.name).join(tx('and')) }) : '') + tx('ownerDescEnd'),
       type: 'warning',
-      confirmText: 'Make owner',
+      confirmText: tx('makeOwner'),
       onConfirm: async () => { try { await ok(await setFarmOwnerAction(farm.id, userId)); refresh(); } catch (e) { fail(e); } },
     });
   };
@@ -104,25 +106,25 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       {peopleOf && currentUser ? (
         <>
-          <Button variant="ghost" onClick={() => setPeopleOfId(null)}><ArrowLeft /> All farms</Button>
+          <Button variant="ghost" onClick={() => setPeopleOfId(null)}><ArrowLeft /> {tx('allFarms')}</Button>
           <div>
-            <h2 className="break-words text-2xl font-semibold text-ink">People on {peopleOf.name}</h2>
-            <p className="text-base text-ink-muted">The owner runs the farm; staff and vets record the daily work. A farm has one owner.</p>
+            <h2 className="break-words text-2xl font-semibold text-ink">{tx('peopleOn', { name: peopleOf.name })}</h2>
+            <p className="text-base text-ink-muted">{tx('peopleIntro')}</p>
           </div>
           {peopleOwners.length === 0 && peopleOf.companyRun && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4">
-              <p className="text-base text-ink">Run by the company, so no farm owner is needed. You can still add one.</p>
-              <Button variant="outline" onClick={() => setAdd({ farm: peopleOf, kind: 'owner' })}><UserPlus /> Add an owner</Button>
+              <p className="text-base text-ink">{tx('companyNoOwner')}</p>
+              <Button variant="outline" onClick={() => setAdd({ farm: peopleOf, kind: 'owner' })}><UserPlus /> {tx('addAnOwner')}</Button>
             </div>
           )}
           {peopleOwners.length === 0 && !peopleOf.companyRun && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50 p-4">
-              <p className="text-base text-amber-900">This farm has no owner yet.</p>
-              <Button onClick={() => setAdd({ farm: peopleOf, kind: 'owner' })}><UserPlus /> Add the owner</Button>
+              <p className="text-base text-amber-900">{tx('noOwner')}</p>
+              <Button onClick={() => setAdd({ farm: peopleOf, kind: 'owner' })}><UserPlus /> {tx('addTheOwner')}</Button>
             </div>
           )}
           {peopleOwners.length > 1 && (
-            <p className="rounded-2xl bg-amber-50 p-4 text-base text-amber-900">This farm has {peopleOwners.length} owners. Tap &quot;Make owner&quot; on the right person to leave just one.</p>
+            <p className="rounded-2xl bg-amber-50 p-4 text-base text-amber-900">{tx('manyOwnersHere', { n: peopleOwners.length })}</p>
           )}
           <PeoplePanel
             settings={settings}
@@ -131,7 +133,7 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
             companyRun={peopleOf.companyRun}
             onChanged={refresh}
             extraActions={u => (u.role !== 'Farm Owner' || peopleOwners.length > 1) && ['Farm Staff', 'Veterinarian', 'Farm Owner'].includes(u.role) && u.status === 'Active'
-              ? <Button variant="outline" size="sm" onClick={() => askMakeOwner(peopleOf, u.id, u.name)}><Crown /> Make owner</Button>
+              ? <Button variant="outline" size="sm" onClick={() => askMakeOwner(peopleOf, u.id, u.name)}><Crown /> {tx('makeOwner')}</Button>
               : null}
           />
         </>
@@ -139,16 +141,16 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
       <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">Farms</h2>
-          <p className="text-base text-ink-muted">Each farm, who runs it and how full it is.</p>
+          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
+          <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
-        <Button size="lg" onClick={() => setFlow({ farm: null })}><Plus /> Add a farm</Button>
+        <Button size="lg" onClick={() => setFlow({ farm: null })}><Plus /> {tx('addFarm')}</Button>
       </div>
 
       {farms.length === 0 ? (
         <div className="space-y-4 rounded-2xl bg-slate-50 p-8 text-center">
-          <p className="text-lg text-ink-muted">No farms yet.</p>
-          <Button size="lg" onClick={() => setFlow({ farm: null })}><Plus /> Add a farm</Button>
+          <p className="text-lg text-ink-muted">{tx('noFarms')}</p>
+          <Button size="lg" onClick={() => setFlow({ farm: null })}><Plus /> {tx('addFarm')}</Button>
         </div>
       ) : (
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -159,53 +161,53 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
             const owners = farmOwners(settings, farm.name);
             const people = farmPeople(settings, farm.name);
             const farmBatches = batches.filter(b => b.status === 'Active' && (b.farmLocation === farm.name || cows.some(c => b.cowIds.includes(c.id)))).length;
-            const state = fill > 90 ? { bar: 'bg-rose-600', text: 'Almost full' } : fill > 75 ? { bar: 'bg-amber-500', text: 'Getting full' } : { bar: 'bg-emerald-600', text: '' };
+            const state = fill > 90 ? { bar: 'bg-rose-600', text: tx('almostFull') } : fill > 75 ? { bar: 'bg-amber-500', text: tx('gettingFull') } : { bar: 'bg-emerald-600', text: '' };
             return (
               <li key={farm.id} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="break-words text-2xl font-semibold text-ink">{farm.name}</h3>
-                    {farm.companyRun && <span className="mt-1 inline-block rounded-full bg-sky-100 px-3 py-0.5 text-sm font-medium text-sky-900">Run by the company</span>}
+                    {farm.companyRun && <span className="mt-1 inline-block rounded-full bg-sky-100 px-3 py-0.5 text-sm font-medium text-sky-900">{tx('companyRun')}</span>}
                     {farm.address && <p className="mt-1 flex items-start gap-1.5 text-base text-ink-muted"><MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> <span className="break-words">{farm.address}</span></p>}
                   </div>
                   <div className="flex shrink-0">
-                    <Button variant="ghost" size="icon" aria-label={`Edit ${farm.name}`} onClick={() => setFlow({ farm })}><Pencil /></Button>
-                    <Button variant="ghost" size="icon" aria-label={`Delete ${farm.name}`} onClick={() => askDelete(farm)}><Trash2 className="text-rose-700" /></Button>
+                    <Button variant="ghost" size="icon" aria-label={tx('editAria', { name: farm.name })} onClick={() => setFlow({ farm })}><Pencil /></Button>
+                    <Button variant="ghost" size="icon" aria-label={tx('deleteAria', { name: farm.name })} onClick={() => askDelete(farm)}><Trash2 className="text-rose-700" /></Button>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-lg font-semibold text-ink">{cows.length} of {capacity} cattle</p>
+                    <p className="text-lg font-semibold text-ink">{tx('ofCapacity', { n: cows.length, capacity })}</p>
                     {state.text && <p className={`text-base font-medium ${fill > 90 ? 'text-rose-700' : 'text-amber-800'}`}>{state.text}</p>}
                   </div>
-                  <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fill} aria-label={`${farm.name} is ${fill}% full`}>
+                  <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fill} aria-label={tx('fullAria', { name: farm.name, pct: fill })}>
                     <div className={`h-full rounded-full ${state.bar}`} style={{ width: `${fill}%` }} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <Stat label="People" value={people.length} />
-                  <Stat label="Batches" value={farmBatches} />
+                  <Stat label={tx('people')} value={people.length} />
+                  <Stat label={tx('batches')} value={farmBatches} />
                 </div>
 
                 <div className="border-t border-slate-100 pt-3 text-base">
-                  <p className="text-ink-muted">Owner</p>
+                  <p className="text-ink-muted">{tx('owner')}</p>
                   {owners.length === 0 ? (
                     farm.companyRun
-                      ? <p className="font-semibold text-ink">Run by the company</p>
-                      : <p className="font-semibold text-amber-800">No owner yet</p>
+                      ? <p className="font-semibold text-ink">{tx('companyRun')}</p>
+                      : <p className="font-semibold text-amber-800">{tx('noOwnerYet')}</p>
                   ) : (
                     <>
                       <p className="font-semibold text-ink">{owners[0].name}</p>
                       <p className="break-all text-ink-muted">{owners[0].email}</p>
-                      {owners.length > 1 && <p className="mt-1 text-amber-800">{owners.length} owners are set. A farm has one: open People and tap Make owner on the right person.</p>}
+                      {owners.length > 1 && <p className="mt-1 text-amber-800">{tx('manyOwners', { n: owners.length })}</p>}
                     </>
                   )}
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setPeopleOfId(farm.id)}><Users /> People ({people.length})</Button>
-                    {onRecordFeed && farmBatches > 0 && <Button variant="outline" size="sm" onClick={() => onRecordFeed(farm.name)}><Wheat /> Record feed</Button>}
-                    {owners.length === 0 && !farm.companyRun && <Button size="sm" onClick={() => setAdd({ farm, kind: 'owner' })}><UserPlus /> Add the owner</Button>}
+                    <Button variant="outline" size="sm" onClick={() => setPeopleOfId(farm.id)}><Users /> {tx('peopleN', { n: people.length })}</Button>
+                    {onRecordFeed && farmBatches > 0 && <Button variant="outline" size="sm" onClick={() => onRecordFeed(farm.name)}><Wheat /> {tx('recordFeed')}</Button>}
+                    {owners.length === 0 && !farm.companyRun && <Button size="sm" onClick={() => setAdd({ farm, kind: 'owner' })}><UserPlus /> {tx('addTheOwner')}</Button>}
                   </div>
                 </div>
                 {farm.notes && <p className="rounded-xl bg-slate-50 p-3 text-base text-ink">{farm.notes}</p>}

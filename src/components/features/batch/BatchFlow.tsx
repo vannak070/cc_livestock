@@ -7,6 +7,7 @@ import type { BatchItem, FarmItem, UserRoleItem } from '@/lib/types';
 import type { StockItem } from '@/lib/xlsx-parser';
 import { Choice, FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, today } from '../flow/FlowShell';
 import CattlePicker from './CattlePicker';
+import { useText } from '@/hooks/useText';
 
 interface BatchFlowProps {
   isOpen: boolean;
@@ -42,6 +43,8 @@ export default function BatchFlow(props: BatchFlowProps) {
 }
 
 function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, onUpdate, onOpen, onMoveFarm, batchHead = 0 }: BatchFlowProps) {
+  const { tx, txn } = useText('batchesPage');
+  const flow = useText('flow');
   const edit = !!batch;
   const lockedFarm = currentUser?.farmLocation && !['Super Admin', 'Admin', 'Company'].includes(currentUser.role) ? currentUser.farmLocation : null;
   const farmNames = useMemo(() => farms.map(f => f.name), [farms]);
@@ -77,11 +80,11 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
   const pool = useMemo(() => (farm ? freeCattle.filter(c => c.location === farm) : freeCattle), [freeCattle, farm]);
 
   const next = () => {
-    if (step === 'name' && !name.trim()) { setError('Type a name for the batch.'); return; }
-    if (step === 'where' && !farm) { setError('Choose which farm the batch is on.'); return; }
+    if (step === 'name' && !name.trim()) { setError(tx('eName')); return; }
+    if (step === 'where' && !farm) { setError(tx('eFarm')); return; }
     if (step === 'when') {
-      if (!start) { setError('Choose the start date.'); return; }
-      if (target && target < start) { setError('The sell date cannot be before the start date.'); return; }
+      if (!start) { setError(tx('eStart')); return; }
+      if (target && target < start) { setError(tx('eSellBefore')); return; }
     }
     if (step === last) { save(); return; }
     setError('');
@@ -90,7 +93,7 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
   const back = () => { setError(''); setStep(steps[at - 1]); };
 
   const save = async () => {
-    if (!edit && picked.length === 0) { setError('Choose at least one animal.'); return; }
+    if (!edit && picked.length === 0) { setError(tx('eChooseAnimal')); return; }
     setSaving(true);
     setError('');
     try {
@@ -127,18 +130,18 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
         setStep('done');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save. Please try again.');
+      setError(e instanceof Error ? e.message : tx('eSave'));
     } finally {
       setSaving(false);
     }
   };
 
   const heading: Record<Step, { title: string; sub: string }> = {
-    name: { title: edit ? 'Edit batch' : 'Start a batch', sub: 'A batch is a group of cattle fed together.' },
-    where: { title: 'Which farm?', sub: 'Only animals on this farm can join.' },
-    when: { title: 'Dates and price', sub: 'The sell date and price are optional.' },
-    cattle: { title: 'Which cattle?', sub: 'Animals already in a batch are not listed.' },
-    done: { title: 'Batch started', sub: 'Next, set up what it eats.' },
+    name: { title: edit ? tx('bTitleEdit') : tx('bTitleStart'), sub: tx('bSubName') },
+    where: { title: tx('bTitleWhere'), sub: tx('bSubWhere') },
+    when: { title: tx('bTitleWhen'), sub: tx('bSubWhen') },
+    cattle: { title: tx('bTitleCattle'), sub: tx('bSubCattle') },
+    done: { title: tx('bTitleDone'), sub: tx('bSubDone') },
   };
 
   const summary = step === 'cattle' ? [name.trim(), farm].filter(Boolean).join(' · ') : step === 'when' || step === 'where' ? name.trim() : '';
@@ -155,14 +158,14 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
       footer={step === 'done' ? null : (
         <FlowFooter
           onBack={at === 0 ? undefined : back}
-          label={step === last ? (saving ? 'Saving…' : edit ? 'Save' : picked.length ? `Start batch (${picked.length})` : 'Start batch') : 'Next'}
+          label={step === last ? (saving ? flow.tx('saving') : edit ? flow.tx('save') : picked.length ? tx('bStartN', { n: picked.length }) : tx('bStart')) : flow.tx('next')}
           busy={saving}
         />
       )}
     >
       {step === 'name' && (
-        <Question label="Name of the batch" hint="For example Fattening October 2026.">
-          <Input aria-label="Name of the batch" autoFocus value={name} onChange={e => { setName(e.target.value); setError(''); }} className="h-16 text-xl font-semibold" />
+        <Question label={tx('bName')} hint={tx('bNameHint')}>
+          <Input aria-label={tx('bName')} autoFocus value={name} onChange={e => { setName(e.target.value); setError(''); }} className="h-16 text-xl font-semibold" />
         </Question>
       )}
 
@@ -170,10 +173,10 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
         <>
           <PickList options={farmNames} value={farm} onChange={v => { setFarm(v); setPicked([]); setError(''); }} />
           {farmChanged && batchHead > 0 && (
-            <Question label={`Move its ${batchHead} ${batchHead === 1 ? 'animal' : 'cattle'} to ${farm} too?`} hint={moveCattle ? 'Recommended: the batch and its cattle stay on the same farm.' : `The cattle stay on ${batch?.farmLocation || 'their farm'} while the batch is on ${farm}.`}>
+            <Question label={batchHead === 1 ? tx('bMoveOne', { farm }) : tx('bMoveMany', { n: batchHead, farm })} hint={moveCattle ? tx('bMoveYesHint') : tx('bMoveNoHint', { from: batch?.farmLocation || tx('theirFarm'), farm })}>
               <div className="grid grid-cols-2 gap-3">
-                <Choice selected={moveCattle} onClick={() => setMoveCattle(true)}>Yes, move them</Choice>
-                <Choice selected={!moveCattle} onClick={() => setMoveCattle(false)}>No</Choice>
+                <Choice selected={moveCattle} onClick={() => setMoveCattle(true)}>{tx('bYesMove')}</Choice>
+                <Choice selected={!moveCattle} onClick={() => setMoveCattle(false)}>{tx('no')}</Choice>
               </div>
             </Question>
           )}
@@ -182,20 +185,20 @@ function BatchBody({ onClose, batch, freeCattle, farms, currentUser, onCreate, o
 
       {step === 'when' && (
         <>
-          <Question label="Start date"><Input aria-label="Start date" type="date" value={start} onChange={e => { setStart(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
-          <Question label="Plan to sell by (optional)"><Input aria-label="Sell date" type="date" value={target} min={start} onChange={e => { setTarget(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
-          <Question label="Hoped-for price for each kg (៛, optional)">
-            <Input aria-label="Price for each kg" type="number" step="any" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)} className={`h-14 text-lg ${NUM}`} />
+          <Question label={tx('bStartDate')}><Input aria-label={tx('bStartDate')} type="date" value={start} onChange={e => { setStart(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
+          <Question label={tx('bSellBy')}><Input aria-label={tx('bSellDate')} type="date" value={target} min={start} onChange={e => { setTarget(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
+          <Question label={tx('bPrice')}>
+            <Input aria-label={tx('bPriceAria')} type="number" step="any" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)} className={`h-14 text-lg ${NUM}`} />
           </Question>
         </>
       )}
 
-      {step === 'cattle' && <CattlePicker cattle={pool} selected={picked} onChange={ids => { setPicked(ids); setError(''); }} emptyText="Every animal on this farm is already in a batch." />}
+      {step === 'cattle' && <CattlePicker cattle={pool} selected={picked} onChange={ids => { setPicked(ids); setError(''); }}  emptyText={tx('bAllInBatch')} />}
 
       {step === 'done' && (
         <FlowDone
-          message={<><span className="font-semibold">{name.trim()}</span> started with <span className="font-semibold">{picked.length} {picked.length === 1 ? 'animal' : 'animals'}</span></>}
-          again="Open the batch"
+          message={tx('bStartedWith', { name: name.trim(), n: txn(picked.length, 'animalOne', 'animalMany') })}
+          again={tx('bOpen')}
           onAgain={() => { onOpen?.(createdId); onClose(); }}
           onClose={onClose}
         />

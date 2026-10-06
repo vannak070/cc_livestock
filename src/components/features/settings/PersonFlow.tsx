@@ -6,9 +6,10 @@ import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ALL_PERMISSIONS, type MasterSetup, type PermissionKey, type UserRoleItem } from '@/types/settings.types';
-import { FARM_ROLES, MIN_PASSWORD_LENGTH, assignableRoles, effectivePermissions, grantable, isFarmOwner, rolesOf, validatePerson, type PersonErrors, type PersonInput, knownPermissionCount } from '@/lib/user-admin';
+import { SYSTEM_ROLES, usesStandardDescription, FARM_ROLES, MIN_PASSWORD_LENGTH, assignableRoles, effectivePermissions, grantable, isFarmOwner, rolesOf, validatePerson, type PersonErrors, type PersonInput, knownPermissionCount } from '@/lib/user-admin';
 import { FlowFooter, FlowShell, PickList, Question, RowButton } from '../flow/FlowShell';
 import PermissionPicker from './PermissionPicker';
+import { useText } from '@/hooks/useText';
 
 interface PersonFlowProps {
   isOpen: boolean;
@@ -41,7 +42,12 @@ export default function PersonFlow(props: PersonFlowProps) {
 }
 
 function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, onlyRoles }: PersonFlowProps) {
+  const { tx } = useText('settingsPage');
+  const flow = useText('flow');
   const edit = !!person;
+  const describe = (r: { name: string; description?: string }) => (SYSTEM_ROLES.some(s => s.name === r.name) && usesStandardDescription(r)
+    ? tx(`desc_${r.name}`)
+    : usesStandardDescription(r) ? tx('customRole') : r.description!);
   const lockedFarm = isFarmOwner(actor) ? actor.farmLocation ?? '' : presetFarm ?? null;
   const roles = useMemo(() => rolesOf(settings), [settings]);
   const options = useMemo(() => [...assignableRoles(roles, actor)].filter(r => !onlyRoles || onlyRoles.includes(r.name)).sort((a, b) => {
@@ -83,7 +89,7 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
   const input = (): PersonInput => ({ name, email, role, farmLocation: lockedFarm || farm, password, pin: '', clearPin: false, permissions });
   const stepFields: Record<Step, (keyof PersonErrors)[]> = { who: ['name', 'email'], role: ['role'], farm: ['farmLocation'], signin: ['password'], access: ['permissions'], done: [] };
   const problem = (s: Step): string | null => {
-    if (s === 'role' && !role) return 'Choose a role.';
+    if (s === 'role' && !role) return tx('pChooseRole');
     const errors = validatePerson(settings, input(), person ?? null, actor);
     for (const key of stepFields[s]) if (errors[key]) return errors[key]!;
     return null;
@@ -105,7 +111,7 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
       setTempPassword(temp);
       setStep('done');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save. Please try again.');
+      setError(e instanceof Error ? e.message : tx('errSave'));
     } finally {
       setSaving(false);
     }
@@ -128,12 +134,12 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
   const sameAsRole = permissions.length === roleDefault.length && permissions.every(p => roleDefault.includes(p));
 
   const heading: Record<Step, { title: string; sub: string }> = {
-    who: { title: self ? 'Edit my account' : edit ? 'Edit person' : 'Add a person', sub: self ? 'Your name and sign-in. Another admin changes your role and access.' : 'Their name, and the email they sign in with.' },
-    role: { title: 'What is their role?', sub: 'The role sets what they can see and do.' },
-    farm: { title: 'Which farm?', sub: 'They will only see this farm.' },
-    signin: { title: 'Signing in', sub: edit ? 'Change the password only if they need a new one.' : 'Choose a password, or let us make one.' },
-    access: { title: 'What can they do?', sub: 'Usually the role is enough. Change it only if this person is different.' },
-    done: { title: edit ? 'Saved' : 'Person added', sub: tempPassword ? 'Give them this temporary password now.' : 'They can sign in with their email.' },
+    who: { title: self ? tx('pTitleMine') : edit ? tx('pTitleEdit') : tx('pTitleAdd'), sub: self ? tx('pSubMine') : tx('pSubWho') },
+    role: { title: tx('pTitleRole'), sub: tx('pSubRole') },
+    farm: { title: tx('pTitleFarm'), sub: tx('pSubFarm') },
+    signin: { title: tx('pTitleSignin'), sub: edit ? tx('pSubSigninEdit') : tx('pSubSigninAdd') },
+    access: { title: tx('pTitleAccess'), sub: tx('pSubAccess') },
+    done: { title: edit ? tx('pTitleSaved') : tx('pTitleAdded'), sub: tempPassword ? tx('pSubTemp') : tx('pSubEmail') },
   };
 
   return (
@@ -146,18 +152,18 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
       error={error}
       onSubmit={step === 'role' || step === 'done' ? undefined : next}
       footer={step === 'done' ? null : step === 'role'
-        ? <FlowFooter onBack={back} label="Next" />
-        : <FlowFooter onBack={at === 0 ? undefined : back} label={step === last ? (saving ? 'Saving…' : 'Save') : 'Next'} busy={saving} />}
+        ? <FlowFooter onBack={back} label={flow.tx('next')} />
+        : <FlowFooter onBack={at === 0 ? undefined : back} label={step === last ? (saving ? flow.tx('saving') : flow.tx('save')) : flow.tx('next')} busy={saving} />}
     >
       {step === 'who' && (
         <>
-          <Question label="Name"><Input aria-label="Name" autoFocus value={name} onChange={e => { setName(e.target.value); setError(''); }} className="h-16 text-xl font-semibold" /></Question>
-          <Question label="Email"><Input aria-label="Email" type="email" inputMode="email" autoComplete="off" value={email} onChange={e => { setEmail(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
+          <Question label={tx('pName')}><Input aria-label={tx('pName')} autoFocus value={name} onChange={e => { setName(e.target.value); setError(''); }} className="h-16 text-xl font-semibold" /></Question>
+          <Question label={tx('pEmail')}><Input aria-label={tx('pEmail')} type="email" inputMode="email" autoComplete="off" value={email} onChange={e => { setEmail(e.target.value); setError(''); }} className="h-14 text-lg" /></Question>
         </>
       )}
 
       {step === 'role' && options.length === 0 && (
-        <p className="rounded-xl bg-amber-50 p-4 text-lg text-amber-900">There is no role you can give here. Ask a Super Admin to check the roles in Settings.</p>
+        <p className="rounded-xl bg-amber-50 p-4 text-lg text-amber-900">{tx('pNoRole')}</p>
       )}
 
       {step === 'role' && (
@@ -167,8 +173,8 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
               <RowButton onClick={() => { chooseRole(r.name); setStep(!lockedFarm && FARM_ROLES.includes(r.name) && farmNames.length > 0 ? 'farm' : 'signin'); }} selected={role === r.name}>
                 <span>
                   <span className="block text-xl font-semibold text-ink">{r.name}</span>
-                  <span className="block text-base text-ink-muted">{r.description || 'Custom role'}</span>
-                  <span className="block text-sm text-ink-muted">{knownPermissionCount(r.permissions)} of {ALL_PERMISSIONS.length} things</span>
+                  <span className="block text-base text-ink-muted">{describe(r)}</span>
+                  <span className="block text-sm text-ink-muted">{tx('pThings', { n: knownPermissionCount(r.permissions), total: ALL_PERMISSIONS.length })}</span>
                 </span>
                 {role === r.name && <Check className="h-7 w-7 shrink-0 text-emerald-700" aria-hidden />}
               </RowButton>
@@ -180,10 +186,10 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
       {step === 'farm' && <PickList options={farmNames} value={farm} onChange={v => { setFarm(v); setError(''); }} />}
 
       {step === 'signin' && (
-        <Question label={edit ? 'New password (optional)' : 'Password (optional)'} hint={edit ? 'Leave empty to keep the current password.' : `Leave empty and we will make a temporary one to give them. At least ${MIN_PASSWORD_LENGTH} characters if you type one.`}>
+        <Question label={edit ? tx('pNewPw') : tx('pPw')} hint={edit ? tx('pPwKeep') : tx('pPwMake', { n: MIN_PASSWORD_LENGTH })}>
           <div className="flex gap-2">
-            <Input aria-label="Password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={password} onChange={e => { setPassword(e.target.value); setError(''); }} className="h-14 text-lg" />
-            <button type="button" onClick={() => setShowPassword(v => !v)} className="min-h-14 shrink-0 rounded-xl border-2 border-slate-200 px-4 text-base font-medium text-ink hover:border-emerald-600">{showPassword ? 'Hide' : 'Show'}</button>
+            <Input aria-label={tx('pPwAria')} type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={password} onChange={e => { setPassword(e.target.value); setError(''); }} className="h-14 text-lg" />
+            <button type="button" onClick={() => setShowPassword(v => !v)} className="min-h-14 shrink-0 rounded-xl border-2 border-slate-200 px-4 text-base font-medium text-ink hover:border-emerald-600">{showPassword ? tx('hide') : tx('showPw')}</button>
           </div>
         </Question>
       )}
@@ -191,12 +197,12 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
       {step === 'access' && (
         <>
           <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-lg text-ink">{sameAsRole ? <>Uses the usual <span className="font-semibold">{role}</span> access.</> : <>Custom access, different from the usual <span className="font-semibold">{role}</span>.</>}</p>
-            <p className="text-base text-ink-muted">{knownPermissionCount(permissions)} of {ALL_PERMISSIONS.length} things allowed</p>
+            <p className="text-lg text-ink">{sameAsRole ? tx('pUsual', { role }) : tx('pCustom', { role })}</p>
+            <p className="text-base text-ink-muted">{tx('pAllowed', { n: knownPermissionCount(permissions), total: ALL_PERMISSIONS.length })}</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button type="button" variant="outline" onClick={() => setFineTune(v => !v)}>{fineTune ? 'Hide the list' : 'Change what they can do'}</Button>
-            {!sameAsRole && <Button type="button" variant="ghost" onClick={() => setPermissions(roleDefault)}>Use the usual {role} access</Button>}
+            <Button type="button" variant="outline" onClick={() => setFineTune(v => !v)}>{fineTune ? tx('pHideList') : tx('pChange')}</Button>
+            {!sameAsRole && <Button type="button" variant="ghost" onClick={() => setPermissions(roleDefault)}>{tx('pUseUsual', { role })}</Button>}
           </div>
           {fineTune && <PermissionPicker value={permissions} onChange={p => { setPermissions(p); setError(''); }} allowed={allowed} />}
         </>
@@ -206,17 +212,17 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
         <div className="flex h-full flex-col justify-between gap-6">
           <div className="space-y-5 pt-4 text-center">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Check className="h-11 w-11" aria-hidden /></div>
-            <p className="text-2xl text-ink"><span className="font-semibold">{name.trim()}</span> {edit ? 'was saved' : 'was added'}</p>
+            <p className="text-2xl font-semibold text-ink">{edit ? tx('pWasSaved', { name: name.trim() }) : tx('pWasAdded', { name: name.trim() })}</p>
             {tempPassword && (
               <div className="space-y-3 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-left">
-                <p className="text-base text-ink">Temporary password for <span className="font-medium">{email.trim()}</span>:</p>
+                <p className="text-base text-ink">{tx('pTempFor', { email: email.trim() })}</p>
                 <p className="select-all break-all text-center font-mono text-3xl font-semibold text-ink">{tempPassword}</p>
-                <p className="text-base text-ink-muted">This is shown only now. Write it down or copy it and give it to them.</p>
-                <Button type="button" variant="outline" onClick={copy}><Copy /> {copied ? 'Copied' : 'Copy password'}</Button>
+                <p className="text-base text-ink-muted">{tx('pShownOnce')}</p>
+                <Button type="button" variant="outline" onClick={copy}><Copy /> {copied ? tx('copied') : tx('pCopy')}</Button>
               </div>
             )}
           </div>
-          <Button type="button" size="lg" onClick={onClose}>Done</Button>
+          <Button type="button" size="lg" onClick={onClose}>{tx('done')}</Button>
         </div>
       )}
     </FlowShell>

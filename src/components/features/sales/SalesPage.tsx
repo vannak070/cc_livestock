@@ -15,6 +15,8 @@ import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { Choice, NUM } from '../flow/FlowShell';
 import { FarmSelect } from '@/components/ui/listbox-select';
+import { useText } from '@/hooks/useText';
+import { shownDay } from '@/lib/khmer-date';
 
 interface SalesPageProps {
   data: ERPLivestockData;
@@ -45,6 +47,7 @@ function Tile({ label, value, sub, tone }: { label: string; value: string; sub?:
 }
 
 export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesRecord, onRecordSaleClick, currentUser, farms = [] }: SalesPageProps) {
+  const { tx, txn, language } = useText('salesPage');
   const [showFilters, setShowFilters] = useState(false);
   const [farm, setFarm] = useState('');
   const [query, setQuery] = useState('');
@@ -133,8 +136,8 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
 
   const saveEdit = async () => {
     if (!editing || !onUpdateSalesRecord) return;
-    if (editing.perKg && !(Number(editing.weight) > 0)) { setEditError('Type the weight in kg.'); return; }
-    if (!(Number(editing.price) > 0)) { setEditError(editing.perKg ? 'Type the price for each kg.' : 'Type the price paid.'); return; }
+    if (editing.perKg && !(Number(editing.weight) > 0)) { setEditError(tx('errWeight')); return; }
+    if (!(Number(editing.price) > 0)) { setEditError(editing.perKg ? tx('errPriceKg') : tx('errPricePaid')); return; }
     try {
       await onUpdateSalesRecord(editing.cowId, {
         salesDate: editing.date,
@@ -145,20 +148,20 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
       });
       setEditing(null);
     } catch (e) {
-      setEditError(getErrorMessage(e, 'Could not save. Please try again.'));
+      setEditError(getErrorMessage(e, tx('errSave')));
     }
   };
 
   const askCancel = (s: SalesRecord) => setConfirm({
-    title: 'Cancel this sale?',
-    description: `${s.cowId} was sold for ${riel(s.totalPrice)}. Cancelling removes the sale and puts the animal back on the farm as active.`,
+    title: tx('cancelTitle'),
+    description: tx('cancelDesc', { tag: s.cowId, amount: riel(s.totalPrice) }),
     type: 'danger',
-    confirmText: 'Cancel the sale',
+    confirmText: tx('cancelConfirm'),
     onConfirm: async () => {
       try {
         await onDeleteSalesRecord?.(s.cowId);
       } catch (e) {
-        setConfirm({ title: 'Could not cancel', description: getErrorMessage(e, 'Something went wrong.'), type: 'danger', confirmText: 'OK' });
+        setConfirm({ title: tx('cancelFailed'), description: getErrorMessage(e, tx('somethingWrong')), type: 'danger', confirmText: tx('ok') });
       }
     },
   });
@@ -167,26 +170,27 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">Sales</h2>
-          <p className="text-base text-ink-muted">Cattle sold, and what they earned.</p>
+          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
+          <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
-        {canSell && <Button size="lg" onClick={onRecordSaleClick}><DollarSign /> Sell</Button>}
+        {canSell && <Button size="lg" onClick={onRecordSaleClick}><DollarSign /> {tx('sell')}</Button>}
       </div>
 
-      <section className="grid grid-cols-3 gap-2 sm:gap-3">
-        <Tile label="Sales" value={riel(revenue)} sub={`${sales.length} ${sales.length === 1 ? 'animal' : 'animals'} sold`} />
-        <Tile label="Profit" value={known.length ? `${profit < 0 ? '−' : ''}${riel(Math.abs(profit))}` : '—'} sub={known.length ? 'after buying, feed and medicine' : 'No sales yet'} tone={known.length ? (profit < 0 ? 'bad' : 'good') : undefined} />
-        <Tile label="Average price" value={perKg !== null ? riel(perKg) : '—'} sub="for each kg sold" />
+      {/* One tile per row on phones: a full riel amount does not fit a third of the screen. */}
+      <section className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+        <Tile label={tx('tileSales')} value={riel(revenue)} sub={txn(sales.length, 'animalsSoldOne', 'animalsSoldMany')} />
+        <Tile label={tx('tileProfit')} value={known.length ? `${profit < 0 ? '−' : ''}${riel(Math.abs(profit))}` : '—'} sub={known.length ? tx('profitSub') : tx('noSalesYetShort')} tone={known.length ? (profit < 0 ? 'bad' : 'good') : undefined} />
+        <Tile label={tx('tileAvg')} value={perKg !== null ? riel(perKg) : '—'} sub={tx('avgSub')} />
       </section>
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" aria-hidden />
-            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by tag or buyer" aria-label="Search sales" className="h-14 pl-11 text-lg" />
+            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder={tx('searchPlaceholder')} aria-label={tx('searchAria')} className="h-14 pl-11 text-lg" />
           </div>
           <button type="button" aria-expanded={showFilters} onClick={() => setShowFilters(v => !v)} className="flex min-h-14 items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 text-base font-medium text-ink hover:border-emerald-600">
-            <SlidersHorizontal className="h-5 w-5" aria-hidden /> Filters{activeFilters > 0 ? ` (${activeFilters})` : ''}
+            <SlidersHorizontal className="h-5 w-5" aria-hidden /> {tx('filters')}{activeFilters > 0 ? ` (${activeFilters})` : ''}
           </button>
         </div>
 
@@ -194,15 +198,15 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
           <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
             {showFarmFilter && (
               <div className="block sm:col-span-2">
-                <span className="mb-1 block text-base font-medium text-ink">Farm</span>
+                <span className="mb-1 block text-base font-medium text-ink">{tx('farm')}</span>
                 <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} />
               </div>
             )}
-            <label className="block"><span className="mb-1 block text-base font-medium text-ink">Sold from</span><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-12 text-lg" /></label>
-            <label className="block"><span className="mb-1 block text-base font-medium text-ink">Sold until</span><Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-12 text-lg" /></label>
+            <label className="block"><span className="mb-1 block text-base font-medium text-ink">{tx('soldFrom')}</span><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-12 text-lg" /></label>
+            <label className="block"><span className="mb-1 block text-base font-medium text-ink">{tx('soldUntil')}</span><Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-12 text-lg" /></label>
             <div className="flex flex-wrap gap-3 sm:col-span-2">
-              <Button type="button" variant="outline" onClick={exportSales} disabled={sales.length === 0}><Download /> Download Excel</Button>
-              {activeFilters > 0 && <Button type="button" variant="ghost" onClick={() => { setFarm(''); setStartDate(''); setEndDate(''); }}>Clear filters</Button>}
+              <Button type="button" variant="outline" onClick={exportSales} disabled={sales.length === 0}><Download /> {tx('downloadExcel')}</Button>
+              {activeFilters > 0 && <Button type="button" variant="ghost" onClick={() => { setFarm(''); setStartDate(''); setEndDate(''); }}>{tx('clearFilters')}</Button>}
             </div>
           </div>
         )}
@@ -210,8 +214,8 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
 
       {sales.length === 0 ? (
         <div className="space-y-4 rounded-2xl bg-slate-50 p-8 text-center">
-          <p className="text-lg text-ink-muted">{data.salesTracking.length === 0 ? 'No sales yet.' : 'No sales match what you chose.'}</p>
-          {canSell && data.salesTracking.length === 0 && <Button size="lg" onClick={onRecordSaleClick}><DollarSign /> Sell</Button>}
+          <p className="text-lg text-ink-muted">{data.salesTracking.length === 0 ? tx('noSales') : tx('noMatch')}</p>
+          {canSell && data.salesTracking.length === 0 && <Button size="lg" onClick={onRecordSaleClick}><DollarSign /> {tx('sell')}</Button>}
         </div>
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -223,21 +227,21 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xl font-semibold text-ink">{s.cowId}</p>
-                    <p className="text-base text-ink-muted">{[day(s.salesDate), s.buyer || null].filter(Boolean).join(' · ')}</p>
+                    <p className="text-base text-ink-muted">{[shownDay(s.salesDate, language), s.buyer || null].filter(Boolean).join(' · ')}</p>
                   </div>
                   {(canEdit || canCancel) && (
                     <div className="flex shrink-0">
-                      {canEdit && <Button variant="ghost" size="icon" aria-label={`Edit the sale of ${s.cowId}`} onClick={() => startEdit(s)}><Pencil /></Button>}
-                      {canCancel && <Button variant="ghost" size="icon" aria-label={`Cancel the sale of ${s.cowId}`} onClick={() => askCancel(s)}><Trash2 className="text-rose-700" /></Button>}
+                      {canEdit && <Button variant="ghost" size="icon" aria-label={tx('editAria', { tag: s.cowId })} onClick={() => startEdit(s)}><Pencil /></Button>}
+                      {canCancel && <Button variant="ghost" size="icon" aria-label={tx('cancelAria', { tag: s.cowId })} onClick={() => askCancel(s)}><Trash2 className="text-rose-700" /></Button>}
                     </div>
                   )}
                 </div>
                 <p className="mt-2 text-2xl font-semibold text-ink">{riel(s.totalPrice)}</p>
-                <p className="text-base text-ink-muted">{byWeight(s) ? `${s.weight} kg × ${riel(s.unitPrice)} a kg` : 'One price for the animal'}</p>
+                <p className="text-base text-ink-muted">{byWeight(s) ? tx('perKgLine', { kg: s.weight, price: riel(s.unitPrice) }) : tx('onePriceLine')}</p>
                 {p !== null && p !== undefined && (
                   <>
-                    <p className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-medium ${p < 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>{p < 0 ? 'Loss' : 'Profit'} {riel(Math.abs(p))}</p>
-                    {b && <p className="mt-1 text-sm text-ink-muted">{[`Bought ${riel(b.bought)}`, `feed ${riel(b.feed)}`, b.medicine > 0 ? `medicine ${riel(b.medicine)}` : null].filter(Boolean).join(' · ')}</p>}
+                    <p className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-medium ${p < 0 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>{p < 0 ? tx('loss') : tx('profit')} {riel(Math.abs(p))}</p>
+                    {b && <p className="mt-1 text-sm text-ink-muted">{[tx('bought', { amount: riel(b.bought) }), tx('feed', { amount: riel(b.feed) }), b.medicine > 0 ? tx('medicine', { amount: riel(b.medicine) }) : null].filter(Boolean).join(' · ')}</p>}
                   </>
                 )}
               </li>
@@ -246,34 +250,34 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
         </ul>
       )}
 
-      {sales.length > visible && <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>Show more ({sales.length - visible} left)</Button></div>}
+      {sales.length > visible && <div className="flex justify-center"><Button size="lg" variant="outline" onClick={() => setVisible(v => v + PAGE)}>{tx('showMore', { n: sales.length - visible })}</Button></div>}
 
       {editing && (
         <Dialog open onOpenChange={open => { if (!open) setEditing(null); }}>
           <DialogContent className="max-w-md">
             <DialogHeader className="text-left">
-              <DialogTitle className="text-2xl font-semibold text-ink">Edit sale</DialogTitle>
+              <DialogTitle className="text-2xl font-semibold text-ink">{tx('editTitle')}</DialogTitle>
               <DialogDescription className="text-base text-ink-muted">{editing.cowId}</DialogDescription>
             </DialogHeader>
             <form onSubmit={e => { e.preventDefault(); saveEdit(); }} className="space-y-4">
               <div>
-                <p className="mb-2 text-lg font-medium text-ink">How was the price set?</p>
+                <p className="mb-2 text-lg font-medium text-ink">{tx('howPriceSet')}</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <Choice selected={editing.perKg} onClick={() => setEditing({ ...editing, perKg: true })}>Price per kg</Choice>
-                  <Choice selected={!editing.perKg} onClick={() => setEditing({ ...editing, perKg: false })}>One price</Choice>
+                  <Choice selected={editing.perKg} onClick={() => setEditing({ ...editing, perKg: true })}>{tx('pricePerKg')}</Choice>
+                  <Choice selected={!editing.perKg} onClick={() => setEditing({ ...editing, perKg: false })}>{tx('onePrice')}</Choice>
                 </div>
               </div>
               {editing.perKg && (
-                <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Weight (kg)</span><Input type="number" step="any" inputMode="decimal" value={editing.weight} onChange={e => { setEditing({ ...editing, weight: e.target.value }); setEditError(''); }} className={`h-14 text-lg ${NUM}`} /></label>
+                <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{tx('weightKg')}</span><Input type="number" step="any" inputMode="decimal" value={editing.weight} onChange={e => { setEditing({ ...editing, weight: e.target.value }); setEditError(''); }} className={`h-14 text-lg ${NUM}`} /></label>
               )}
-              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{editing.perKg ? 'Price for each kg (៛)' : 'Price paid (៛)'}</span><Input type="number" step="any" inputMode="numeric" value={editing.price} onChange={e => { setEditing({ ...editing, price: e.target.value }); setEditError(''); }} className={`h-14 text-lg ${NUM}`} /></label>
-              <p className="rounded-xl bg-slate-50 p-3 text-lg text-ink">Total: <span className="font-semibold">{riel(editTotal > 0 ? editTotal : 0)}</span></p>
-              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Buyer</span><Input value={editing.buyer} onChange={e => setEditing({ ...editing, buyer: e.target.value })} className="h-14 text-lg" /></label>
-              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">Date sold</span><Input type="date" value={editing.date} onChange={e => setEditing({ ...editing, date: e.target.value })} className="h-14 text-lg" /></label>
+              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{editing.perKg ? tx('priceEachKg') : tx('pricePaid')}</span><Input type="number" step="any" inputMode="numeric" value={editing.price} onChange={e => { setEditing({ ...editing, price: e.target.value }); setEditError(''); }} className={`h-14 text-lg ${NUM}`} /></label>
+              <p className="rounded-xl bg-slate-50 p-3 text-lg text-ink">{tx('total')} <span className="font-semibold">{riel(editTotal > 0 ? editTotal : 0)}</span></p>
+              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{tx('buyer')}</span><Input value={editing.buyer} onChange={e => setEditing({ ...editing, buyer: e.target.value })} className="h-14 text-lg" /></label>
+              <label className="block"><span className="mb-1 block text-lg font-medium text-ink">{tx('dateSold')}</span><Input type="date" value={editing.date} onChange={e => setEditing({ ...editing, date: e.target.value })} className="h-14 text-lg" /></label>
               {editError && <p role="alert" className="text-base font-medium text-rose-700">{editError}</p>}
               <div className="flex gap-3">
-                <Button type="button" variant="secondary" size="lg" onClick={() => setEditing(null)}>Cancel</Button>
-                <Button type="submit" size="lg" className="flex-1">Save</Button>
+                <Button type="button" variant="secondary" size="lg" onClick={() => setEditing(null)}>{tx('cancel')}</Button>
+                <Button type="submit" size="lg" className="flex-1">{tx('save')}</Button>
               </div>
             </form>
           </DialogContent>

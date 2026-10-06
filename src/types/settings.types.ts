@@ -136,10 +136,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
   'Farm Owner': ALL_PERMISSIONS.filter(p => p !== 'settings_manage' && p !== 'farms_manage' && p !== 'feed_manage'),
   'Farm Staff': ['dashboard_view', 'stock_view', 'batch_view', 'weight_view', 'weight_record', 'health_view', 'health_record', 'feed_view', 'feed_record', 'costs_view', 'costs_record'],
   'Veterinarian': ['dashboard_view', 'stock_view', 'stock_edit', 'weight_view', 'weight_record', 'health_view', 'health_record', 'health_delete', 'feed_view'],
-  // Read-only oversight: sees every report, changes nothing. This is the
-  // role intended for PIN sign-in on the mobile app, so it deliberately
-  // holds no create/edit/delete permission at all — a shorter credential
-  // must not unlock a wider set of actions. The one exception is Planning
+  // Read-only oversight: sees every report, changes nothing. It holds no
+  // create/edit/delete permission at all (it was once meant for PIN sign-in
+  // on the removed mobile app, and a shorter credential must not unlock a
+  // wider set of actions). The one exception is Planning
   // (PLANNING_ROLES in lib/utils.ts): Management may save and delete plans,
   // which never change the real herd.
   'Management': ['dashboard_view', 'stock_view', 'batch_view', 'batch_review', 'weight_view', 'health_view', 'sales_view', 'costs_view', 'analytics_view', 'feed_view']

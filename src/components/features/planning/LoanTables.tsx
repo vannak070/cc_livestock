@@ -8,6 +8,8 @@ import type { FarmLoanTerms, PlanFeedLine } from '@/lib/types';
 import * as xlsx from 'xlsx';
 import { feedNeeds } from '@/lib/feed-lines';
 import { exportToExcel } from '@/lib/excel-export';
+import { useText } from '@/hooks/useText';
+import { monthLabel as shownMonth } from '@/lib/khmer-date';
 
 /**
  * The tables a fattening plan's bank loan shows, used by the fattening
@@ -20,6 +22,7 @@ type Trades = ReturnType<typeof ccTrades>;
 
 export const riel = (n: number) => `${n < 0 ? '−' : ''}${Math.round(Math.abs(n)).toLocaleString()} ៛`;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** English month names, for the Excel files (which stay in English). */
 export const monthLabel = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
 const fileSafe = (s: string) => s.replace(/[^\p{L}\p{N}]+/gu, '_');
 
@@ -82,6 +85,8 @@ export function exportTrades(name: string, startMonth: string, trades: Trades) {
 
 /** Payments to the bank, every month of the plan: the big payments first, then each month, with the year and plan totals. */
 export function BankPaymentsTable({ payments, terms, intro, onDownload }: { payments: Payments; terms: Pick<FarmLoanTerms, 'repayments'>; intro: string; onDownload: () => void }) {
+  const { tx, language } = useText('planning');
+  const month = (ym: string) => shownMonth(ym, language);
   const big = payments.rows.filter(r => r.drawKhr > 0 || r.principalKhr > 0);
   const interestOnly = payments.rows.filter(r => r.principalKhr === 0 && r.interestKhr > 0).map(r => r.interestKhr);
   const share = (monthInYear: number) => terms.repayments.find(x => x.month === monthInYear)?.pct;
@@ -89,14 +94,14 @@ export function BankPaymentsTable({ payments, terms, intro, onDownload }: { paym
     <section className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-2xl text-base text-ink-muted">{intro}</p>
-        <Button variant="outline" onClick={onDownload}><Download /> Download Excel</Button>
+        <Button variant="outline" onClick={onDownload}><Download /> {tx('downloadExcel')}</Button>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h3 className="text-lg font-semibold text-ink">Big payments</h3>
+        <h3 className="text-lg font-semibold text-ink">{tx('bigPayments')}</h3>
         {interestOnly.length > 0 && (
           <p className="mb-2 text-base text-ink-muted">
-            Other months the farm pays interest only: {riel(Math.min(...interestOnly))}{Math.min(...interestOnly) !== Math.max(...interestOnly) ? ` to ${riel(Math.max(...interestOnly))}` : ''} a month.
+            {tx('interestOnly', { amount: Math.min(...interestOnly) !== Math.max(...interestOnly) ? tx('interestRange', { from: riel(Math.min(...interestOnly)), to: riel(Math.max(...interestOnly)) }) : riel(Math.min(...interestOnly)) })}
           </p>
         )}
         <ul className="divide-y divide-slate-100">
@@ -106,17 +111,17 @@ export function BankPaymentsTable({ payments, terms, intro, onDownload }: { paym
             return (
               <li key={r.index} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
                 <span className="text-base text-ink">
-                  <span className="font-semibold">{monthLabel(r.month)}</span>
-                  <span className="text-ink-muted"> · year {r.year}, month {r.monthInYear}</span>
+                  <span className="font-semibold">{month(r.month)}</span>
+                  <span className="text-ink-muted"> · {tx('yearMonth', { y: r.year, m: r.monthInYear })}</span>
                   <span className="block text-sm text-ink-muted">
-                    {[r.drawKhr > 0 ? `bank pays out ${riel(r.drawKhr)}` : null, r.principalKhr > 0 ? `farm pays back ${pct ? `${pct}%, ` : ''}${riel(r.principalKhr)} + interest ${riel(r.interestKhr)}` : null].filter(Boolean).join(' · ')}
+                    {[r.drawKhr > 0 ? tx('bankPaysOut', { amount: riel(r.drawKhr) }) : null, r.principalKhr > 0 ? tx('farmPaysBack', { share: pct ? tx('sharePct', { n: pct }) : '', amount: riel(r.principalKhr), interest: riel(r.interestKhr) }) : null].filter(Boolean).join(' · ')}
                   </span>
                 </span>
                 <span className="text-right">
                   {r.principalKhr > 0 ? (
                     <>
                       <span className="text-base font-semibold text-ink">{riel(r.totalKhr)}</span>
-                      <span className={`ml-3 rounded-full px-2.5 py-0.5 text-sm font-medium ${short ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>{short ? `Short ${riel(-r.cashAfterKhr)}` : 'Covered'}</span>
+                      <span className={`ml-3 rounded-full px-2.5 py-0.5 text-sm font-medium ${short ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>{short ? tx('short', { amount: riel(-r.cashAfterKhr) }) : tx('covered')}</span>
                     </>
                   ) : <span className="text-base font-semibold text-emerald-800">+{riel(r.drawKhr)}</span>}
                 </span>
@@ -124,29 +129,29 @@ export function BankPaymentsTable({ payments, terms, intro, onDownload }: { paym
             );
           })}
         </ul>
-        <p className="mt-2 text-sm text-ink-muted">Covered means the farm still has money left after paying, from its sales and the loan. Short is what it would need from elsewhere that month.</p>
+        <p className="mt-2 text-sm text-ink-muted">{tx('coveredNote')}</p>
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full min-w-[60rem] text-right text-base">
           <thead className="bg-slate-50 text-sm text-ink-muted">
             <tr>
-              <th scope="col" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium">Month</th>
-              <th scope="col" className="px-3 py-2 font-medium">Owed at start</th>
-              <th scope="col" className="px-3 py-2 font-medium">Borrowed</th>
-              <th scope="col" className="px-3 py-2 font-medium">Interest</th>
-              <th scope="col" className="px-3 py-2 font-medium">Paid back</th>
-              <th scope="col" className="px-3 py-2 font-medium">Farm pays the bank</th>
-              <th scope="col" className="px-3 py-2 font-medium">Owed at end</th>
-              <th scope="col" className="px-3 py-2 font-medium">Farm cash after</th>
+              <th scope="col" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium">{tx('colMonth')}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{tx('colOwedStart')}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{tx('colBorrowed')}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{tx('colInterest')}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{tx('colPaidBack')}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{tx('colFarmPays')}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{tx('colOwedEnd')}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{tx('colCashAfter')}</th>
             </tr>
           </thead>
           <tbody>
             {payments.rows.map(r => (
               <tr key={r.index} className={`border-t ${r.monthInYear === 1 && r.index > 1 ? 'border-t-2 border-slate-300' : 'border-slate-100'} ${r.principalKhr > 0 ? 'bg-amber-50' : ''}`}>
                 <th scope="row" className={`sticky left-0 px-3 py-2 text-left font-medium text-ink ${r.principalKhr > 0 ? 'bg-amber-50' : 'bg-white'}`}>
-                  {monthLabel(r.month)}
-                  <span className="block text-sm font-normal text-ink-muted">Y{r.year} · M{r.monthInYear}</span>
+                  {month(r.month)}
+                  <span className="block text-sm font-normal text-ink-muted">{tx('yShort', { y: r.year, m: r.monthInYear })}</span>
                 </th>
                 <td className="px-3 py-2 text-ink">{riel(r.openingKhr)}</td>
                 <td className="px-3 py-2 text-ink">{r.drawKhr ? riel(r.drawKhr) : '—'}</td>
@@ -161,7 +166,7 @@ export function BankPaymentsTable({ payments, terms, intro, onDownload }: { paym
           <tfoot className="bg-slate-50 text-ink">
             {payments.years.map(y => (
               <tr key={y.year} className="border-t border-slate-200">
-                <th scope="row" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-semibold">Year {y.year}</th>
+                <th scope="row" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-semibold">{tx('yearN', { n: y.year })}</th>
                 <td className="px-3 py-2" />
                 <td className="px-3 py-2">{riel(y.drawKhr)}</td>
                 <td className="px-3 py-2">{riel(y.interestKhr)}</td>
@@ -172,7 +177,7 @@ export function BankPaymentsTable({ payments, terms, intro, onDownload }: { paym
             ))}
             {payments.years.length > 1 && (
               <tr className="border-t-2 border-slate-300">
-                <th scope="row" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-semibold">Whole plan</th>
+                <th scope="row" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-semibold">{tx('wholePlan')}</th>
                 <td className="px-3 py-2" />
                 <td className="px-3 py-2 font-semibold">{riel(payments.total.drawKhr)}</td>
                 <td className="px-3 py-2 font-semibold">{riel(payments.total.interestKhr)}</td>
@@ -189,43 +194,43 @@ export function BankPaymentsTable({ payments, terms, intro, onDownload }: { paym
 }
 
 function TradeCells({ r }: { r: Pick<CcTradeRow, 'headSold' | 'saleKhr' | 'headBought' | 'purchaseKhr' | 'feedKhr'> & { sameDayHead?: number } }) {
+  const { tx } = useText('planning');
   const sameDay = r.sameDayHead ?? 0;
   return (
     <>
-      <td className="px-3 py-2 text-ink">{r.headSold ? <>{riel(r.saleKhr)}<span className="block text-sm text-ink-muted">{r.headSold.toLocaleString()} head</span></> : '—'}</td>
-      <td className="px-3 py-2 text-ink">{r.headBought ? <>{riel(r.purchaseKhr)}<span className="block text-sm text-ink-muted">{r.headBought.toLocaleString()} head{sameDay > 0 ? (sameDay === r.headBought ? ', the same day as the sale' : `, ${sameDay.toLocaleString()} the same day as the sale`) : ''}</span></> : '—'}</td>
+      <td className="px-3 py-2 text-ink">{r.headSold ? <>{riel(r.saleKhr)}<span className="block text-sm text-ink-muted">{tx('headN', { n: r.headSold.toLocaleString() })}</span></> : '—'}</td>
+      <td className="px-3 py-2 text-ink">{r.headBought ? <>{riel(r.purchaseKhr)}<span className="block text-sm text-ink-muted">{tx('headN', { n: r.headBought.toLocaleString() })}{sameDay > 0 ? (sameDay === r.headBought ? tx('sameDayAll') : tx('sameDaySome', { n: sameDay.toLocaleString() })) : ''}</span></> : '—'}</td>
       <td className="px-3 py-2 text-ink">{r.feedKhr ? riel(r.feedKhr) : '—'}</td>
     </>
   );
 }
 
 /** The cattle and feed traded with CC Livestock: what it pays the farm for cattle, and what the farm pays it for new cattle and feed. */
-export function CcTradesTable({ trades, farmName, onDownload }: { trades: Trades; farmName: string; onDownload: () => void }) {
+export function CcTradesTable({ trades, onDownload }: { trades: Trades; onDownload: () => void }) {
+  const { tx, language } = useText('planning');
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="max-w-2xl text-base text-ink-muted">
-          {farmName.charAt(0).toUpperCase() + farmName.slice(1)} buys its cattle and feed from CC Livestock and sells its cattle back to CC Livestock. These are separate payments: CC Livestock pays {farmName} the full price of the cattle it buys, and {farmName} pays CC Livestock for new cattle and feed. CC Livestock does not pay the bank; {farmName} pays the bank itself.
-        </p>
-        <Button variant="outline" onClick={onDownload}><Download /> Download Excel</Button>
+        <p className="max-w-2xl text-base text-ink-muted">{tx('tradesIntro')}</p>
+        <Button variant="outline" onClick={onDownload}><Download /> {tx('downloadExcel')}</Button>
       </div>
-      {trades.rows.length === 0 ? <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No cattle are traded in this plan.</p> : (
+      {trades.rows.length === 0 ? <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noTrades')}</p> : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
           <table className="w-full min-w-[42rem] text-right text-base">
             <thead className="bg-slate-50 text-sm text-ink-muted">
               <tr>
-                <th scope="col" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium">Month</th>
-                <th scope="col" className="px-3 py-2 font-medium">Sold: CC Livestock pays the farm</th>
-                <th scope="col" className="px-3 py-2 font-medium">New cattle: farm pays CC Livestock</th>
-                <th scope="col" className="px-3 py-2 font-medium">Feed: farm pays CC Livestock</th>
+                <th scope="col" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium">{tx('colMonth')}</th>
+                <th scope="col" className="px-3 py-2 font-medium">{tx('colSold')}</th>
+                <th scope="col" className="px-3 py-2 font-medium">{tx('colNewCattle')}</th>
+                <th scope="col" className="px-3 py-2 font-medium">{tx('colFeed')}</th>
               </tr>
             </thead>
             <tbody>
               {trades.rows.map(r => (
                 <tr key={r.index} className={`border-t ${r.monthInYear === 1 && r.index > 1 ? 'border-t-2 border-slate-300' : 'border-slate-100'}`}>
                   <th scope="row" className="sticky left-0 bg-white px-3 py-2 text-left font-medium text-ink">
-                    {monthLabel(r.month)}
-                    <span className="block text-sm font-normal text-ink-muted">Y{r.year} · M{r.monthInYear}{r.swap ? ' · sell and restock' : ''}</span>
+                    {shownMonth(r.month, language)}
+                    <span className="block text-sm font-normal text-ink-muted">{tx('yShort', { y: r.year, m: r.monthInYear })}{r.swap ? tx('sellRestock') : ''}</span>
                   </th>
                   <TradeCells r={r} />
                 </tr>
@@ -234,7 +239,7 @@ export function CcTradesTable({ trades, farmName, onDownload }: { trades: Trades
             <tfoot className="bg-slate-50">
               {trades.years.map(y => (
                 <tr key={y.year} className="border-t border-slate-200 font-semibold">
-                  <th scope="row" className="sticky left-0 bg-slate-50 px-3 py-2 text-left">Year {y.year}</th>
+                  <th scope="row" className="sticky left-0 bg-slate-50 px-3 py-2 text-left">{tx('yearN', { n: y.year })}</th>
                   <TradeCells r={y} />
                 </tr>
               ))}
@@ -258,23 +263,24 @@ export function FeedNeedsTable({ lines, months, onDownload }: {
   months: Pick<LoanMonth, 'index' | 'month' | 'year' | 'monthInYear' | 'headDays'>[];
   onDownload?: () => void;
 }) {
+  const { tx, language } = useText('planning');
   const perMonth = months.map(m => ({ m, head: Math.round(m.headDays / 30), needs: feedNeeds(lines, m.headDays) }));
   const years = [...new Set(months.map(m => m.year))].map(year => {
     const headDays = months.filter(m => m.year === year).reduce((s, m) => s + m.headDays, 0);
     return { year, needs: feedNeeds(lines, headDays) };
   });
   const total = (needs: { costKhr: number }[]) => needs.reduce((s, n) => s + n.costKhr, 0);
-  if (lines.length === 0) return <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">This plan has no feed yet. Change the plan to add each feed per cow a day.</p>;
+  if (lines.length === 0) return <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noFeed')}</p>;
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="max-w-2xl text-base text-ink-muted">Worked out from the plan: the cattle on the farm each month × what each cow eats a day × 30 days. This is the feed to order from CC Livestock.</p>
-        {onDownload && <Button variant="outline" onClick={onDownload}><Download /> Download Excel</Button>}
+        <p className="max-w-2xl text-base text-ink-muted">{tx('feedIntro')}</p>
+        {onDownload && <Button variant="outline" onClick={onDownload}><Download /> {tx('downloadExcel')}</Button>}
       </div>
       <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {years.map(y => (
           <li key={y.year} className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-lg font-semibold text-ink">Year {y.year}</p>
+            <p className="text-lg font-semibold text-ink">{tx('yearN', { n: y.year })}</p>
             <dl className="mt-1">
               {y.needs.map(n => (
                 <div key={n.name} className="flex justify-between gap-3 border-b border-slate-100 py-2 last:border-0">
@@ -283,7 +289,7 @@ export function FeedNeedsTable({ lines, months, onDownload }: {
                 </div>
               ))}
               <div className="flex justify-between gap-3 border-t border-slate-200 pt-2">
-                <dt className="text-lg font-medium text-ink">All feed</dt>
+                <dt className="text-lg font-medium text-ink">{tx('allFeed')}</dt>
                 <dd className="text-lg font-semibold text-emerald-800">{riel(total(y.needs))}</dd>
               </div>
             </dl>
@@ -294,18 +300,18 @@ export function FeedNeedsTable({ lines, months, onDownload }: {
         <table className="w-full min-w-[40rem] text-right text-base">
           <thead className="bg-slate-50 text-sm text-ink-muted">
             <tr>
-              <th scope="col" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium">Month</th>
-              <th scope="col" className="px-3 py-2 font-medium">Cattle</th>
+              <th scope="col" className="sticky left-0 bg-slate-50 px-3 py-2 text-left font-medium">{tx('colMonth')}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{tx('colCattle')}</th>
               {lines.map(l => <th key={l.name} scope="col" className="px-3 py-2 font-medium">{l.name}</th>)}
-              <th scope="col" className="px-3 py-2 font-medium">All feed</th>
+              <th scope="col" className="px-3 py-2 font-medium">{tx('allFeed')}</th>
             </tr>
           </thead>
           <tbody>
             {perMonth.map(({ m, head, needs }) => (
               <tr key={m.index} className={`border-t ${m.monthInYear === 1 && m.index > 1 ? 'border-t-2 border-slate-300' : 'border-slate-100'}`}>
                 <th scope="row" className="sticky left-0 bg-white px-3 py-2 text-left font-medium text-ink">
-                  {monthLabel(m.month)}
-                  <span className="block text-sm font-normal text-ink-muted">Y{m.year} · M{m.monthInYear}</span>
+                  {shownMonth(m.month, language)}
+                  <span className="block text-sm font-normal text-ink-muted">{tx('yShort', { y: m.year, m: m.monthInYear })}</span>
                 </th>
                 <td className="px-3 py-2 text-ink">{head.toLocaleString()}</td>
                 {needs.map(n => <td key={n.name} className="px-3 py-2 text-ink">{kgLabel(n.kg)}<span className="block text-sm text-ink-muted">{riel(n.costKhr)}</span></td>)}

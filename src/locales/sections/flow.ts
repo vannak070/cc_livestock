@@ -7,7 +7,9 @@ export const en = {
   saving: 'Saving…',
   search: 'Search',
   searchAria: 'Search the list',
-  noMatch: 'Nothing matches that.'
+  noMatch: 'Nothing matches that.',
+  stepOf: 'Step {n} of {total}',
+  close: 'Close'
 };
 
 export const km: Partial<typeof en> = {
@@ -18,5 +20,7 @@ export const km: Partial<typeof en> = {
   saving: 'កំពុងរក្សាទុក…',
   search: 'ស្វែងរក',
   searchAria: 'ស្វែងរកក្នុងបញ្ជី',
-  noMatch: 'រកមិនឃើញទេ។'
+  noMatch: 'រកមិនឃើញទេ។',
+  stepOf: 'ជំហានទី {n} ក្នុងចំណោម {total}',
+  close: 'បិទ'
 };

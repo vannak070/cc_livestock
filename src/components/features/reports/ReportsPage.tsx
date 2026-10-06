@@ -9,6 +9,8 @@ import { farmProfit, sumMonths } from '@/lib/farm-costs';
 import { Input } from '@/components/ui/input';
 import { NUM } from '../flow/FlowShell';
 import { FarmSelect } from '@/components/ui/listbox-select';
+import { useText, useValueText } from '@/hooks/useText';
+import { monthLabel } from '@/lib/khmer-date';
 
 interface ReportsPageProps {
   data: ERPLivestockData;
@@ -18,10 +20,10 @@ interface ReportsPageProps {
 
 type Tab = 'herd' | 'money' | 'batches' | 'forecast';
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'herd', label: 'Herd' },
-  { key: 'money', label: 'Money' },
-  { key: 'batches', label: 'Batches' },
-  { key: 'forecast', label: 'Forecast' },
+  { key: 'herd', label: 'tabHerd' },
+  { key: 'money', label: 'tabMoney' },
+  { key: 'batches', label: 'tabBatches' },
+  { key: 'forecast', label: 'tabForecast' },
 ];
 
 // Chart colours were checked with the colour validator (colour-blind safe): Sold is leaf green, Bought is blue.
@@ -46,17 +48,22 @@ function Tile({ label, value, sub, tone }: { label: string; value: string; sub?:
   );
 }
 
+const KNOWN_ORIGINS = ['Purchase', 'Born in Farm', 'Transfer', 'Partnership'];
+
 function Bars({ title, rows }: { title: string; rows: Share[] }) {
+  const { tx } = useText('reportsPage');
+  const origin = useText('addCattle');
+  const val = useValueText();
   const max = Math.max(1, ...rows.map(r => r.count));
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4">
       <h3 className="mb-3 text-lg font-semibold text-ink">{title}</h3>
-      {rows.length === 0 ? <p className="text-base text-ink-muted">Nothing to show yet.</p> : (
+      {rows.length === 0 ? <p className="text-base text-ink-muted">{tx('nothingYet')}</p> : (
         <ul className="space-y-3">
           {rows.slice(0, 8).map(r => (
             <li key={r.label}>
               <div className="flex items-baseline justify-between gap-3">
-                <span className="min-w-0 break-words text-base text-ink">{r.label}</span>
+                <span className="min-w-0 break-words text-base text-ink">{r.label === 'Not set' ? tx('notSet') : KNOWN_ORIGINS.includes(r.label) ? origin.tx(`o_${r.label}`) : val(r.label)}</span>
                 <span className="shrink-0 text-base font-medium text-ink">{r.count} <span className="text-ink-muted">({r.pct}%)</span></span>
               </div>
               <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
@@ -76,6 +83,7 @@ function parseDay(s: string): number | null {
 }
 
 export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPageProps) {
+  const { tx, language } = useText('reportsPage');
   const [tab, setTab] = useState<Tab>('herd');
   const [farm, setFarm] = useState('');
   const [batchId, setBatchId] = useState('');
@@ -157,19 +165,19 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">Reports</h2>
-          <p className="text-base text-ink-muted">How the herd and the money are doing.</p>
+          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
+          <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
         {showFarmFilter && (
           <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} size="compact" align="right" />
         )}
       </div>
 
-      <div role="tablist" aria-label="Reports" className="flex rounded-xl bg-slate-100 p-1 sm:w-fit">
+      <div role="tablist" aria-label={tx('title')} className="flex rounded-xl bg-slate-100 p-1 sm:w-fit">
         {TABS.map(t => (
           <button key={t.key} role="tab" type="button" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
             className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-3 text-base font-medium sm:px-5 ${tab === t.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-            {t.label}
+            {tx(t.label)}
           </button>
         ))}
       </div>
@@ -177,20 +185,20 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
       {tab === 'herd' && (
         <div className="space-y-4">
           <section className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            <Tile label="On the farm" value={String(herd.head)} sub="cattle" />
-            <Tile label="Average weight" value={herd.head ? `${Math.round(herd.avgWeight)} kg` : '—'} />
-            <Tile label="Herd cost" value={riel(herd.cost)} sub="paid for these cattle" />
-            <Tile label="Lost" value={String(herd.dead)} sub={herd.dead ? `${r1(herd.deadPct)}% of all cattle` : 'No deaths'} tone={herd.dead > 0 ? 'bad' : undefined} />
+            <Tile label={tx('onFarm')} value={String(herd.head)} sub={tx('cattle')} />
+            <Tile label={tx('avgWeight')} value={herd.head ? `${Math.round(herd.avgWeight)} kg` : '—'} />
+            <Tile label={tx('herdCost')} value={riel(herd.cost)} sub={tx('herdCostSub')} />
+            <Tile label={tx('lost')} value={String(herd.dead)} sub={herd.dead ? tx('lostSub', { pct: r1(herd.deadPct) }) : tx('noDeaths')} tone={herd.dead > 0 ? 'bad' : undefined} />
           </section>
 
           {!effectiveFarm && byFarm.length > 1 && (
             <section className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-2 text-lg font-semibold text-ink">By farm</h3>
+              <h3 className="mb-2 text-lg font-semibold text-ink">{tx('byFarm')}</h3>
               <ul className="divide-y divide-slate-100">
                 {byFarm.map(f => (
                   <li key={f.name} className="flex items-center justify-between gap-3 py-2">
                     <span className="min-w-0 break-words text-base text-ink">{f.name}</span>
-                    <span className="shrink-0 text-base font-medium text-ink">{f.head} cattle · {Math.round(f.avg)} kg average</span>
+                    <span className="shrink-0 text-base font-medium text-ink">{tx('byFarmLine', { n: f.head, kg: Math.round(f.avg) })}</span>
                   </li>
                 ))}
               </ul>
@@ -198,10 +206,10 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
           )}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Bars title="Breed" rows={herd.breeds} />
-            <Bars title="Male and female" rows={herd.sexes} />
-            <Bars title="Health" rows={herd.health} />
-            <Bars title="Where they came from" rows={herd.origins} />
+            <Bars title={tx('breed')} rows={herd.breeds} />
+            <Bars title={tx('maleFemale')} rows={herd.sexes} />
+            <Bars title={tx('health')} rows={herd.health} />
+            <Bars title={tx('origin')} rows={herd.origins} />
           </div>
         </div>
       )}
@@ -209,21 +217,21 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
       {tab === 'money' && (
         <div className="space-y-4">
           <section className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            <Tile label="Sales" value={riel(totals.revenue)} sub={`${totals.sold} sold`} />
-            <Tile label="Costs" value={riel(farmCosts)} sub="of the cattle sold, plus running" />
-            <Tile label="Farm profit" value={farmMonths.length ? signedRiel(farmTotals.profit) : '—'} sub="sales less all costs" tone={farmMonths.length ? (farmTotals.profit < 0 ? 'bad' : 'good') : undefined} />
-            <Tile label="Feed in the herd" value={riel(farmMoney.feedInHerd)} sub={feedPerDay > 0 ? `eaten, not sold yet · ${riel(feedPerDay)} a day` : 'eaten, not sold yet'} />
+            <Tile label={tx('sales')} value={riel(totals.revenue)} sub={tx('soldN', { n: totals.sold })} />
+            <Tile label={tx('costs')} value={riel(farmCosts)} sub={tx('costsSub')} />
+            <Tile label={tx('farmProfit')} value={farmMonths.length ? signedRiel(farmTotals.profit) : '—'} sub={tx('farmProfitSub')} tone={farmMonths.length ? (farmTotals.profit < 0 ? 'bad' : 'good') : undefined} />
+            <Tile label={tx('feedInHerd')} value={riel(farmMoney.feedInHerd)} sub={feedPerDay > 0 ? tx('feedInHerdDay', { amount: riel(feedPerDay) }) : tx('feedInHerdSub')} />
           </section>
 
           {farmMonths.length > 0 && (
             <section className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-2 text-lg font-semibold text-ink">Where the money went</h3>
+              <h3 className="mb-2 text-lg font-semibold text-ink">{tx('moneyWent')}</h3>
               <ul className="divide-y divide-slate-100">
                 {[
-                  { label: 'Cattle that were sold', hint: 'what they cost to buy', value: farmTotals.cattleCost },
-                  { label: 'Feed they ate', hint: 'their share of the daily feed records', value: farmTotals.feed },
-                  { label: 'Medicine', hint: 'from Health', value: farmTotals.medicine },
-                  { label: 'Running costs', hint: 'wages, power, fuel and more, from Costs', value: farmTotals.other },
+                  { label: tx('wentCattle'), hint: tx('wentCattleHint'), value: farmTotals.cattleCost },
+                  { label: tx('wentFeed'), hint: tx('wentFeedHint'), value: farmTotals.feed },
+                  { label: tx('wentMedicine'), hint: tx('wentMedicineHint'), value: farmTotals.medicine },
+                  { label: tx('wentRunning'), hint: tx('wentRunningHint'), value: farmTotals.other },
                 ].map(r => (
                   <li key={r.label} className="flex items-baseline justify-between gap-3 py-2">
                     <span className="min-w-0"><span className="block text-base text-ink">{r.label}</span><span className="block text-sm text-ink-muted">{r.hint}</span></span>
@@ -232,24 +240,24 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
                 ))}
               </ul>
               <p className="mt-2 text-sm text-ink-muted">
-                Feed counts when the animals that ate it are sold: each day&apos;s feed is shared evenly by the batch&apos;s animals that day. Feed eaten by cattle still on the farm ({riel(farmMoney.feedInHerd)}) is not a cost yet. Feed taken out by hand counts in the month it left the store. The Sales page shows the same profit per animal, before running costs.
+                {tx('feedNote', { amount: riel(farmMoney.feedInHerd) })}
               </p>
             </section>
           )}
 
           {last12.length > 0 && (
             <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
-              <h3 className="mb-2 text-lg font-semibold text-ink">Bought and sold each month</h3>
-              <div className="h-72" role="img" aria-label="Cattle bought and sold each month; profit by month is listed below the chart">
+              <h3 className="mb-2 text-lg font-semibold text-ink">{tx('boughtSold')}</h3>
+              <div className="h-72" role="img" aria-label={tx('chartAria')}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={last12} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2}>
+                  <BarChart data={last12.map(m => ({ ...m, label: monthLabel(m.month, language) }))} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2}>
                     <CartesianGrid stroke="#e2e8f0" vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 14, fill: '#475569' }} tickLine={false} />
                     <YAxis width={52} tick={{ fontSize: 14, fill: '#475569' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => (v >= 1_000_000 ? `${r1(v / 1_000_000)}M` : v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
                     <Tooltip formatter={(v, name) => [riel(Number(v)), String(name)]} />
                     <Legend wrapperStyle={{ fontSize: 14 }} />
-                    <Bar dataKey="sold" name="Sold" fill={SOLD} radius={[4, 4, 0, 0]} barSize={16} isAnimationActive={false} />
-                    <Bar dataKey="bought" name="Bought" fill={BOUGHT} radius={[4, 4, 0, 0]} barSize={16} isAnimationActive={false} />
+                    <Bar dataKey="sold" name={tx('sold')} fill={SOLD} radius={[4, 4, 0, 0]} barSize={16} isAnimationActive={false} />
+                    <Bar dataKey="bought" name={tx('bought')} fill={BOUGHT} radius={[4, 4, 0, 0]} barSize={16} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -257,10 +265,10 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
           )}
 
           {farmMonths.length === 0 ? (
-            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">Money by month appears once cattle are sold, or feed and other costs are recorded.</p>
+            <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noMonths')}</p>
           ) : (
             <section>
-              <h3 className="mb-2 text-lg font-semibold text-ink">Farm profit each month</h3>
+              <h3 className="mb-2 text-lg font-semibold text-ink">{tx('profitMonth')}</h3>
               <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                 {[...farmMonths].slice(-12).reverse().map(m => {
                   const spent = m.cattleCost + m.medicine + m.feed + m.other;
@@ -268,13 +276,13 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
                     <li key={m.month} className="border-b border-slate-100 px-4 py-3 last:border-0">
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className="text-lg font-semibold text-ink">{m.label}</p>
-                          <p className="text-base text-ink-muted">Sold {riel(m.sales)}{m.soldCount ? ` (${m.soldCount})` : ''} · Costs {riel(spent)}</p>
+                          <p className="text-lg font-semibold text-ink">{monthLabel(m.month, language)}</p>
+                          <p className="text-base text-ink-muted">{tx('monthLine', { sold: riel(m.sales), count: m.soldCount ? ` (${m.soldCount})` : '', costs: riel(spent) })}</p>
                         </div>
-                        <p className={`shrink-0 text-base font-medium ${m.profit < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{m.profit < 0 ? 'Loss' : 'Profit'} {riel(Math.abs(m.profit))}</p>
+                        <p className={`shrink-0 text-base font-medium ${m.profit < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{m.profit < 0 ? tx('loss') : tx('profit')} {riel(Math.abs(m.profit))}</p>
                       </div>
                       <p className="mt-1 text-sm text-ink-muted">
-                        {[m.cattleCost && `Cattle ${riel(m.cattleCost)}`, m.feed && `Feed ${riel(m.feed)}`, m.medicine && `Medicine ${riel(m.medicine)}`, m.other && `Running ${riel(m.other)}`].filter(Boolean).join(' · ')}
+                        {[m.cattleCost && tx('partCattle', { amount: riel(m.cattleCost) }), m.feed && tx('partFeed', { amount: riel(m.feed) }), m.medicine && tx('partMedicine', { amount: riel(m.medicine) }), m.other && tx('partRunning', { amount: riel(m.other) })].filter(Boolean).join(' · ')}
                       </p>
                     </li>
                   );
@@ -287,7 +295,7 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
 
       {tab === 'batches' && (
         activeBatches.length === 0 ? (
-          <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No active batches. Start one under Batches.</p>
+          <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('noBatches')}</p>
         ) : (
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {activeBatches.map(b => {
@@ -297,15 +305,15 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
               return (
                 <li key={b.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                   <p className="text-xl font-semibold text-ink">{b.name}</p>
-                  <p className="text-base text-ink-muted">{[b.farmLocation, s.daysIn !== null ? `${s.daysIn} days in` : null].filter(Boolean).join(' · ')}</p>
+                  <p className="text-base text-ink-muted">{[b.farmLocation, s.daysIn !== null ? tx('daysIn', { n: s.daysIn }) : null].filter(Boolean).join(' · ')}</p>
                   <dl className="mt-3 grid grid-cols-2 gap-3">
-                    <div><dt className="text-sm text-ink-muted">Cattle</dt><dd className="text-lg font-semibold text-ink">{s.head}</dd></div>
-                    <div><dt className="text-sm text-ink-muted">Average weight</dt><dd className="text-lg font-semibold text-ink">{s.head ? `${Math.round(s.avgWeight)} kg` : '—'}</dd></div>
-                    <div><dt className="text-sm text-ink-muted">Daily gain</dt><dd className="text-lg font-semibold text-ink">{s.perDay !== null ? `${s.perDay} kg` : '—'}</dd></div>
-                    <div><dt className="text-sm text-ink-muted">Feed each animal</dt><dd className="text-lg font-semibold text-ink">{perHead > 0 ? `${riel(perHead)} a day` : '—'}</dd></div>
+                    <div><dt className="text-sm text-ink-muted">{tx('cattleLabel')}</dt><dd className="text-lg font-semibold text-ink">{s.head}</dd></div>
+                    <div><dt className="text-sm text-ink-muted">{tx('avgWeight')}</dt><dd className="text-lg font-semibold text-ink">{s.head ? `${Math.round(s.avgWeight)} kg` : '—'}</dd></div>
+                    <div><dt className="text-sm text-ink-muted">{tx('dailyGain')}</dt><dd className="text-lg font-semibold text-ink">{s.perDay !== null ? `${s.perDay} kg` : '—'}</dd></div>
+                    <div><dt className="text-sm text-ink-muted">{tx('feedEach')}</dt><dd className="text-lg font-semibold text-ink">{perHead > 0 ? tx('aDay', { amount: riel(perHead) }) : '—'}</dd></div>
                   </dl>
                   <p className="mt-3 border-t border-slate-100 pt-3 text-base text-ink">
-                    {perKgGained !== null ? <>Each kg gained costs about <span className="font-semibold">{riel(perKgGained)}</span> in feed.</> : 'Cost per kg gained needs feeding and two weigh-ins.'}
+                    {perKgGained !== null ? tx('kgGainCost', { amount: riel(perKgGained) }) : tx('kgGainNeeds')}
                   </p>
                 </li>
               );
@@ -318,8 +326,8 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
         forecastBatch ? (
           <div className="space-y-4">
             <label className="block">
-              <span className="mb-1 block text-base font-medium text-ink">Which batch?</span>
-              <select aria-label="Batch" value={forecastBatch.id} onChange={e => setBatchId(e.target.value)} className={`${SELECT} w-full sm:w-auto`}>
+              <span className="mb-1 block text-base font-medium text-ink">{tx('whichBatch')}</span>
+              <select aria-label={tx('batch')} value={forecastBatch.id} onChange={e => setBatchId(e.target.value)} className={`${SELECT} w-full sm:w-auto`}>
                 {activeBatches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </label>
@@ -327,7 +335,7 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
             <Forecast key={forecastBatch.id} batch={forecastBatch} data={scoped} products={products} />
           </div>
         ) : (
-          <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">A forecast needs an active batch. Start one under Batches.</p>
+          <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('needBatch')}</p>
         )
       )}
     </div>
@@ -335,6 +343,7 @@ export default function ReportsPage({ data, currentUser, farms = [] }: ReportsPa
 }
 
 function Forecast({ batch, data, products }: { batch: BatchItem; data: ERPLivestockData; products: ERPLivestockData['feedProducts'] }) {
+  const { tx } = useText('reportsPage');
   const summary = useMemo(() => batchSummary(batch, data.stock, data.weightTracking, products ?? []), [batch, data.stock, data.weightTracking, products]);
   const cattle = useMemo(() => batchCattle(batch, data.stock), [batch, data.stock]);
   const [sellBy, setSellBy] = useState(batch.sellingTargetDate ?? '');
@@ -359,43 +368,43 @@ function Forecast({ batch, data, products }: { batch: BatchItem; data: ERPLivest
     });
   }, [ready, cattle, data.healthLogs, summary, gain, sellDay, todayDay, price]);
 
-  const missing = [sellDay === null ? 'the sell date' : '', !(Number(price) > 0) ? 'the price for each kg' : '', !(Number(gain) > 0) ? 'the daily gain' : ''].filter(Boolean);
+  const missing = [sellDay === null ? tx('missSellDate') : '', !(Number(price) > 0) ? tx('missPrice') : '', !(Number(gain) > 0) ? tx('missGain') : ''].filter(Boolean);
 
   return (
     <div className="space-y-4">
       <section className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-3">
-        <label className="block"><span className="mb-1 block text-base font-medium text-ink">Sell on</span><Input type="date" value={sellBy} onChange={e => setSellBy(e.target.value)} className="h-12 text-lg" /></label>
-        <label className="block"><span className="mb-1 block text-base font-medium text-ink">Price for each kg (៛)</span><Input type="number" step="any" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)} className={`h-12 text-lg ${NUM}`} /></label>
+        <label className="block"><span className="mb-1 block text-base font-medium text-ink">{tx('sellOn')}</span><Input type="date" value={sellBy} onChange={e => setSellBy(e.target.value)} className="h-12 text-lg" /></label>
+        <label className="block"><span className="mb-1 block text-base font-medium text-ink">{tx('priceKg')}</span><Input type="number" step="any" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)} className={`h-12 text-lg ${NUM}`} /></label>
         <label className="block">
-          <span className="mb-1 block text-base font-medium text-ink">Daily gain (kg each)</span>
+          <span className="mb-1 block text-base font-medium text-ink">{tx('gainEach')}</span>
           <Input type="number" step="any" inputMode="decimal" value={gain} onChange={e => setGain(e.target.value)} className={`h-12 text-lg ${NUM}`} />
-          <span className="mt-1 block text-sm text-ink-muted">{summary.perDay !== null ? `Measured so far: ${summary.perDay} kg` : 'Not measured yet. Weigh the group twice.'}</span>
+          <span className="mt-1 block text-sm text-ink-muted">{summary.perDay !== null ? tx('measured', { kg: summary.perDay }) : tx('notMeasured')}</span>
         </label>
       </section>
 
       {!f ? (
         <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">
-          {cattle.length === 0 ? 'This batch has no cattle yet.' : `Fill in ${missing.join(', ')} to see the forecast.`}
+          {cattle.length === 0 ? tx('noCattle') : tx('fillIn', { list: missing.join(', ') })}
         </p>
       ) : (
         <>
           <section className="grid grid-cols-3 gap-2 sm:gap-3">
-            <Tile label="Weight at sale" value={`${Math.round(f.avgFinal)} kg`} sub={`each, now ${Math.round(f.avgNow)} kg`} />
-            <Tile label="Sales" value={riel(f.revenue)} sub={`${Math.round(f.totalKg).toLocaleString()} kg in all`} />
-            <Tile label="Profit" value={signedRiel(f.profit)} sub={f.returnPct !== null ? `${f.returnPct}% of cost` : undefined} tone={f.profit < 0 ? 'bad' : 'good'} />
+            <Tile label={tx('weightAtSale')} value={`${Math.round(f.avgFinal)} kg`} sub={tx('weightAtSaleSub', { kg: Math.round(f.avgNow) })} />
+            <Tile label={tx('sales')} value={riel(f.revenue)} sub={tx('kgInAll', { kg: Math.round(f.totalKg).toLocaleString() })} />
+            <Tile label={tx('profit')} value={signedRiel(f.profit)} sub={f.returnPct !== null ? tx('ofCost', { pct: f.returnPct }) : undefined} tone={f.profit < 0 ? 'bad' : 'good'} />
           </section>
           <dl className="rounded-2xl border border-slate-200 bg-white px-5">
             {[
-              ['Cattle bought for', f.purchase],
-              ['Health costs so far', f.healthCost],
-              ['Feed so far (estimate)', f.feedSoFar],
-              ['Feed until the sale', f.feedToGo],
+              [tx('fBought'), f.purchase],
+              [tx('fHealth'), f.healthCost],
+              [tx('fFeedSoFar'), f.feedSoFar],
+              [tx('fFeedToGo'), f.feedToGo],
             ].map(([k, v]) => (
               <div key={k as string} className="flex justify-between gap-4 border-b border-slate-100 py-3"><dt className="text-base text-ink-muted">{k}</dt><dd className="text-base font-medium text-ink">{riel(v as number)}</dd></div>
             ))}
-            <div className="flex justify-between gap-4 py-3"><dt className="text-lg font-medium text-ink">Total cost</dt><dd className="text-lg font-semibold text-ink">{riel(f.totalCost)}</dd></div>
+            <div className="flex justify-between gap-4 py-3"><dt className="text-lg font-medium text-ink">{tx('fTotal')}</dt><dd className="text-lg font-semibold text-ink">{riel(f.totalCost)}</dd></div>
           </dl>
-          <p className="text-base text-ink-muted">A forecast, not a promise. It assumes {Number(gain)} kg a day for {(sellDay as number) - todayDay > 0 ? (sellDay as number) - todayDay : 0} more days, and today&apos;s feed cost.</p>
+          <p className="text-base text-ink-muted">{tx('fNote', { kg: Number(gain), days: (sellDay as number) - todayDay > 0 ? (sellDay as number) - todayDay : 0 })}</p>
         </>
       )}
     </div>

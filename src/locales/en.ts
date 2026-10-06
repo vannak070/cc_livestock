@@ -7,6 +7,16 @@ import { en as healthPageEn } from './sections/healthPage';
 import { en as treatFlowEn } from './sections/treatFlow';
 import { en as feedPageEn } from './sections/feedPage';
 import { en as feedFlowsEn } from './sections/feedFlows';
+import { en as summaryPageEn } from './sections/summaryPage';
+import { en as farmLimitsEn } from './sections/farmLimits';
+import { en as addCattleEn } from './sections/addCattle';
+import { en as batchesPageEn } from './sections/batchesPage';
+import { en as planningEn } from './sections/planning';
+import { en as permissionsEn } from './sections/permissions';
+import { en as settingsPageEn } from './sections/settingsPage';
+import { en as farmsPageEn } from './sections/farmsPage';
+import { en as reportsPageEn } from './sections/reportsPage';
+import { en as salesPageEn } from './sections/salesPage';
 export const en = {
   // Navigation & Header
   nav: {
@@ -351,6 +361,16 @@ export const en = {
   treatFlow: treatFlowEn,
   feedPage: feedPageEn,
   feedFlows: feedFlowsEn,
+  summaryPage: summaryPageEn,
+  farmLimits: farmLimitsEn,
+  addCattle: addCattleEn,
+  batchesPage: batchesPageEn,
+  planning: planningEn,
+  permissions: permissionsEn,
+  settingsPage: settingsPageEn,
+  farmsPage: farmsPageEn,
+  reportsPage: reportsPageEn,
+  salesPage: salesPageEn,
 
   // Install as an app (PWA)
   pwa: {

@@ -9,29 +9,15 @@ import type { MasterSetup } from '@/types/settings.types';
 import { getErrorMessage } from '@/lib/utils';
 import { MAX_CATEGORY_LENGTH, costCategoriesFrom } from '@/lib/farm-costs';
 import { SALE_REVIEW_MAX_DAYS, SALE_REVIEW_MIN_DAYS, saleWindowDays, saleWindowProblem } from '@/lib/sale-review';
+import { useText } from '@/hooks/useText';
 
 type ListKey = 'breeds' | 'sexes' | 'healthStatuses' | 'vaccineTypes' | 'diseaseTypes' | 'feedTypes' | 'batchTypes' | 'weightUnits' | 'buyTypes' | 'purchaseTypes' | 'paymentMethods' | 'revenueTypes' | 'costCategories';
 
-const GROUPS: { title: string; lists: { key: ListKey; label: string; hint: string; careful?: boolean }[] }[] = [
-  { title: 'Cattle', lists: [
-    { key: 'breeds', label: 'Breeds', hint: 'The breeds you can choose when adding cattle.' },
-    { key: 'sexes', label: 'Male and female', hint: 'The sex choices for cattle.', careful: true },
-    { key: 'healthStatuses', label: 'Health states', hint: 'How an animal can be marked, for example Good or Poor.', careful: true },
-    { key: 'weightUnits', label: 'Weight units', hint: 'The units weights are shown in.' },
-  ] },
-  { title: 'Health and feed', lists: [
-    { key: 'vaccineTypes', label: 'Vaccines and dewormers', hint: 'The vaccines you can pick when treating. The Health page counts them.' },
-    { key: 'diseaseTypes', label: 'Diseases', hint: 'Common illnesses and symptoms.' },
-    { key: 'feedTypes', label: 'Kinds of feed', hint: 'Used to group feeds. Also changed from the Feed page.' },
-    { key: 'batchTypes', label: 'Batch purposes', hint: 'What a group of cattle is for.' },
-  ] },
-  { title: 'Buying and selling', lists: [
-    { key: 'buyTypes', label: 'How the price was set', hint: 'For example by weight or one price.', careful: true },
-    { key: 'purchaseTypes', label: 'Where cattle came from', hint: 'For example Bought or Born in farm.', careful: true },
-    { key: 'paymentMethods', label: 'Payment methods', hint: 'How you pay for cattle.' },
-    { key: 'revenueTypes', label: 'Kinds of income', hint: 'For recording income.' },
-    { key: 'costCategories', label: 'Kinds of running cost', hint: 'What a cost can be for on the Costs page. Feed, medicine and cattle are not listed: they have their own pages.' },
-  ] },
+// Labels and hints are looked up in the Settings texts: l_<key> and h_<key>.
+const GROUPS: { title: string; lists: { key: ListKey; careful?: boolean }[] }[] = [
+  { title: 'gCattle', lists: [{ key: 'breeds' }, { key: 'sexes', careful: true }, { key: 'healthStatuses', careful: true }, { key: 'weightUnits' }] },
+  { title: 'gHealthFeed', lists: [{ key: 'vaccineTypes' }, { key: 'diseaseTypes' }, { key: 'feedTypes' }, { key: 'batchTypes' }] },
+  { title: 'gBuySell', lists: [{ key: 'buyTypes', careful: true }, { key: 'purchaseTypes', careful: true }, { key: 'paymentMethods' }, { key: 'revenueTypes' }, { key: 'costCategories' }] },
 ];
 
 // Lists that must never be empty; the form refuses to remove the last item.
@@ -48,6 +34,7 @@ interface ListsPanelProps {
 }
 
 export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
+  const { tx } = useText('settingsPage');
   const [open, setOpen] = useState<ListKey | null>(null);
   const [days, setDays] = useState(String(saleWindowDays(settings)));
   const [daysError, setDaysError] = useState('');
@@ -62,46 +49,44 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
   const add = async () => {
     const value = text.trim();
     if (!open || !value) return;
-    if (items.some(i => i.toLowerCase() === value.toLowerCase())) { setError(`"${value}" is already in the list.`); return; }
-    if (open === 'costCategories' && value.length > MAX_CATEGORY_LENGTH) { setError(`Keep it under ${MAX_CATEGORY_LENGTH} letters.`); return; }
+    if (items.some(i => i.toLowerCase() === value.toLowerCase())) { setError(tx('inList', { value })); return; }
+    if (open === 'costCategories' && value.length > MAX_CATEGORY_LENGTH) { setError(tx('tooLong', { n: MAX_CATEGORY_LENGTH })); return; }
     setError('');
     try {
       await onSettings({ [open]: [...items, value] });
       setText('');
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not add it.'));
+      setError(getErrorMessage(e, tx('couldNotAdd')));
     }
   };
 
   const saveDays = async () => {
     const n = Number(days);
     const problem = saleWindowProblem(n);
-    if (days.trim() === '' || problem) { setDaysError(problem ?? 'Type the number of days.'); setDaysSaved(false); return; }
+    if (days.trim() === '' || problem) { setDaysError(problem ?? tx('typeDays')); setDaysSaved(false); return; }
     setDaysError('');
     try {
       await onSettings({ saleReviewDays: n });
       setDaysSaved(true);
     } catch (e) {
       setDaysSaved(false);
-      setDaysError(getErrorMessage(e, 'Could not save it.'));
+      setDaysError(getErrorMessage(e, tx('couldNotSaveIt')));
     }
   };
 
   const askRemove = (item: string) => {
     if (!open) return;
     if (KEEP_ONE.includes(open) && items.length <= 1) {
-      setConfirm({ title: 'Keep at least one', description: 'This list needs at least one choice. Add another before removing this one.', type: 'danger', confirmText: 'OK' });
+      setConfirm({ title: tx('keepOne'), description: tx('keepOneDesc'), type: 'danger', confirmText: tx('ok') });
       return;
     }
     setConfirm({
-      title: `Remove "${item}"?`,
-      description: meta?.careful
-        ? 'The app uses some of these words to decide alerts and totals. Removing one can change what you see. Records that already use it keep it.'
-        : 'It will no longer be offered as a choice. Records that already use it keep it.',
+      title: tx('removeItem', { item }),
+      description: meta?.careful ? tx('removeCareful') : tx('removePlain'),
       type: 'danger',
-      confirmText: 'Remove',
+      confirmText: tx('remove'),
       onConfirm: async () => {
-        try { await onSettings({ [open]: items.filter(i => i !== item) }); } catch (e) { setConfirm({ title: 'Could not remove', description: getErrorMessage(e, 'Something went wrong.'), type: 'danger', confirmText: 'OK' }); }
+        try { await onSettings({ [open]: items.filter(i => i !== item) }); } catch (e) { setConfirm({ title: tx('couldNotRemove'), description: getErrorMessage(e, tx('somethingWrong')), type: 'danger', confirmText: tx('ok') }); }
       },
     });
   };
@@ -109,22 +94,22 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
   if (open && meta) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" onClick={() => { setOpen(null); setText(''); setError(''); }} className="-ml-3">← All lists</Button>
+        <Button variant="ghost" onClick={() => { setOpen(null); setText(''); setError(''); }} className="-ml-3">{tx('allLists')}</Button>
         <div>
-          <h3 className="text-2xl font-semibold text-ink">{meta.label}</h3>
-          <p className="text-base text-ink-muted">{meta.hint}</p>
+          <h3 className="text-2xl font-semibold text-ink">{tx(`l_${meta.key}`)}</h3>
+          <p className="text-base text-ink-muted">{tx(`h_${meta.key}`)}</p>
         </div>
         <form onSubmit={e => { e.preventDefault(); add(); }} className="flex gap-2">
-          <Input aria-label={`Add to ${meta.label}`} value={text} onChange={e => { setText(e.target.value); setError(''); }} placeholder="Type a new one" className="h-14 text-lg" />
-          <Button type="submit" size="lg" aria-label="Add"><Plus /></Button>
+          <Input aria-label={tx('addTo', { list: tx(`l_${meta.key}`) })} value={text} onChange={e => { setText(e.target.value); setError(''); }} placeholder={tx('typeNew')} className="h-14 text-lg" />
+          <Button type="submit" size="lg" aria-label={tx('add')}><Plus /></Button>
         </form>
         {error && <p role="alert" className="text-base font-medium text-rose-700">{error}</p>}
-        {items.length === 0 ? <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">Nothing in this list yet.</p> : (
+        {items.length === 0 ? <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">{tx('emptyList')}</p> : (
           <ul className="space-y-2">
             {items.map(item => (
               <li key={item} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
                 <span className="break-words text-lg text-ink">{item}</span>
-                <Button variant="ghost" size="icon" aria-label={`Remove ${item}`} onClick={() => askRemove(item)}><Trash2 className="text-rose-700" /></Button>
+                <Button variant="ghost" size="icon" aria-label={tx('removeAria', { name: item })} onClick={() => askRemove(item)}><Trash2 className="text-rose-700" /></Button>
               </li>
             ))}
           </ul>
@@ -136,30 +121,30 @@ export default function ListsPanel({ settings, onSettings }: ListsPanelProps) {
 
   return (
     <div className="space-y-5">
-      <p className="text-base text-ink-muted">The choices people pick from in forms. Farm names are managed on the Farms page.</p>
+      <p className="text-base text-ink-muted">{tx('listsIntro')}</p>
       <section className="space-y-3 rounded-2xl border-2 border-slate-200 bg-white p-4">
         <div>
-          <h3 className="text-lg font-semibold text-ink">Selling reminder</h3>
-          <p className="text-base text-ink-muted">How many days before a batch&apos;s selling date it is flagged for management to review.</p>
+          <h3 className="text-lg font-semibold text-ink">{tx('sellReminder')}</h3>
+          <p className="text-base text-ink-muted">{tx('sellReminderHint')}</p>
         </div>
         <form noValidate onSubmit={e => { e.preventDefault(); saveDays(); }} className="flex flex-wrap items-center gap-2">
-          <Input aria-label="Days before the selling date" type="number" inputMode="numeric" min={SALE_REVIEW_MIN_DAYS} max={SALE_REVIEW_MAX_DAYS} value={days} onChange={e => { setDays(e.target.value); setDaysSaved(false); setDaysError(''); }} className="h-14 w-28 text-center text-xl font-semibold" />
-          <span className="text-lg text-ink">days before</span>
-          <Button type="submit" size="lg" className="ml-auto">Save</Button>
+          <Input aria-label={tx('daysBeforeAria')} type="number" inputMode="numeric" min={SALE_REVIEW_MIN_DAYS} max={SALE_REVIEW_MAX_DAYS} value={days} onChange={e => { setDays(e.target.value); setDaysSaved(false); setDaysError(''); }} className="h-14 w-28 text-center text-xl font-semibold" />
+          <span className="text-lg text-ink">{tx('daysBefore')}</span>
+          <Button type="submit" size="lg" className="ml-auto">{tx('save')}</Button>
         </form>
         {daysError && <p role="alert" className="text-base font-medium text-rose-700">{daysError}</p>}
-        {daysSaved && <p role="status" className="text-base font-medium text-emerald-700">Saved. Batches are flagged {saleWindowDays({ saleReviewDays: Number(days) })} days before their selling date.</p>}
+        {daysSaved && <p role="status" className="text-base font-medium text-emerald-700">{tx('daysSaved', { n: saleWindowDays({ saleReviewDays: Number(days) }) })}</p>}
       </section>
       {GROUPS.map(g => (
         <section key={g.title}>
-          <h3 className="mb-2 text-lg font-semibold text-ink">{g.title}</h3>
+          <h3 className="mb-2 text-lg font-semibold text-ink">{tx(g.title)}</h3>
           <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
             {g.lists.map(l => (
               <li key={l.key}>
                 <button type="button" onClick={() => setOpen(l.key)} className="flex min-h-16 w-full items-center justify-between gap-3 rounded-xl border-2 border-slate-200 bg-white px-4 py-2 text-left hover:border-emerald-600">
                   <span>
-                    <span className="block text-lg font-semibold text-ink">{l.label}</span>
-                    <span className="block text-base text-ink-muted">{l.hint}</span>
+                    <span className="block text-lg font-semibold text-ink">{tx(`l_${l.key}`)}</span>
+                    <span className="block text-base text-ink-muted">{tx(`h_${l.key}`)}</span>
                   </span>
                   <span className="shrink-0 text-base font-medium text-ink-muted">{listOf(settings, l.key).length}</span>
                 </button>

@@ -40,7 +40,8 @@ export function validateFarm(settings: Pick<MasterSetup, 'farms'>, input: FarmIn
   const name = input.name.trim();
   if (!name) errors.name = 'Type the name of the farm.';
   else if ((settings.farms || []).some(f => f.id !== editing?.id && norm(f.name) === norm(name))) errors.name = `There is already a farm called "${name}".`;
-  if (!(Number.isInteger(input.capacity) && input.capacity >= 1)) errors.capacity = 'Type how many cattle the farm can hold.';
+  // 0 means no cattle limit set yet (a farm added by someone who may not set limits).
+  if (!(Number.isInteger(input.capacity) && input.capacity >= 0)) errors.capacity = 'Type the cattle limit (a whole number).';
   return errors;
 }
 

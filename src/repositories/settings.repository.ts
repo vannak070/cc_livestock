@@ -5,16 +5,10 @@ import { validatePinStrength } from '../lib/pin';
 import { MasterSetup, UserRoleItem, CustomRoleDefinition, DEFAULT_ROLE_PERMISSIONS, FarmItem } from '../lib/types';
 import { PoolClient } from 'pg';
 import { DEFAULT_COST_CATEGORIES } from '../lib/farm-costs';
+import { SYSTEM_ROLES } from '../lib/user-admin';
 
-const DEFAULT_ROLES: CustomRoleDefinition[] = [
-  { id: 'ROLE-01', name: 'Super Admin', description: 'Full system management and security authority.', permissions: DEFAULT_ROLE_PERMISSIONS['Super Admin'], isSystem: true },
-  { id: 'ROLE-02', name: 'Admin', description: 'Full business operations control and user creation privileges.', permissions: DEFAULT_ROLE_PERMISSIONS['Admin'], isSystem: true },
-  { id: 'ROLE-03', name: 'Company', description: 'Manages user accounts, permissions, and multiple farms under them.', permissions: DEFAULT_ROLE_PERMISSIONS['Company'], isSystem: true },
-  { id: 'ROLE-04', name: 'Farm Owner', description: 'Full operational control and lifecycle management of their specific farm.', permissions: DEFAULT_ROLE_PERMISSIONS['Farm Owner'], isSystem: true },
-  { id: 'ROLE-05', name: 'Farm Staff', description: 'Records weights, health logs, and tracks daily checklists based on custom permissions.', permissions: DEFAULT_ROLE_PERMISSIONS['Farm Staff'], isSystem: true },
-  { id: 'ROLE-06', name: 'Veterinarian', description: 'Responsible for health tracking, medical records, deworming, and diagnostics.', permissions: DEFAULT_ROLE_PERMISSIONS['Veterinarian'], isSystem: true },
-  { id: 'ROLE-07', name: 'Management', description: 'Read-only reporting access — no create, edit, or delete permissions. Intended for PIN sign-in on the mobile app.', permissions: DEFAULT_ROLE_PERMISSIONS['Management'], isSystem: true }
-];
+// The built-in roles live in lib/user-admin.ts, so the server and the screens use one list.
+const DEFAULT_ROLES: CustomRoleDefinition[] = SYSTEM_ROLES;
 
 // Logged at most once per server process — without this guard the warning
 // below would repeat on every single settings read (i.e. every page load).

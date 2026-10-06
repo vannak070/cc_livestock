@@ -5,8 +5,10 @@ import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import type { FeedProductItem } from '@/lib/types';
 import { matchIngredientProduct } from '@/lib/feed-math';
-import { feedUnit, kgPerUnit, round1, unitWord } from '@/lib/daily-feed';
+import { feedUnit, kgPerUnit, round1 } from '@/lib/daily-feed';
 import { FlowFooter, FlowShell, NUM, Question, RowButton, money } from '../flow/FlowShell';
+import { useText } from '@/hooks/useText';
+import { useFeedUnits } from '../feed/DailyFeedFlow';
 
 export interface IngredientChoice { name: string; productId?: string; portionPerHead: number; unitCost: number }
 
@@ -37,6 +39,9 @@ export default function IngredientFlow(props: IngredientFlowProps) {
 }
 
 function IngredientBody({ onClose, products, usedNames = [], existing, existingInCatalogue = true, headCount, onSave }: IngredientFlowProps) {
+  const { tx } = useText('batchesPage');
+  const flow = useText('flow');
+  const units = useFeedUnits();
   const keepName = !!existing && existingInCatalogue;
   const used = new Set(usedNames.map(n => n.toLowerCase()));
   const options = products.filter(p => p.status !== 'Inactive' && !used.has(p.name.toLowerCase()));
@@ -60,14 +65,14 @@ function IngredientBody({ onClose, products, usedNames = [], existing, existingI
   const steps: Step[] = keepName ? ['amount'] : ['pick', 'amount'];
 
   const save = async () => {
-    if (!(amountNum > 0)) { setError(perBatch ? `Type how many ${unitWord(unit, 2)} the batch gets in a day.` : 'Type how many kg each animal gets in a day.'); return; }
+    if (!(amountNum > 0)) { setError(perBatch ? tx('eUnits', { unit: units.word(unit, 2) }) : tx('eKgEach')); return; }
     setSaving(true);
     setError('');
     try {
       await onSave({ name, productId: chosen?.id, portionPerHead: Math.round(kgNum * 1000) / 1000, unitCost });
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save. Please try again.');
+      setError(e instanceof Error ? e.message : tx('eSave'));
     } finally {
       setSaving(false);
     }
@@ -77,12 +82,12 @@ function IngredientBody({ onClose, products, usedNames = [], existing, existingI
     <FlowShell
       steps={steps}
       step={step}
-      title={step === 'pick' ? 'Which feed?' : name || 'How much?'}
-      subtitle={step === 'pick' ? (existing && !keepName ? `${existing.name} is not in your feed list. Choose the feed it should be.` : 'Choose from your feed list.') : perBatch ? `How much the whole batch (${headCount} head) eats in a day.` : 'How much one animal eats in a day.'}
+      title={step === 'pick' ? tx('iTitlePick') : name || tx('iTitleAmount')}
+      subtitle={step === 'pick' ? (existing && !keepName ? tx('iSubNotInList', { name: existing.name }) : tx('iSubPick')) : perBatch ? tx('iSubBatch', { n: headCount }) : tx('iSubOne')}
       summary={step === 'amount' && !keepName ? name : ''}
       error={error}
       onSubmit={step === 'amount' ? save : undefined}
-      footer={step === 'amount' ? <FlowFooter onBack={keepName ? undefined : () => { setError(''); setStep('pick'); }} label={saving ? 'Saving…' : 'Save'} busy={saving} /> : null}
+      footer={step === 'amount' ? <FlowFooter onBack={keepName ? undefined : () => { setError(''); setStep('pick'); }} label={saving ? flow.tx('saving') : flow.tx('save')} busy={saving} /> : null}
     >
       {step === 'pick' && (
         <ul className="space-y-3 pb-2">
@@ -91,23 +96,23 @@ function IngredientBody({ onClose, products, usedNames = [], existing, existingI
               <RowButton onClick={() => { setProduct(p); setError(''); setStep('amount'); }}>
                 <span>
                   <span className="block text-xl font-semibold text-ink">{p.name}</span>
-                  <span className="block text-base text-ink-muted">{[p.category, `${money(p.unitCost)} a kg`].filter(Boolean).join(' · ')}</span>
+                  <span className="block text-base text-ink-muted">{[p.category, tx('iAKg', { amount: money(p.unitCost) })].filter(Boolean).join(' · ')}</span>
                 </span>
               </RowButton>
             </li>
           ))}
-          {options.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">{products.length === 0 ? 'No feeds yet. Add one on the Feed page first.' : 'This batch already uses every feed in your list.'}</li>}
+          {options.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">{products.length === 0 ? tx('iNoFeeds') : tx('iAllUsed')}</li>}
         </ul>
       )}
 
       {step === 'amount' && (
-        <Question label={perBatch ? `${unit === 'kg' ? 'Kg' : unitWord(unit, 2)[0].toUpperCase() + unitWord(unit, 2).slice(1)} a day for the batch` : 'Kg for each animal each day'}>
-          <Input aria-label={perBatch ? `${unitWord(unit, 2)} a day for the batch` : 'Kg for each animal each day'} type="number" step="any" inputMode="decimal" autoFocus value={amount} onChange={e => { setAmount(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
+        <Question label={perBatch ? tx('iPerBatch', { unit: (w => w.charAt(0).toUpperCase() + w.slice(1))(units.word(unit, 2)) }) : tx('iPerOne')}>
+          <Input aria-label={perBatch ? tx('iPerBatch', { unit: units.word(unit, 2) }) : tx('iPerOne')} type="number" step="any" inputMode="decimal" autoFocus value={amount} onChange={e => { setAmount(e.target.value); setError(''); }} className={`h-20 text-center text-4xl font-semibold ${NUM}`} />
           {amountNum > 0 && (
             <p className="mt-3 rounded-xl bg-slate-50 p-3 text-lg text-ink">
               {perBatch
-                ? <>{unit !== 'kg' && <>{round1(amountNum * kgPerUnit(chosen)).toLocaleString()} kg · </>}about <span className="font-semibold">{round1(kgNum)} kg</span> for each animal · {money(amountNum * kgPerUnit(chosen) * unitCost)} a day</>
-                : <>{headCount} animals eat <span className="font-semibold">{round1(kgNum * headCount)} kg</span> a day · {money(kgNum * unitCost * headCount)} a day</>}
+                ? <>{unit !== 'kg' && <>{round1(amountNum * kgPerUnit(chosen)).toLocaleString()} kg · </>}{tx('iAbout', { kg: round1(kgNum), amount: money(amountNum * kgPerUnit(chosen) * unitCost) })}</>
+                : tx('iHerd', { n: headCount, kg: round1(kgNum * headCount), amount: money(kgNum * unitCost * headCount) })}
             </p>
           )}
         </Question>

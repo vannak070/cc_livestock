@@ -15,6 +15,12 @@ export class FarmRepository {
     return res.rows[0].n as number;
   }
 
+  /** Every animal registered on the farm, whatever its status: what counts toward the farm's cattle limit. */
+  async countRegisteredCattle(farm: string, client?: PoolClient): Promise<number> {
+    const res = await this.run('SELECT COUNT(*)::int AS n FROM stock WHERE lower(trim(location)) = lower(trim($1))', [farm], client);
+    return res.rows[0].n as number;
+  }
+
   async countActiveBatches(farm: string, client?: PoolClient): Promise<number> {
     const res = await this.run("SELECT COUNT(*)::int AS n FROM batches WHERE farm_location = $1 AND status = 'Active'", [farm], client);
     return res.rows[0].n as number;
@@ -34,6 +40,8 @@ export class FarmRepository {
     await this.run('UPDATE feed_transactions SET target_farm = $1 WHERE target_farm = $2', [newName, oldName], client);
     await this.run('UPDATE users SET farm_location = $1 WHERE farm_location = $2', [newName, oldName], client);
     await this.run('UPDATE farm_costs SET farm_location = $1 WHERE farm_location = $2', [newName, oldName], client);
+    await this.run('UPDATE farm_limit_requests SET farm_location = $1 WHERE farm_location = $2', [newName, oldName], client);
+    await this.run('UPDATE farm_limit_changes SET farm_location = $1 WHERE farm_location = $2', [newName, oldName], client);
   }
 }
 

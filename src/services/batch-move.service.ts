@@ -4,6 +4,7 @@ import { settingsRepository } from '../repositories/settings.repository';
 import { stockService } from './stock.service';
 import { Actor } from '../lib/authz';
 import { farmGuard } from '../lib/farm-guard';
+import { farmLimitService } from './farm-limit.service';
 
 /**
  * Moving a batch to another farm (with its cattle), and moving one animal to
@@ -20,6 +21,12 @@ export class BatchMoveService {
     const batch = await batchRepository.findById(batchId);
     if (!batch) throw new Error('That batch no longer exists.');
     if (batch.farmLocation === target) return { cattleMoved: 0 };
+    if (moveCattle) {
+      // The cattle that move take places in the new farm's cattle limit.
+      const ids = new Set(batch.cowIds || []);
+      const moving = (await stockService.getAllStock()).filter(c => ids.has(c.id) && (c.status || '').toLowerCase() === 'active' && c.location !== target).length;
+      await farmLimitService.assertRoom(target, moving);
+    }
     const cattleMoved = await withTransaction(client => batchRepository.moveToFarm(batchId, target, moveCattle, client));
     return { cattleMoved };
   }

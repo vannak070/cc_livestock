@@ -4,6 +4,13 @@ import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useLanguage } from "@/context/LanguageContext"
+
+/** The close button's hidden label, read out by screen readers, in the chosen language. */
+function CloseText() {
+  const { t } = useLanguage()
+  return <span className="sr-only">{t("flow.close")}</span>
+}
 
 const Dialog = DialogPrimitive.Root
 const DialogTrigger = DialogPrimitive.Trigger
@@ -44,7 +51,7 @@ const DialogContent = React.forwardRef<
       {/* 44 × 44 so it is easy to tap on a phone. */}
       <DialogPrimitive.Close className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-slate-100 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:pointer-events-none">
         <X className="h-6 w-6" aria-hidden />
-        <span className="sr-only">Close</span>
+        <CloseText />
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>

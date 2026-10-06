@@ -18,7 +18,8 @@ describe('validateFarm', () => {
   it('rejects an empty or repeated name and a bad capacity', () => {
     expect(validateFarm(base(), input({ name: ' ' }), null).name).toBeTruthy();
     expect(validateFarm(base(), input({ name: ' farm a ' }), null).name).toMatch(/already a farm/);
-    expect(validateFarm(base(), input({ capacity: 0 }), null).capacity).toBeTruthy();
+    expect(validateFarm(base(), input({ capacity: -1 }), null).capacity).toBeTruthy();
+    expect(validateFarm(base(), input({ capacity: 0 }), null).capacity).toBeUndefined(); // 0 = no limit set yet
     expect(validateFarm(base(), input({ capacity: 2.5 }), null).capacity).toBeTruthy();
   });
   it('lets a farm keep its own name when editing', () => {

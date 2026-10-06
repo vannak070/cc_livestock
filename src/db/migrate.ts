@@ -18,7 +18,7 @@ const LOCK_KEY = 727274; // arbitrary constant: serialises concurrent migrators
 // Every table the app owns, children first. Only used by resetDatabase().
 const ALL_TABLES = [
   'batch_cows', 'weight_tracking', 'sales_tracking', 'health_logs', 'batches',
-  'feed_transactions', 'feed_products', 'proposal_plans', 'proposal_plan', 'farm_costs', 'farm_loans', 'expenses', 'stock',
+  'feed_transactions', 'feed_products', 'proposal_plans', 'proposal_plan', 'farm_costs', 'farm_loans', 'farm_limit_requests', 'farm_limit_changes', 'expenses', 'stock',
   'users', 'master_settings', 'schema_migrations'
 ];
 

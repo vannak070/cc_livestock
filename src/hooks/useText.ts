@@ -9,6 +9,9 @@ import { en as valueWords } from '@/locales/sections/cattlePage';
  * `{name}` placeholders. English is the fallback for anything Khmer lacks.
  * Data (tags, breeds, farm names, numbers) is shown as it is.
  */
+/** A screen's text function, for helpers that are not components. */
+export type Tx = (key: string, vars?: Record<string, string | number>) => string;
+
 export function useText(section: string) {
   const { t, language } = useLanguage();
   const tx = (key: string, vars: Record<string, string | number> = {}) =>

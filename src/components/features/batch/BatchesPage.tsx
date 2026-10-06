@@ -14,6 +14,7 @@ import SaleReviewPanel from './SaleReviewPanel';
 import SaleReviewFlow from './SaleReviewFlow';
 import { saleReviewCounts, saleReviewRows, saleWindowDays, type SaleReviewInput, type SaleReviewRow } from '@/lib/sale-review';
 import { FarmSelect } from '@/components/ui/listbox-select';
+import { useText } from '@/hooks/useText';
 
 interface BatchesPageProps {
   data: ERPLivestockData;
@@ -40,6 +41,7 @@ export type Show = 'Active' | 'Closed' | 'All' | 'Review';
 const riel = (n: number) => `${Math.round(n).toLocaleString()} ៛`;
 
 export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemoveCow, onUpdateBatch, onRecordBatchWeights, onDeleteBatch, onTreatGroup, onMoveBatchFarm, onMoveCow, onReviewBatch, initialShow, currentUser, farms = [] }: BatchesPageProps) {
+  const { tx } = useText('batchesPage');
   const [openId, setOpenId] = useState<string | null>(null);
   const [show, setShow] = useState<Show>(initialShow ?? 'Active');
   const [reviewing, setReviewing] = useState<SaleReviewRow | null>(null);
@@ -126,18 +128,18 @@ export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemov
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">Batches</h2>
-          <p className="text-base text-ink-muted">Groups of cattle that are fed together.</p>
+          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
+          <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
-        {canCreate && <Button size="lg" onClick={() => setFlow({ kind: 'start' })}><Plus /> Start a batch</Button>}
+        {canCreate && <Button size="lg" onClick={() => setFlow({ kind: 'start' })}><Plus /> {tx('startBatch')}</Button>}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label="Show" className="flex rounded-xl bg-slate-100 p-1">
+        <div role="tablist" aria-label={tx('show')} className="flex rounded-xl bg-slate-100 p-1">
           {(['Active', 'Closed', 'All', 'Review'] as Show[]).map(s => (
             <button key={s} role="tab" type="button" aria-selected={show === s} onClick={() => setShow(s)}
               className={`min-h-11 rounded-lg px-4 text-base font-medium ${show === s ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-              {s === 'Review' ? 'Sale review' : s} ({counts[s]})
+              {tx(`show${s}`)} ({counts[s]})
             </button>
           ))}
         </div>
@@ -150,38 +152,39 @@ export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemov
         <SaleReviewPanel rows={reviewRows} windowDays={windowDays} canReview={canReview} onReview={setReviewing} onOpen={id => setOpenId(id)} />
       ) : list.length === 0 ? (
         <div className="space-y-4 rounded-2xl bg-slate-50 p-8 text-center">
-          <p className="text-lg text-ink-muted">{visible.length === 0 ? 'No batches yet. A batch groups the cattle you feed together.' : 'No batches here.'}</p>
-          {canCreate && visible.length === 0 && <Button size="lg" onClick={() => setFlow({ kind: 'start' })}><Plus /> Start a batch</Button>}
+          <p className="text-lg text-ink-muted">{visible.length === 0 ? tx('noBatchesYet') : tx('noBatchesHere')}</p>
+          {canCreate && visible.length === 0 && <Button size="lg" onClick={() => setFlow({ kind: 'start' })}><Plus /> {tx('startBatch')}</Button>}
         </div>
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {list.map(b => {
             const s = batchSummary(b, data.stock, data.weightTracking, products);
-            const feed = !b.feedingProgram || b.feedingProgram.ingredients.length === 0 ? 'No feed set up' : b.feedingProgram.status === 'Active' ? 'Feeding on' : 'Feeding paused';
+            const feedState = !b.feedingProgram || b.feedingProgram.ingredients.length === 0 ? 'none' : b.feedingProgram.status === 'Active' ? 'on' : 'paused';
+            const feed = feedState === 'none' ? tx('noFeedSetUp') : feedState === 'on' ? tx('feedingOnShort') : tx('feedingPausedShort');
             const late = s.daysToTarget !== null && s.daysToTarget < 0;
             return (
               <li key={b.id}>
                 <button type="button" onClick={() => setOpenId(b.id)} className="flex h-full w-full flex-col gap-3 rounded-2xl border-2 border-slate-200 bg-white p-4 text-left transition-colors hover:border-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-2xl font-semibold text-ink">{b.name}</p>
-                      <p className="text-base text-ink-muted">{[b.farmLocation, s.daysIn !== null ? `${s.daysIn} days in` : null].filter(Boolean).join(' · ')}</p>
+                      <p className="text-2xl font-semibold text-ink [overflow-wrap:anywhere]">{b.name}</p>
+                      <p className="text-base text-ink-muted">{[b.farmLocation, s.daysIn !== null ? tx('daysIn', { n: s.daysIn }) : null].filter(Boolean).join(' · ')}</p>
                     </div>
-                    <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${b.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-ink'}`}>{b.status === 'Active' ? 'Active' : 'Closed'}</span>
+                    <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${b.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-ink'}`}>{b.status === 'Active' ? tx('active') : tx('closed')}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
-                    <div><p className="text-sm text-ink-muted">Cattle</p><p className="text-xl font-semibold text-ink">{s.head}</p></div>
-                    <div><p className="text-sm text-ink-muted">Average</p><p className="text-xl font-semibold text-ink">{s.head ? `${Math.round(s.avgWeight)} kg` : '—'}</p></div>
-                    <div><p className="text-sm text-ink-muted">Daily gain</p><p className="text-xl font-semibold text-ink">{s.perDay !== null ? `${s.perDay} kg` : '—'}</p></div>
+                    <div><p className="text-sm text-ink-muted">{tx('cattle')}</p><p className="text-xl font-semibold text-ink">{s.head}</p></div>
+                    <div><p className="text-sm text-ink-muted">{tx('average')}</p><p className="text-xl font-semibold text-ink">{s.head ? `${Math.round(s.avgWeight)} kg` : '—'}</p></div>
+                    <div><p className="text-sm text-ink-muted">{tx('dailyGain')}</p><p className="text-xl font-semibold text-ink">{s.perDay !== null ? `${s.perDay} kg` : '—'}</p></div>
                   </div>
                   <div className="mt-auto flex flex-wrap items-center gap-2">
-                    {b.status === 'Active' && <span className={`rounded-full px-3 py-1 text-sm font-medium ${feed === 'Feeding on' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}>{feed}</span>}
+                    {b.status === 'Active' && <span className={`rounded-full px-3 py-1 text-sm font-medium ${feedState === 'on' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}>{feed}</span>}
                     {b.status === 'Active' && s.daysToTarget !== null && (
                       <span className={`rounded-full px-3 py-1 text-sm font-medium ${late ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-ink'}`}>
-                        {late ? `${-s.daysToTarget} days past sell date` : s.daysToTarget === 0 ? 'Sell today' : `Sell in ${s.daysToTarget} days`}
+                        {late ? tx('pastSell', { n: -s.daysToTarget }) : s.daysToTarget === 0 ? tx('sellToday') : tx('sellIn', { n: s.daysToTarget })}
                       </span>
                     )}
-                    {s.feedCostPerDay > 0 && <span className="text-sm text-ink-muted">{riel(s.feedCostPerDay)} feed a day</span>}
+                    {s.feedCostPerDay > 0 && <span className="text-sm text-ink-muted">{tx('feedADay', { amount: riel(s.feedCostPerDay) })}</span>}
                   </div>
                 </button>
               </li>

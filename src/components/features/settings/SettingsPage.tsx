@@ -9,6 +9,7 @@ import PeoplePanel from './PeoplePanel';
 import RolesPanel from './RolesPanel';
 import ListsPanel from './ListsPanel';
 import AlertsPanel from './AlertsPanel';
+import { useText } from '@/hooks/useText';
 
 interface SettingsPageProps {
   settings: MasterSetup;
@@ -19,14 +20,15 @@ interface SettingsPageProps {
 
 type Tab = 'people' | 'roles' | 'lists' | 'alerts';
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'people', label: 'People' },
-  { key: 'roles', label: 'Roles' },
-  { key: 'lists', label: 'Lists' },
-  { key: 'alerts', label: 'Alerts' },
+  { key: 'people', label: 'tabPeople' },
+  { key: 'roles', label: 'tabRoles' },
+  { key: 'lists', label: 'tabLists' },
+  { key: 'alerts', label: 'tabAlerts' },
 ];
 
 export default function SettingsPage({ settings, currentUser, onOpenFarms }: SettingsPageProps) {
   const queryClient = useQueryClient();
+  const { tx } = useText('settingsPage');
   const [tab, setTab] = useState<Tab>('people');
 
   const save = useMutation({
@@ -48,16 +50,16 @@ export default function SettingsPage({ settings, currentUser, onOpenFarms }: Set
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div>
-        <h2 className="text-2xl font-semibold text-ink">{ownerOnly ? 'People' : 'Settings'}</h2>
-        <p className="text-base text-ink-muted">{ownerOnly ? 'Add and manage the staff on your farm.' : 'Who can sign in, what they can do, and the choices in your forms.'}</p>
+        <h2 className="text-2xl font-semibold text-ink">{ownerOnly ? tx('titlePeople') : tx('titleSettings')}</h2>
+        <p className="text-base text-ink-muted">{ownerOnly ? tx('introPeople') : tx('introSettings')}</p>
       </div>
 
       {!ownerOnly && (
-        <div role="tablist" aria-label="Settings" className="flex rounded-xl bg-slate-100 p-1 sm:w-fit">
+        <div role="tablist" aria-label={tx('titleSettings')} className="flex rounded-xl bg-slate-100 p-1 sm:w-fit">
           {TABS.map(t => (
             <button key={t.key} role="tab" type="button" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
               className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-4 text-base font-medium sm:px-6 ${tab === t.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-              {t.label}
+              {tx(t.label)}
             </button>
           ))}
         </div>

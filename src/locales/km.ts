@@ -8,6 +8,16 @@ import { km as healthPageKm } from './sections/healthPage';
 import { km as treatFlowKm } from './sections/treatFlow';
 import { km as feedPageKm } from './sections/feedPage';
 import { km as feedFlowsKm } from './sections/feedFlows';
+import { km as summaryPageKm } from './sections/summaryPage';
+import { km as farmLimitsKm } from './sections/farmLimits';
+import { km as addCattleKm } from './sections/addCattle';
+import { km as batchesPageKm } from './sections/batchesPage';
+import { km as planningKm } from './sections/planning';
+import { km as permissionsKm } from './sections/permissions';
+import { km as settingsPageKm } from './sections/settingsPage';
+import { km as farmsPageKm } from './sections/farmsPage';
+import { km as reportsPageKm } from './sections/reportsPage';
+import { km as salesPageKm } from './sections/salesPage';
 
 export const km: PartialTranslations = {
   // Navigation & Header
@@ -351,6 +361,16 @@ export const km: PartialTranslations = {
   treatFlow: treatFlowKm,
   feedPage: feedPageKm,
   feedFlows: feedFlowsKm,
+  summaryPage: summaryPageKm,
+  farmLimits: farmLimitsKm,
+  addCattle: addCattleKm,
+  batchesPage: batchesPageKm,
+  planning: planningKm,
+  permissions: permissionsKm,
+  settingsPage: settingsPageKm,
+  farmsPage: farmsPageKm,
+  reportsPage: reportsPageKm,
+  salesPage: salesPageKm,
 
   // Install as an app (PWA)
   pwa: {

@@ -4,6 +4,8 @@ import { settingsRepository } from '../repositories/settings.repository';
 import { Actor, AuthzError, assertPermission, can, canManageUsers } from '../lib/authz';
 import { deleteFarm as withoutFarm, farmOwners, saveFarm as withFarm, validateFarm, type FarmInput } from '../lib/farm-settings';
 import { DEFAULT_ROLE_PERMISSIONS, type FarmItem } from '../lib/types';
+import { canSetLimits, limitOf } from '../lib/farm-limit';
+import { farmLimitService } from './farm-limit.service';
 
 const newId = () => Math.random().toString(36).slice(2, 11).toUpperCase();
 const OWNER_CANDIDATE_ROLES = ['Farm Owner', 'Farm Staff', 'Veterinarian'];
@@ -26,6 +28,13 @@ export class FarmService {
     const editing = farmId ? (settings.farms || []).find(f => f.id === farmId) ?? null : null;
     if (farmId && !editing) throw new Error('That farm no longer exists.');
 
+    // Only a Super Admin or Admin sets a farm's cattle limit; anyone else keeps the one it has (none, for a new farm).
+    if (!canSetLimits(actor)) input = { ...input, capacity: editing ? limitOf(editing) : 0 };
+    else if (editing && input.capacity !== limitOf(editing)) {
+      const used = await farmRepository.countRegisteredCattle(editing.name);
+      if (input.capacity < used) throw new Error(`${editing.name} already has ${used} cattle registered; the limit cannot be lower.`);
+    }
+
     const errors = validateFarm(settings, input, editing);
     const first = Object.values(errors)[0];
     if (first) throw new Error(first);
@@ -35,6 +44,7 @@ export class FarmService {
     await withTransaction(async client => {
       if (renamedFrom) await farmRepository.renameEverywhere(renamedFrom, name, client);
       await settingsRepository.patchBlob({ farms }, client);
+      await farmLimitService.logDirectChange(actor, name, editing ? limitOf(editing) : 0, input.capacity, client);
     });
     return farms.find(f => (editing ? f.id === editing.id : f.name === name))!;
   }
