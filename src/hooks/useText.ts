@@ -1,6 +1,7 @@
 'use client';
 
 import { useLanguage } from '@/context/LanguageContext';
+import { en as valueWords } from '@/locales/sections/cattlePage';
 
 /**
  * A screen's words in the chosen language, from one section of src/locales
@@ -15,4 +16,16 @@ export function useText(section: string) {
   /** One of two keys by count, e.g. txn(n, 'animalOne', 'animalMany', { n }). Khmer usually uses the same text for both. */
   const txn = (n: number, one: string, many: string, vars: Record<string, string | number> = {}) => tx(n === 1 ? one : many, { n, ...vars });
   return { tx, txn, t, language };
+}
+
+/**
+ * Known stored values (Active, Sick, Male, Vaccination...) in the chosen
+ * language; anything else (breeds, names) is shown as it is.
+ */
+export function useValueText() {
+  const { tx } = useText('cattlePage');
+  return (v?: string | null) => {
+    const k = `v_${(v ?? '').toLowerCase().trim()}`;
+    return v && k in valueWords ? tx(k) : (v ?? '');
+  };
 }

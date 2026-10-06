@@ -12,8 +12,7 @@ import { growth, weighPoints } from '@/lib/cattle-stats';
 import { exportToExcel } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { FarmSelect } from '@/components/ui/listbox-select';
-import { useText } from '@/hooks/useText';
-import { en as words } from '@/locales/sections/cattlePage';
+import { useText, useValueText } from '@/hooks/useText';
 
 interface CattleListProps {
   stock: StockItem[];
@@ -36,11 +35,7 @@ const TAB_KEY: Record<Status, string> = { Active: 'tabActive', Sold: 'tabSold', 
 
 export default function CattleList({ stock, weightTracking, onViewDetails, onAddCowClick, currentUser, farms = [] }: CattleListProps) {
   const { tx, txn } = useText('cattlePage');
-  // Known stored values (Active, Sick, Male...) in the chosen language; anything else as it is.
-  const val = (v?: string) => {
-    const k = `v_${norm(v)}`;
-    return v && k in words ? tx(k) : (v ?? '');
-  };
+  const val = useValueText();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<Status>('Active');
   const [attentionOnly, setAttentionOnly] = useState(false);

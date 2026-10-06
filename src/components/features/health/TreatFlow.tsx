@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import type { HealthLogItem, MasterSetup, StockItem, UserRoleItem } from '@/lib/types';
 import { sickCattle } from '@/lib/attention';
 import { FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, RowButton, today } from '../flow/FlowShell';
-import { useText } from '@/hooks/useText';
+import { useText, useValueText } from '@/hooks/useText';
 
 interface TreatFlowProps {
   isOpen: boolean;
@@ -58,6 +58,7 @@ export default function TreatFlow(props: TreatFlowProps) {
 
 function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, preselectedCowIds, onSave }: TreatFlowProps) {
   const { tx, language } = useText('treatFlow');
+  const val = useValueText();
   const flow = useText('flow');
   const statusLabel = (s: string) => (language !== 'en' && STATUS_KEY[s.toLowerCase()] ? tx(STATUS_KEY[s.toLowerCase()]) : s);
   const known = new Set(cattle.map(c => c.id));
@@ -178,7 +179,7 @@ function TreatBody({ onClose, cattle, common, currentUser, preselectedCowId, pre
                   <RowButton onClick={() => toggle(c.id)} selected={on}>
                     <span>
                       <span className="block text-xl font-semibold text-ink">{c.id}</span>
-                      <span className="block text-base text-ink-muted">{[c.breed, c.sex].filter(Boolean).join(' · ')}</span>
+                      <span className="block text-base text-ink-muted">{[c.breed, val(c.sex)].filter(Boolean).join(' · ')}</span>
                     </span>
                     <span className="flex items-center gap-2">
                       {sickIds.has(c.id) && <span className="text-base font-medium text-rose-700">{statusLabel(c.healthStatus)}</span>}

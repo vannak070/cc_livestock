@@ -5,7 +5,7 @@ import { Check, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { StockItem } from '@/lib/xlsx-parser';
-import { useText } from '@/hooks/useText';
+import { useText, useValueText } from '@/hooks/useText';
 import { RowButton } from '../flow/FlowShell';
 
 interface CattlePickerProps {
@@ -18,6 +18,7 @@ interface CattlePickerProps {
 /** Tap animals to choose several, with a tag search and "choose all shown". */
 export default function CattlePicker({ cattle, selected, onChange, emptyText }: CattlePickerProps) {
   const { tx } = useText('weighFlow');
+  const val = useValueText();
   const [query, setQuery] = useState('');
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -53,7 +54,7 @@ export default function CattlePicker({ cattle, selected, onChange, emptyText }: 
               <RowButton onClick={() => toggle(c.id)} selected={on}>
                 <span>
                   <span className="block text-xl font-semibold text-ink">{c.id}</span>
-                  <span className="block text-base text-ink-muted">{[c.sex, c.breed, c.weight ? `${c.weight} kg` : null].filter(Boolean).join(' · ')}</span>
+                  <span className="block text-base text-ink-muted">{[val(c.sex), c.breed, c.weight ? `${c.weight} kg` : null].filter(Boolean).join(' · ')}</span>
                 </span>
                 {on && <Check className="h-7 w-7 shrink-0 text-emerald-700" aria-hidden />}
               </RowButton>

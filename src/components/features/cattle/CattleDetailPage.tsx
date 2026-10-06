@@ -11,8 +11,7 @@ import { hasPermission, getErrorMessage } from '@/lib/utils';
 import { weighSchedules } from '@/lib/attention';
 import { feedShares } from '@/lib/farm-costs';
 import { daysOnFarm, growth, money, weighPoints } from '@/lib/cattle-stats';
-import { useText } from '@/hooks/useText';
-import { en as words } from '@/locales/sections/cattlePage';
+import { useText, useValueText } from '@/hooks/useText';
 
 interface CattleDetailPageProps {
   cowId: string;
@@ -67,11 +66,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default function CattleDetailPage({ cowId, stock, weightTracking, salesTracking, healthLogs, feedTransactions = [], batches = [], currentUser, onBack, onWeigh, onTreat, onSell, onDelete }: CattleDetailPageProps) {
   const { tx } = useText('cattlePage');
-  // Known stored values (Active, Sick, Male...) in the chosen language; anything else as it is.
-  const val = (v?: string | null) => {
-    const k = `v_${(v ?? '').toLowerCase().trim()}`;
-    return v && k in words ? tx(k) : (v ?? '');
-  };
+  const val = useValueText();
   const [tab, setTab] = useState<Tab>('overview');
   const [photoFailed, setPhotoFailed] = useState(false);
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger' | 'success'; confirmText: string; onConfirm?: () => void }>(null);
