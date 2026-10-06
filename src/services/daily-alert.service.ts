@@ -1,5 +1,5 @@
 import { alertSettings } from '../lib/alerts';
-import { buildEveningMessages, buildMorningMessages, EVENING_HOUR, type FarmMessage } from '../lib/farm-alerts';
+import { buildMorningMessages, type FarmMessage } from '../lib/farm-alerts';
 import { farmToday } from '../lib/daily-feed';
 import { farmHour } from '../lib/sale-alerts';
 import { dailyAlertLogRepository } from '../repositories/daily-alert-log.repository';
@@ -24,8 +24,8 @@ const PAUSE_MS = 1200;
 /**
  * Sends the farm messages to the Telegram group, one message per farm and kind
  * (see lib/farm-alerts.ts): the selling reminder and long-stay cattle every
- * morning, and at 5 pm a feed reminder. There is no daily report by Telegram
- * (the user skipped it). Each goes out at most once a day per farm.
+ * morning. There is no daily report and no 5 pm feed reminder by Telegram
+ * (the user skipped both). Each goes out at most once a day per farm.
  * Reads straight from PostgreSQL, never the db.json fallback.
  */
 export class DailyAlertService {
@@ -43,9 +43,7 @@ export class DailyAlertService {
     }
 
     const hour = farmHour(now);
-    const morning = options.force || hour >= cfg.sendHour;
-    const evening = !options.force && hour >= EVENING_HOUR;
-    if (!morning && !evening) return { sent: 0, skipped: 'not-due' };
+    if (!options.force && hour < cfg.sendHour) return { sent: 0, skipped: 'not-due' };
 
     const [stock, weightTracking, batches, feedProducts, feedTransactions, cattleFollowUps] = await Promise.all([
       stockRepository.findAll(), weightRepository.findAll(), batchRepository.findAll(),
@@ -55,10 +53,7 @@ export class DailyAlertService {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '') || undefined;
     const day = farmToday(now);
 
-    const messages: FarmMessage[] = [
-      ...(morning ? buildMorningMessages(data, now, { appUrl }) : []),
-      ...(evening ? buildEveningMessages(data, now, { appUrl }) : []),
-    ];
+    const messages: FarmMessage[] = buildMorningMessages(data, now, { appUrl });
 
     await dailyAlertLogRepository.cleanup();
     const pause = options.pauseMs ?? PAUSE_MS;

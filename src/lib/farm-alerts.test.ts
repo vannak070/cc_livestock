@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alertFarms, buildEveningMessages, buildMorningMessages, type DigestData } from './farm-alerts';
+import { alertFarms, buildMorningMessages, type DigestData } from './farm-alerts';
 
 const NOW = new Date('2026-10-06T02:00:00Z'); // 09:00 on the farm, 2026-10-06
 const cow = (id: string, farm: string, extra: Record<string, unknown> = {}) => ({ id, status: 'Active', location: farm, sex: 'M', healthStatus: 'healthy', purchaseDate: '2026-09-01', ...extra });
@@ -69,21 +69,5 @@ describe('long time on the farm, per farm', () => {
 
   it('sends nothing when no animal has stayed that long', () => {
     expect(byKind(buildMorningMessages(data(), NOW), 'longstay')).toEqual([]);
-  });
-});
-
-describe('5 pm feed reminder', () => {
-  const products = [{ id: 'P1', name: 'Concentrate', unit: 'bag', weightPerUnit: 30, minThresholdBags: 50, minThresholdKg: 1500, status: 'Active' }];
-  const batch = { id: 'BA', name: 'BA', status: 'Active', farmLocation: 'Farm A', startDate: '2026-10-06', cowIds: ['A1'], feedingProgram: { status: 'Active', ingredients: [{ name: 'Concentrate', productId: 'P1', portionPerHead: 4 }] } };
-
-  it('goes to a farm whose feed for today is not written down, and only that farm', () => {
-    const msgs = buildEveningMessages(data({ batches: [batch], feedProducts: products }), NOW);
-    expect(msgs.map(m => m.farm)).toEqual(['Farm A']);
-    expect(msgs[0].message).toContain("Today's feed is not written down yet.");
-    expect(msgs[0].message).toContain('⏰ <b>Feed reminder · Farm A</b>');
-  });
-
-  it('says nothing when there is nothing to remind about', () => {
-    expect(buildEveningMessages(data(), NOW)).toEqual([]);
   });
 });

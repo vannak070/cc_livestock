@@ -1,5 +1,5 @@
 import { escapeHtml } from './alerts';
-import { farmToday, todayNotRecorded } from './daily-feed';
+import { farmToday } from './daily-feed';
 import { scopeDataToFarm } from './farm-view';
 import { longStayCattle, longStayMonths } from './long-stay';
 import { prettyDay } from './sale-alerts';
@@ -17,12 +17,11 @@ export type DigestData = Pick<ERPLivestockData, 'stock' | 'batches' | 'weightTra
  * office looking at one farm) get exactly their own farm's news:
  *  - sale:     every morning while a batch is within its selling window or late
  *  - longstay: every morning while cattle have been on the farm a long time
- *  - evening:  5 pm reminder that today's feed is still not written down
  * Low feed is its own instant alert (low-feed-alerts.ts). Pure: the service
  * gathers the data and sends; this decides what to say.
  */
 
-export type FarmAlertKind = 'sale' | 'longstay' | 'evening';
+export type FarmAlertKind = 'sale' | 'longstay';
 
 export interface FarmMessage {
   farm: string;
@@ -30,9 +29,6 @@ export interface FarmMessage {
   /** The Telegram message (HTML subset; names are escaped). */
   message: string;
 }
-
-/** Hour of the farm day (0 to 23) after which the "today's feed" reminder goes out. */
-export const EVENING_HOUR = 17;
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const shortDay = (day: string) => prettyDay(day).replace(/ \d{4}$/, '');
@@ -91,19 +87,6 @@ export function buildMorningMessages(data: DigestData, now: Date, opts: { appUrl
         ...(late > 0 ? [`• Next step is late: ${late}`] : []),
       ];
       out.push({ farm, kind: 'longstay', message: wrap('🐂', 'Long time on the farm', farm, today, body, opts.appUrl) });
-    }
-  }
-  return out;
-}
-
-/** The 5 pm reminder, only for farms whose feed for today is still not written down. */
-export function buildEveningMessages(data: DigestData, now: Date, opts: { appUrl?: string } = {}): FarmMessage[] {
-  const today = farmToday(now);
-  const out: FarmMessage[] = [];
-  for (const farm of alertFarms(data)) {
-    const f = farmData(data, farm);
-    if (todayNotRecorded(farm, f.batches, f.stock, f.feedProducts ?? [], f.feedTransactions ?? [], today)) {
-      out.push({ farm, kind: 'evening', message: wrap('⏰', 'Feed reminder', farm, today, ["Today's feed is not written down yet."], opts.appUrl) });
     }
   }
   return out;
