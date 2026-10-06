@@ -8,6 +8,7 @@ import type { MasterSetup } from '@/types/settings.types';
 import { findTelegramChatsAction, runSaleAlertsAction, sendTelegramTestAction, telegramStatusAction } from '@/app/actions';
 import { alertSettings, alertSettingsProblem } from '@/lib/alerts';
 import { saleWindowDays } from '@/lib/sale-review';
+import { longStayMonths } from '@/lib/long-stay';
 import { getErrorMessage } from '@/lib/utils';
 import { Choice } from '../flow/FlowShell';
 import { useText } from '@/hooks/useText';
@@ -84,9 +85,9 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
     setBusy('');
     if (!res.success) { say('bad', res.error); return; }
     const parts = [
-      res.data.sent > 0 ? tx('sentFor', { batches: txn(res.data.sent, 'batchOne', 'batchMany') }) : '',
-      res.data.dailySent > 0 ? tx('sentDaily') : '',
+      res.data.dailySent > 0 ? tx('sentDaily', { n: res.data.dailySent }) : '',
       res.data.capacitySent > 0 ? tx('sentForLimits', { n: res.data.capacitySent }) : '',
+      res.data.lowFeedSent > 0 ? tx('sentLowFeed', { n: res.data.lowFeedSent }) : '',
     ].filter(Boolean);
     say('ok', parts.length > 0 ? parts.join(' ') : tx('nothingNew'));
   };
@@ -164,14 +165,14 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
         <h3 className="text-lg font-semibold text-ink">{tx('whatSent')}</h3>
         <ul className="list-disc space-y-1 pl-5 text-base text-ink">
           <li>{tx('sent1')}</li>
-          <li>{tx('sent2', { n: saleWindowDays(settings) })}</li>
-          <li>{tx('sent3')}</li>
-          <li>{tx('sent4')}</li>
-          <li>{tx('sent5')}</li>
+          <li>{tx('sent2')}</li>
+          <li>{tx('sent3', { n: saleWindowDays(settings) })}</li>
+          <li>{tx('sent4', { months: longStayMonths(settings) })}</li>
           <li>{tx('sent6')}</li>
+          <li>{tx('sent7')}</li>
         </ul>
         <p className="text-base text-ink-muted">{tx('changeDays')}</p>
-        {last?.lastSentAt && <p className="text-base text-ink">{tx('lastAlert', { time: last.lastSentAt.slice(0, 16).replace('T', ' '), batches: txn(last.lastSentCount ?? 0, 'batchOne', 'batchMany') })}</p>}
+        {last?.lastSentAt && <p className="text-base text-ink">{tx('lastAlert', { time: last.lastSentAt.slice(0, 16).replace('T', ' '), what: txn(last.lastSentCount ?? 0, 'messageOne', 'messageMany') })}</p>}
         {saved.telegramEnabled && (schedulerOn
           ? <p className="rounded-xl bg-emerald-50 p-3 text-base text-emerald-900">{tx('schedulerOn', { time: last!.schedulerSeenAt!.slice(0, 16).replace('T', ' ') })}</p>
           : <p role="alert" className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">{tx('schedulerOff')}{Number.isFinite(seen) ? ' ' + tx('schedulerLast', { time: last!.schedulerSeenAt!.slice(0, 16).replace('T', ' ') }) : ''}</p>)}

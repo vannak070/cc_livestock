@@ -1,7 +1,7 @@
 import { capacityAlertService } from '../services/capacity-alert.service';
+import { lowFeedAlertService } from '../services/low-feed-alert.service';
 import { settingsRepository } from '../repositories/settings.repository';
 import { dailyAlertService } from '../services/daily-alert.service';
-import { saleAlertService } from '../services/sale-alert.service';
 import { telegramService } from '../services/telegram.service';
 
 const EVERY_MS = 10 * 60 * 1000;
@@ -36,18 +36,19 @@ export function startAlertScheduler(): void {
     if (running) return;
     running = true;
     await heartbeat();
-    try {
-      const result = await saleAlertService.run();
-      if (result.sent > 0) console.log(`[alerts] Sent a Telegram alert for ${result.sent} batch(es).`);
-    } catch (err) {
-      console.error('[alerts] Check failed:', err instanceof Error ? err.message : err);
-    }
-    // The daily check-up (feed, weighing, long stay, sick animals) is independent too.
+    // The per-farm messages: selling reminder, long stay, 5 pm feed reminder.
     try {
       const daily = await dailyAlertService.run();
-      if (daily.sent > 0) console.log(`[alerts] Sent ${daily.sent} daily check-up message(s).`);
+      if (daily.sent > 0) console.log(`[alerts] Sent ${daily.sent} farm message(s).`);
     } catch (err) {
-      console.error('[alerts] Daily check-up failed:', err instanceof Error ? err.message : err);
+      console.error('[alerts] Farm messages failed:', err instanceof Error ? err.message : err);
+    }
+    // Instant low-feed alerts (a farm's feed in use reached its minimum) are independent too.
+    try {
+      const lowFeed = await lowFeedAlertService.run();
+      if (lowFeed.sent > 0) console.log(`[alerts] Sent ${lowFeed.sent} low-feed alert(s).`);
+    } catch (err) {
+      console.error('[alerts] Low-feed check failed:', err instanceof Error ? err.message : err);
     }
     // Cattle-limit warnings are independent of the sale alerts: one failing must not stop the other.
     try {

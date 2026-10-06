@@ -54,7 +54,6 @@ import { assertPlanningAccess } from '@/lib/authz';
 import { feedProductService } from '@/services/feed-product.service';
 import { saleReviewService } from '@/services/sale-review.service';
 import { telegramService } from '@/services/telegram.service';
-import { saleAlertService } from '@/services/sale-alert.service';
 import { alertSettings, escapeHtml } from '@/lib/alerts';
 import { settingsRepository } from '@/repositories/settings.repository';
 import type { SaleReviewInput } from '@/lib/sale-review';
@@ -62,6 +61,7 @@ import { farmLimitService } from '@/services/farm-limit.service';
 import { followUpService } from '@/services/follow-up.service';
 import { billingService } from '@/services/billing.service';
 import { capacityAlertService } from '@/services/capacity-alert.service';
+import { lowFeedAlertService } from '@/services/low-feed-alert.service';
 import { dailyAlertService } from '@/services/daily-alert.service';
 import type { BillingSettings } from '@/lib/types';
 import type { FollowUpInput } from '@/lib/long-stay';
@@ -387,11 +387,11 @@ export async function sendTelegramTestAction() {
 // Checks for alerts right now, ignoring the send hour. Anything already sent is not sent again.
 export async function runSaleAlertsAction() {
   return runAction('Failed to check for alerts', ['settings_manage'], async () => {
-    const sale = await saleAlertService.run({ force: true });
-    // Cattle-limit warnings are checked in the same go; they have their own count.
-    const capacity = await capacityAlertService.run({ force: true });
+    // The per-farm messages (daily check, selling reminder, long stay), then low feed and cattle limits; each has its own count.
     const daily = await dailyAlertService.run({ force: true });
-    return { sent: sale.sent, capacitySent: capacity.sent, dailySent: daily.sent, skipped: sale.skipped };
+    const lowFeed = await lowFeedAlertService.run({ force: true });
+    const capacity = await capacityAlertService.run({ force: true });
+    return { capacitySent: capacity.sent, dailySent: daily.sent, lowFeedSent: lowFeed.sent };
   }, { revalidate: true });
 }
 

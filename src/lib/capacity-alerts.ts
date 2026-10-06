@@ -62,12 +62,12 @@ export function planCapacityAlerts(levels: CapacityLevel[], sent: SentCapacityAl
   return nearLimit(levels).filter(l => !sent.some(s => norm(s.farm) === norm(l.farm) && s.limit === l.limit && s.step >= l.step));
 }
 
-/** The Telegram message for one farm (HTML subset; farm names are escaped). */
+/** The Telegram message for one farm (HTML subset; farm names are escaped). Plain words. */
 export function buildCapacityAlert(level: CapacityLevel, options: { appUrl?: string } = {}): string {
-  const farm = `<b>${escapeHtml(level.farm)}</b>`;
-  const link = options.appUrl ? `\n${escapeHtml(options.appUrl)}` : '';
+  const link = options.appUrl ? `\n\n<a href="${escapeHtml(options.appUrl)}">Open CC Livestock</a>` : '';
+  const title = `<b>Cattle limit · ${escapeHtml(level.farm)}</b>`;
   if (level.step === 100) {
-    return `${farm} has used all of its cattle limit (${level.used} of ${level.limit}).\nNo more cattle can be registered until a Super Admin or Admin raises the limit.${link}`;
+    return `🔴 ${title}\n\nThe limit is reached: ${level.used} of ${level.limit} cattle.\nNo more cattle can be registered until a Super Admin or Admin raises the limit.${link}`;
   }
-  return `${farm} has used ${level.step}% of its cattle limit: ${level.used} of ${level.limit} cattle registered, ${level.left} places left.\nRegistering stops when the limit is used up. Ask for more before then.${link}`;
+  return `⚠️ ${title}\n\n${level.step}% used: ${level.used} of ${level.limit} cattle. ${level.left} places left.\nPlease ask for a higher limit before it is full.${link}`;
 }

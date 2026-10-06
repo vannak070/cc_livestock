@@ -1,5 +1,5 @@
 import { alertSettings } from '../lib/alerts';
-import { buildDailyDigest, EVENING_HOUR, type DigestKind } from '../lib/daily-digest';
+import { buildEveningMessages, buildMorningMessages, EVENING_HOUR, type FarmMessage } from '../lib/farm-alerts';
 import { farmToday } from '../lib/daily-feed';
 import { farmHour } from '../lib/sale-alerts';
 import { dailyAlertLogRepository } from '../repositories/daily-alert-log.repository';
@@ -12,21 +12,24 @@ import { weightRepository } from '../repositories/weight.repository';
 import { telegramService } from './telegram.service';
 
 export interface DailyAlertRun {
-  /** How many messages went out (0 to 2). */
+  /** How many messages went out. */
   sent: number;
   skipped?: 'no-token' | 'not-due' | 'nothing-new';
 }
 
+/** Telegram allows about 20 messages a minute to one group: send this many per check, the rest follow on the next one. */
+const MAX_PER_RUN = 15;
+const PAUSE_MS = 1200;
+
 /**
- * Sends the daily check-up to the Telegram group: the Today-screen items that
- * are not sale reviews (missed feed days, weighing, long-stay cattle, sick
- * animals, low feed). One "morning" message at the alert hour, and a short
- * "evening" reminder if today's feed is still not written down. Each goes out
- * at most once a day, and nothing is sent on a day with nothing to report.
+ * Sends the farm messages to the Telegram group, one message per farm and kind
+ * (see lib/farm-alerts.ts): the selling reminder and long-stay cattle every
+ * morning, and at 5 pm a feed reminder. There is no daily report by Telegram
+ * (the user skipped it). Each goes out at most once a day per farm.
  * Reads straight from PostgreSQL, never the db.json fallback.
  */
 export class DailyAlertService {
-  async run(options: { now?: Date; force?: boolean } = {}): Promise<DailyAlertRun> {
+  async run(options: { now?: Date; force?: boolean; pauseMs?: number } = {}): Promise<DailyAlertRun> {
     const now = options.now ?? new Date();
     if (!telegramService.isConfigured()) return { sent: 0, skipped: 'no-token' };
 
@@ -40,10 +43,9 @@ export class DailyAlertService {
     }
 
     const hour = farmHour(now);
-    const kinds: DigestKind[] = [];
-    if (options.force || hour >= cfg.sendHour) kinds.push('morning');
-    if (!options.force && hour >= EVENING_HOUR) kinds.push('evening');
-    if (kinds.length === 0) return { sent: 0, skipped: 'not-due' };
+    const morning = options.force || hour >= cfg.sendHour;
+    const evening = !options.force && hour >= EVENING_HOUR;
+    if (!morning && !evening) return { sent: 0, skipped: 'not-due' };
 
     const [stock, weightTracking, batches, feedProducts, feedTransactions, cattleFollowUps] = await Promise.all([
       stockRepository.findAll(), weightRepository.findAll(), batchRepository.findAll(),
@@ -53,15 +55,21 @@ export class DailyAlertService {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '') || undefined;
     const day = farmToday(now);
 
+    const messages: FarmMessage[] = [
+      ...(morning ? buildMorningMessages(data, now, { appUrl }) : []),
+      ...(evening ? buildEveningMessages(data, now, { appUrl }) : []),
+    ];
+
     await dailyAlertLogRepository.cleanup();
+    const pause = options.pauseMs ?? PAUSE_MS;
     let sent = 0;
-    for (const kind of kinds) {
-      const { message } = buildDailyDigest(data, now, kind, { appUrl });
-      if (!message) continue;
-      const id = await dailyAlertLogRepository.claim(day, kind);
+    for (const m of messages) {
+      if (sent >= MAX_PER_RUN) break;
+      const id = await dailyAlertLogRepository.claim(day, `${m.kind}:${m.farm}`);
       if (id === null) continue; // already sent today, or another server is sending it
       try {
-        await telegramService.send(cfg.chatId, message);
+        if (sent > 0 && pause > 0) await new Promise(r => setTimeout(r, pause));
+        await telegramService.send(cfg.chatId, m.message);
         await dailyAlertLogRepository.confirm(id);
         sent++;
       } catch (err) {

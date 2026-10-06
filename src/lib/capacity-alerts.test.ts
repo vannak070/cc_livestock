@@ -75,14 +75,16 @@ describe('buildCapacityAlert', () => {
   it('says how full the farm is and what happens at 100%', () => {
     const l = capacityLevels([{ name: 'SNR Farm', capacity: 100 }], cows('SNR Farm', 90))[0];
     const text = buildCapacityAlert(l);
-    expect(text).toContain('<b>SNR Farm</b> has used 90% of its cattle limit: 90 of 100 cattle registered, 10 places left.');
-    expect(text).toContain('Registering stops when the limit is used up.');
+    expect(text).toContain('<b>Cattle limit · SNR Farm</b>');
+    expect(text).toContain('90% used: 90 of 100 cattle. 10 places left.');
+    expect(text).toContain('Please ask for a higher limit before it is full.');
   });
 
   it('says plainly that registering is blocked when the limit is used up, and escapes names and links', () => {
     const l = capacityLevels([{ name: 'A <b>&Farm', capacity: 10 }], cows('A <b>&Farm', 10))[0];
     const text = buildCapacityAlert(l, { appUrl: 'https://x.test/?a=1&b=2' });
-    expect(text).toContain('<b>A &lt;b&gt;&amp;Farm</b> has used all of its cattle limit (10 of 10).');
+    expect(text).toContain('<b>Cattle limit · A &lt;b&gt;&amp;Farm</b>');
+    expect(text).toContain('The limit is reached: 10 of 10 cattle.');
     expect(text).toContain('No more cattle can be registered');
     expect(text).toContain('https://x.test/?a=1&amp;b=2');
   });

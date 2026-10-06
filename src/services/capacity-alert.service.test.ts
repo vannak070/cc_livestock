@@ -32,7 +32,7 @@ describe('CapacityAlertService.run', () => {
   it('sends one warning for the farm at 90%, confirms it, and marks the lower steps passed', async () => {
     await expect(service.run()).resolves.toEqual({ sent: 1 });
     expect(telegram.send).toHaveBeenCalledTimes(1);
-    expect(telegram.send).toHaveBeenCalledWith('-1001234567', expect.stringContaining('<b>SNR Farm</b> has used 90% of its cattle limit'));
+    expect(telegram.send).toHaveBeenCalledWith('-1001234567', expect.stringContaining('<b>Cattle limit · SNR Farm</b>'));
     expect(log.claim).toHaveBeenCalledWith('SNR Farm', 100, 90);
     expect(log.confirm).toHaveBeenCalledWith(7);
     expect(log.markPassed).toHaveBeenCalledWith('SNR Farm', 100, 90);

@@ -2,6 +2,7 @@ import { withTransaction } from '../config/database';
 import { feedRepository } from '../repositories/feed.repository';
 import { batchService } from './batch.service';
 import { stockService } from './stock.service';
+import { lowFeedAlertService } from './low-feed-alert.service';
 import { Actor } from '../lib/authz';
 import { farmGuard } from '../lib/farm-guard';
 import {
@@ -73,6 +74,9 @@ export class DailyFeedService {
         await feedRepository.replaceDailyFeed(autoRefPrefix(b.batchId, input.day), dailyRefPrefix(b.batchId, input.day), b.rows, client);
       }
     });
+    // Recording a day takes feed out of stock: if that dropped a feed to its minimum, say so now (best effort;
+    // the scheduler checks again every few minutes, and the log stops anything going out twice).
+    void lowFeedAlertService.run().catch(() => undefined);
     return { rows: perBatch.reduce((s, b) => s + b.rows.length, 0) };
   }
 }
