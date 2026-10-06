@@ -85,12 +85,17 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
     if (!res.success) { say('bad', res.error); return; }
     const parts = [
       res.data.sent > 0 ? tx('sentFor', { batches: txn(res.data.sent, 'batchOne', 'batchMany') }) : '',
+      res.data.dailySent > 0 ? tx('sentDaily') : '',
       res.data.capacitySent > 0 ? tx('sentForLimits', { n: res.data.capacitySent }) : '',
     ].filter(Boolean);
     say('ok', parts.length > 0 ? parts.join(' ') : tx('nothingNew'));
   };
 
   const last = settings.alertStatus;
+  // The scheduler checks every 10 minutes; a missing or older mark means automatic alerts are not going out.
+  const [openedAt] = useState(() => Date.now());
+  const seen = last?.schedulerSeenAt ? Date.parse(last.schedulerSeenAt) : NaN;
+  const schedulerOn = Number.isFinite(seen) && openedAt - seen < 25 * 60 * 1000;
   const connected = status?.configured && !status.error && status.bot;
 
   return (
@@ -163,9 +168,13 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
           <li>{tx('sent3')}</li>
           <li>{tx('sent4')}</li>
           <li>{tx('sent5')}</li>
+          <li>{tx('sent6')}</li>
         </ul>
         <p className="text-base text-ink-muted">{tx('changeDays')}</p>
         {last?.lastSentAt && <p className="text-base text-ink">{tx('lastAlert', { time: last.lastSentAt.slice(0, 16).replace('T', ' '), batches: txn(last.lastSentCount ?? 0, 'batchOne', 'batchMany') })}</p>}
+        {saved.telegramEnabled && (schedulerOn
+          ? <p className="rounded-xl bg-emerald-50 p-3 text-base text-emerald-900">{tx('schedulerOn', { time: last!.schedulerSeenAt!.slice(0, 16).replace('T', ' ') })}</p>
+          : <p role="alert" className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">{tx('schedulerOff')}{Number.isFinite(seen) ? ' ' + tx('schedulerLast', { time: last!.schedulerSeenAt!.slice(0, 16).replace('T', ' ') }) : ''}</p>)}
         {last?.lastError && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-base text-rose-800">{tx('lastFailed', { error: last.lastError })}</p>}
         <Button type="button" size="lg" variant="outline" onClick={runNow} disabled={!connected || !saved.telegramEnabled || !saved.chatId || dirty || busy !== ''}>{busy === 'run' ? tx('checking') : tx('checkSend')}</Button>
         {!saved.telegramEnabled && <p className="text-base text-ink-muted">{tx('switchOn')}</p>}

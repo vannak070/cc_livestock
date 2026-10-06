@@ -1,9 +1,21 @@
 import { capacityAlertService } from '../services/capacity-alert.service';
+import { settingsRepository } from '../repositories/settings.repository';
+import { dailyAlertService } from '../services/daily-alert.service';
 import { saleAlertService } from '../services/sale-alert.service';
 import { telegramService } from '../services/telegram.service';
 
 const EVERY_MS = 10 * 60 * 1000;
 const FIRST_DELAY_MS = 30 * 1000;
+
+/** Leaves a timestamp in the settings so the Alerts panel can show that the scheduler is alive. */
+async function heartbeat(): Promise<void> {
+  try {
+    const current = (await settingsRepository.getSettings()).alertStatus ?? {};
+    await settingsRepository.patchBlob({ alertStatus: { ...current, schedulerSeenAt: new Date().toISOString() } });
+  } catch (err) {
+    console.error('[alerts] Could not record the scheduler heartbeat:', err instanceof Error ? err.message : err);
+  }
+}
 
 /**
  * Checks for sale alerts to send every few minutes. Runs in production, or in
@@ -23,11 +35,19 @@ export function startAlertScheduler(): void {
   const tick = async () => {
     if (running) return;
     running = true;
+    await heartbeat();
     try {
       const result = await saleAlertService.run();
       if (result.sent > 0) console.log(`[alerts] Sent a Telegram alert for ${result.sent} batch(es).`);
     } catch (err) {
       console.error('[alerts] Check failed:', err instanceof Error ? err.message : err);
+    }
+    // The daily check-up (feed, weighing, long stay, sick animals) is independent too.
+    try {
+      const daily = await dailyAlertService.run();
+      if (daily.sent > 0) console.log(`[alerts] Sent ${daily.sent} daily check-up message(s).`);
+    } catch (err) {
+      console.error('[alerts] Daily check-up failed:', err instanceof Error ? err.message : err);
     }
     // Cattle-limit warnings are independent of the sale alerts: one failing must not stop the other.
     try {
@@ -39,6 +59,7 @@ export function startAlertScheduler(): void {
       running = false;
     }
   };
+  void heartbeat();
   setTimeout(tick, FIRST_DELAY_MS);
   setInterval(tick, EVERY_MS);
   console.log('[alerts] Scheduler started: checking every 10 minutes.');

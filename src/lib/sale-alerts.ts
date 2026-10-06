@@ -11,7 +11,10 @@ import type { StockItem, WeightRecord } from './xlsx-parser';
  * Pure: the scheduler gathers the data and the log, this decides and writes.
  */
 
-export type AlertStage = 'window' | 'week' | 'overdue';
+export type AlertStage = 'window' | 'week' | 'final' | 'overdue';
+
+/** A batch this close to its selling date (or on it) gets a last-days alert. */
+export const FINAL_DAYS = 2;
 
 /** Days between reminders while a batch stays past its selling date undecided. */
 export const OVERDUE_REMINDER_DAYS = 3;
@@ -26,8 +29,8 @@ export interface PlannedAlert {
   kind: 'new' | 'reminder';
 }
 
-const stageOf = (row: SaleReviewRow): AlertStage => (row.tier === 'overdue' ? 'overdue' : row.tier === 'week' ? 'week' : 'window');
-const ORDER: Record<AlertStage, number> = { overdue: 0, week: 1, window: 2 };
+const stageOf = (row: SaleReviewRow): AlertStage => (row.tier === 'overdue' ? 'overdue' : row.daysRemaining <= FINAL_DAYS ? 'final' : row.tier === 'week' ? 'week' : 'window');
+const ORDER: Record<AlertStage, number> = { overdue: 0, final: 1, week: 2, window: 3 };
 
 /** Whole days from one YYYY-MM-DD to another. */
 export function daysBetweenDays(from: string, to: string): number {
@@ -137,12 +140,12 @@ export function batchAlertDetail(batch: SaleReviewRow['batch'], stock: StockItem
 /** Batch messages sent in one go; any more follow on the next check. */
 export const MAX_MESSAGES = 12;
 
-const HEADINGS: Record<AlertStage, string> = { overdue: '🔴', week: '🟠', window: '🟡' };
+const HEADINGS: Record<AlertStage, string> = { overdue: '🔴', final: '🔴', week: '🟠', window: '🟡' };
 
 function stageTitle(p: PlannedAlert): string {
   const d = p.row.daysRemaining;
   const base = p.stage === 'overdue' ? `PAST THE SELLING DATE · ${plural(-d, 'day', 'days')} late`
-    : p.stage === 'week' ? (d === 0 ? 'SELLING DATE IS TODAY' : `SELLING DATE IN ${plural(d, 'DAY', 'DAYS')}`)
+    : p.stage === 'week' || p.stage === 'final' ? (d === 0 ? 'SELLING DATE IS TODAY' : `SELLING DATE IN ${plural(d, 'DAY', 'DAYS')}`)
     : `COMING UP · in ${plural(d, 'day', 'days')}`;
   return `${HEADINGS[p.stage]} <b>${base}</b>${p.kind === 'reminder' ? ' · <i>reminder</i>' : ''}`;
 }
@@ -185,6 +188,7 @@ export function buildSaleAlertHeader(plan: PlannedAlert[], opts: { today: string
   const count = (stage: AlertStage) => plan.filter(p => p.stage === stage).length;
   const parts = [
     count('overdue') ? `🔴 ${count('overdue')} past the date` : '',
+    count('final') ? `🔴 ${count('final')} in the last days` : '',
     count('week') ? `🟠 ${count('week')} within 7 days` : '',
     count('window') ? `🟡 ${count('window')} coming up` : '',
   ].filter(Boolean);

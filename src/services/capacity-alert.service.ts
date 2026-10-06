@@ -68,6 +68,7 @@ export class CapacityAlertService {
     const at = new Date().toISOString();
     await settingsRepository.patchBlob({
       alertStatus: {
+        ...current,
         lastRunAt: at,
         ...(sent ? { lastSentAt: at, lastSentCount: sent } : { lastSentAt: current.lastSentAt, lastSentCount: current.lastSentCount }),
         lastError: error,

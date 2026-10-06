@@ -62,6 +62,7 @@ import { farmLimitService } from '@/services/farm-limit.service';
 import { followUpService } from '@/services/follow-up.service';
 import { billingService } from '@/services/billing.service';
 import { capacityAlertService } from '@/services/capacity-alert.service';
+import { dailyAlertService } from '@/services/daily-alert.service';
 import type { BillingSettings } from '@/lib/types';
 import type { FollowUpInput } from '@/lib/long-stay';
 import type { LimitRequestInput } from '@/lib/farm-limit';
@@ -389,7 +390,8 @@ export async function runSaleAlertsAction() {
     const sale = await saleAlertService.run({ force: true });
     // Cattle-limit warnings are checked in the same go; they have their own count.
     const capacity = await capacityAlertService.run({ force: true });
-    return { sent: sale.sent, capacitySent: capacity.sent, skipped: sale.skipped };
+    const daily = await dailyAlertService.run({ force: true });
+    return { sent: sale.sent, capacitySent: capacity.sent, dailySent: daily.sent, skipped: sale.skipped };
   }, { revalidate: true });
 }
 

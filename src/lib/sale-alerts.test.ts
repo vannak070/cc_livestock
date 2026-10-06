@@ -27,6 +27,12 @@ describe('planSaleAlerts', () => {
     expect(plan.map(p => [p.stage, p.kind])).toEqual([['week', 'new']]);
   });
 
+  it('sends a last-days alert when a batch is 2 days or less from its date, even after the week alert', () => {
+    const plan = planSaleAlerts([row('a', 2), row('b', 3)], [sent('a', 'week', '2026-10-01'), sent('b', 'week', '2026-10-01')], TODAY);
+    expect(plan.map(p => [p.row.batch.id, p.stage, p.kind])).toEqual([['a', 'final', 'new']]);
+    expect(planSaleAlerts([row('a', 0)], [sent('a', 'final', '2026-10-04')], TODAY)).toEqual([]);
+  });
+
   it('reminds every 3 days while still past the date, not before', () => {
     expect(planSaleAlerts([row('a', -1)], [sent('a', 'overdue', '2026-10-03')], TODAY)).toEqual([]);
     const plan = planSaleAlerts([row('a', -4)], [sent('a', 'overdue', '2026-10-02')], TODAY);

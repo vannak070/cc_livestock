@@ -215,7 +215,7 @@ export interface MasterSetup {
   /** Alerts sent outside the app (Telegram). The bot token is in the server environment, not here. */
   alerts?: { telegramEnabled?: boolean; chatId?: string; sendHour?: number };
   /** What the alert job last did; written by the server, never by a settings save. */
-  alertStatus?: { lastRunAt?: string; lastSentAt?: string; lastSentCount?: number; lastError?: string | null };
+  alertStatus?: { lastRunAt?: string; lastSentAt?: string; lastSentCount?: number; lastError?: string | null; /** Written by the alert scheduler every check, so Settings can tell it is running. */ schedulerSeenAt?: string; lastDailyAt?: string; lastDailyCount?: number };
   users: UserRoleItem[];
   roles?: CustomRoleDefinition[];
   farms?: FarmItem[];

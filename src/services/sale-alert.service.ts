@@ -92,6 +92,7 @@ export class SaleAlertService {
     const current = (await settingsRepository.getSettings()).alertStatus ?? {};
     const at = new Date().toISOString();
     const next = {
+      ...current,
       lastRunAt: at,
       ...(sent ? { lastSentAt: at, lastSentCount: sent } : { lastSentAt: current.lastSentAt, lastSentCount: current.lastSentCount }),
       lastError: error,
