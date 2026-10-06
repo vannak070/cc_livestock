@@ -104,6 +104,8 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
   const canTreat = isActive && hasPermission(currentUser, 'health_record');
   const canSell = isActive && hasPermission(currentUser, 'sales_record');
   const canDelete = !!onDelete && hasPermission(currentUser, 'stock_delete');
+  // Prices and profit only for people who see sales or costs; vets see neither.
+  const canSeeMoney = hasPermission(currentUser, 'sales_view') || hasPermission(currentUser, 'costs_view');
 
   const statusStyle = isActive ? 'bg-emerald-100 text-emerald-800' : status === 'dead' ? 'bg-rose-100 text-rose-800' : 'bg-slate-200 text-ink';
 
@@ -149,7 +151,7 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
 
       {status === 'sold' && sale && (
         <div className="rounded-2xl bg-slate-100 p-4 text-lg text-ink">
-          Sold for <span className="font-semibold">{riel(sale.totalPrice)}</span>
+          {canSeeMoney ? <>Sold for <span className="font-semibold">{riel(sale.totalPrice)}</span></> : 'Sold'}
           {sale.salesDate ? ` on ${dateText(sale.salesDate)}` : ''}{sale.buyer ? ` to ${sale.buyer}` : ''}.
         </div>
       )}
@@ -181,7 +183,7 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
 
       {/* Tabs */}
       <div role="tablist" aria-label="Animal details" className="flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map(t => (
+        {TABS.filter(t => t.key !== 'money' || canSeeMoney).map(t => (
           <button
             key={t.key}
             role="tab"
@@ -264,7 +266,7 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
         )
       )}
 
-      {tab === 'money' && (
+      {tab === 'money' && canSeeMoney && (
         <div className="space-y-3">
           <dl className="rounded-2xl border border-slate-200 bg-white px-5">
             <Row label="Bought for" value={m.cost > 0 ? riel(m.cost) : 'Nothing paid'} />
