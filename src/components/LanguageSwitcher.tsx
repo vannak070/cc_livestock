@@ -12,7 +12,7 @@ export default function LanguageSwitcher() {
       <button
         type="button"
         onClick={() => setLanguage('km')}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+        className={`flex items-center gap-1.5 min-h-11 px-3 rounded-lg text-sm font-bold transition-all ${
  language === 'km'
             ? 'bg-emerald-600 text-white shadow-xs'
             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
@@ -25,7 +25,7 @@ export default function LanguageSwitcher() {
       <button
         type="button"
         onClick={() => setLanguage('en')}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+        className={`flex items-center gap-1.5 min-h-11 px-3 rounded-lg text-sm font-bold transition-all ${
  language === 'en'
             ? 'bg-emerald-600 text-white shadow-xs'
             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'

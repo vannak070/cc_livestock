@@ -41,8 +41,9 @@ const DialogContent = React.forwardRef<
     >
       {children}
       <DialogPrimitive.Title className="sr-only">Modal Dialog</DialogPrimitive.Title>
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-50 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-slate-100">
-        <X className="h-4 w-4 text-slate-400 hover:text-slate-600" />
+      {/* 44 × 44 so it is easy to tap on a phone. */}
+      <DialogPrimitive.Close className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-slate-100 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:pointer-events-none">
+        <X className="h-6 w-6" aria-hidden />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
@@ -56,7 +57,7 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left",
+      "flex flex-col space-y-1.5 pr-8 text-center sm:text-left", // pr-8: room for the close button
       className
     )}
     {...props}

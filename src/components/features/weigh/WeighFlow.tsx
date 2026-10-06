@@ -195,7 +195,7 @@ function WeighFlowBody({ onClose, cattle, weightTracking, healthStatuses, presel
             })}
             {list.length === 0 && (
               <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">
-                {query ? 'No animal with that tag.' : 'Everyone has been weighed recently. Type a tag to weigh one anyway.'}
+                {cattle.length === 0 ? 'There are no animals on the farm yet. Add cattle first.' : query ? 'No animal with that tag.' : 'Everyone has been weighed recently. Type a tag to weigh one anyway.'}
               </li>
             )}
           </ul>

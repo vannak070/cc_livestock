@@ -99,7 +99,7 @@ export default function LoginScreen() {
                   value={passwordInput}
                   onChange={e => setPasswordInput(e.target.value)}
                   aria-invalid={loginError ? true : undefined}
-                  className="flex-1 min-w-0 bg-transparent text-lg text-ink focus:outline-none"
+                  className="flex-1 min-w-0 self-stretch bg-transparent text-lg text-ink focus:outline-none"
                 />
                 <button
                   type="button"

@@ -273,9 +273,9 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
 
       {tab === 'due' && (
         <div className="space-y-3">
-          {due.length === 0 && (
-            <p className="rounded-2xl bg-emerald-50 p-6 text-center text-lg text-emerald-900">Everyone has been weighed recently.</p>
-          )}
+          {due.length === 0 && (schedules.length === 0
+            ? <p className="rounded-2xl bg-slate-50 p-6 text-center text-lg text-ink-muted">No animals here to weigh.</p>
+            : <p className="rounded-2xl bg-emerald-50 p-6 text-center text-lg text-emerald-900">Everyone has been weighed recently.</p>)}
           <ul className="space-y-3">
             {due.map(s => {
               const cow = cowById.get(s.cowId);

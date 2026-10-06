@@ -74,9 +74,11 @@ interface NavItemProps {
   onClick: () => void;
   badge?: number | string | null;
   badgeColor?: 'amber' | 'rose' | 'emerald';
+  /** Hide it in the phone's More menu because the bottom bar already has it. */
+  onBottomBar?: boolean;
 }
 
-function NavItem({ icon, label, isActive, onClick, badge, badgeColor = 'amber' }: NavItemProps) {
+function NavItem({ icon, label, isActive, onClick, badge, badgeColor = 'amber', onBottomBar }: NavItemProps) {
   const badgeColors = {
     amber: 'bg-amber-600',
     rose: 'bg-rose-700',
@@ -87,7 +89,7 @@ function NavItem({ icon, label, isActive, onClick, badge, badgeColor = 'amber' }
     <button
       onClick={onClick}
       aria-current={isActive ? 'page' : undefined}
-      className={`w-full group flex items-center justify-between min-h-12 px-3 py-2.5 rounded-xl transition-colors duration-150 cursor-pointer ${
+      className={`w-full group flex items-center justify-between min-h-12 px-3 py-2.5 rounded-xl transition-colors duration-150 cursor-pointer ${onBottomBar ? 'max-md:hidden' : ''} ${
         isActive
           ? 'bg-emerald-50 text-emerald-800 font-semibold'
           : 'text-ink hover:bg-slate-100 font-medium'
@@ -211,10 +213,10 @@ export default function SidebarLayout({
       <nav aria-label="Main" className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         <NavSection label={t('nav.dailyWork', 'Daily work')}>
           {can('dashboard_view') && (
-            <NavItem icon={<Home className="h-5 w-5" />} label={tabLabels['today']} isActive={activeTab === 'today'} onClick={() => handleTabChange('today')} />
+            <NavItem icon={<Home className="h-5 w-5" />} label={tabLabels['today']} isActive={activeTab === 'today'} onClick={() => handleTabChange('today')} onBottomBar />
           )}
           {can('stock_view') && (
-            <NavItem icon={<Beef className="h-5 w-5" />} label={tabLabels['cow-inventory']} isActive={activeTab === 'cow-inventory'} onClick={() => handleTabChange('cow-inventory')} />
+            <NavItem icon={<Beef className="h-5 w-5" />} label={tabLabels['cow-inventory']} isActive={activeTab === 'cow-inventory'} onClick={() => handleTabChange('cow-inventory')} onBottomBar />
           )}
           {can('weight_view') && (
             <NavItem icon={<Scale className="h-5 w-5" />} label={tabLabels['weight-tracking']} isActive={activeTab === 'weight-tracking'} onClick={() => handleTabChange('weight-tracking')} />
@@ -243,7 +245,7 @@ export default function SidebarLayout({
         {hasOffice && (
           <NavSection label={t('nav.office', 'Office')}>
             {showSummary && (
-              <NavItem icon={<LayoutDashboard className="h-5 w-5" />} label={tabLabels['dashboard']} isActive={activeTab === 'dashboard'} onClick={() => handleTabChange('dashboard')} />
+              <NavItem icon={<LayoutDashboard className="h-5 w-5" />} label={tabLabels['dashboard']} isActive={activeTab === 'dashboard'} onClick={() => handleTabChange('dashboard')} onBottomBar={recordActions.length === 0} />
             )}
             {can('sales_view') && (
               <NavItem icon={<DollarSign className="h-5 w-5" />} label={tabLabels['sales-finance']} isActive={activeTab === 'sales-finance'} onClick={() => handleTabChange('sales-finance')} />

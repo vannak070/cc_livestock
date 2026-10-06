@@ -147,7 +147,8 @@ function SellBody({ onClose, cattle, preselectedCowId, onWeigh, onSell }: SellFl
                 </RowButton>
               </li>
             ))}
-            {list.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">No animal with that tag.</li>}
+            {/* An empty farm is not a search that found nothing. */}
+            {list.length === 0 && <li className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">{cattle.length === 0 ? 'There are no animals on the farm to sell. Add cattle first.' : 'No animal with that tag.'}</li>}
           </ul>
         </>
       )}

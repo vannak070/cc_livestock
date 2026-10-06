@@ -146,10 +146,11 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, prod
       </section>
       {mismatch && <p className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">{params.numberOfBatches} batches of {params.cattlePerBatch} is {(params.numberOfBatches * params.cattlePerBatch).toLocaleString()} cattle, but the plan keeps {params.targetStockLevel.toLocaleString()}. The Batches tab uses the batch numbers; everything else uses the herd size.</p>}
 
-      <div role="tablist" aria-label="Plan results" className="flex overflow-x-auto rounded-xl bg-slate-100 p-1 sm:w-fit">
+      {/* Six tabs: two rows of three on a phone, so none is hidden off the edge. */}
+      <div role="tablist" aria-label="Plan results" className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 sm:flex sm:w-fit sm:gap-0">
         {TABS.map(t => (
           <button key={t.key} role="tab" type="button" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
-            className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-3 text-base font-medium sm:px-5 ${tab === t.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
+            className={`min-h-11 flex-1 rounded-lg px-2 text-base font-medium leading-tight sm:whitespace-nowrap sm:px-5 ${tab === t.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
             {t.label}
           </button>
         ))}

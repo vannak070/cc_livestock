@@ -155,7 +155,8 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
         severity: 'attention',
         title: `${plural(overdue + dueSoon, 'animal is', 'animals are')} due for weighing`,
         detail: `${parts.join(' · ')} (weighed every ${WEIGH_INTERVAL_DAYS} days)`,
-        actionLabel: 'Weigh now',
+        // Read-only people (Management) only look, so the button says where it goes.
+        actionLabel: can('weight_record') ? 'Weigh now' : 'Open weights',
         onAction: () => onNavigate('weight-tracking')
       });
     }
