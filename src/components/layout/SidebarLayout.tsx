@@ -21,13 +21,15 @@ import {
   PlusCircle,
   MoreHorizontal,
   Users,
-  Receipt
+  Receipt,
+  Globe
 } from 'lucide-react';
 import { UserRoleItem } from '@/lib/types';
 import { canUsePlanning, hasPermission } from '@/lib/utils';
 import { canOpenPeople, isFarmOwner } from '@/lib/user-admin';
 import { useLanguage } from '@/context/LanguageContext';
 import { canSeeBilling } from '@/lib/billing';
+import { canOpenWebsitePage } from '@/lib/website/access';
 import { khmerLongDate } from '@/lib/khmer-date';
 import LanguageSwitcher from '../LanguageSwitcher';
 import InstallAppButton from '../InstallAppButton';
@@ -47,6 +49,7 @@ export type ActiveTabType =
   | 'settings'
   | 'farms'
   | 'billing'
+  | 'website'
   | 'costs';
 
 /** Something a person can record from Today or the phone's Record button. */
@@ -167,6 +170,7 @@ export default function SidebarLayout({
     'proposal-plan': t('nav.proposalPlan'),
     'farms': t('nav.farmsBranches'),
     'billing': t('nav.billing', 'Billing'),
+    'website': t('nav.website', 'Website'),
     // A farm owner's Settings page is only the people on their farm.
     'settings': currentUser && isFarmOwner(currentUser) ? t('nav.people', 'People') : t('nav.masterSettings')
   };
@@ -268,6 +272,9 @@ export default function SidebarLayout({
             )}
             {canSeeBilling(currentUser) && (
               <NavItem icon={<Receipt className="h-5 w-5" />} label={tabLabels['billing']} isActive={activeTab === 'billing'} onClick={() => handleTabChange('billing')} />
+            )}
+            {canOpenWebsitePage(currentUser) && (
+              <NavItem icon={<Globe className="h-5 w-5" />} label={tabLabels['website']} isActive={activeTab === 'website'} onClick={() => handleTabChange('website')} />
             )}
             {canOpenPeople(currentUser) && (
               <NavItem icon={currentUser && isFarmOwner(currentUser) ? <Users className="h-5 w-5" /> : <Settings className="h-5 w-5" />} label={tabLabels['settings']} isActive={activeTab === 'settings'} onClick={() => handleTabChange('settings')} />

@@ -23,7 +23,8 @@
     "reset-password": "npx tsx src/db/migrations/reset-password.ts",
     "db:check": "npx tsx src/db/migrations/check-data.ts",
     "login-fix": "npx tsx src/db/migrations/login-fix.ts",
-    "set-pin": "npx tsx src/db/migrations/set-pin.ts"
+    "set-pin": "npx tsx src/db/migrations/set-pin.ts",
+    "website:forms-user": "tsx src/db/create-website-forms-user.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

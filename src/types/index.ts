@@ -19,6 +19,7 @@ export * from './loan.types';
 export * from './farm-limit.types';
 export * from './follow-up.types';
 export * from './billing.types';
+export * from './website.types';
 
 export interface ERPLivestockData {
   stock: StockItem[];

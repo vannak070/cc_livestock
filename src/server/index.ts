@@ -1,6 +1,7 @@
 import app from './app';
 import { connectWithRetry } from '../config/database';
 import { startAlertScheduler } from './scheduler';
+import { startWebsiteScheduler } from './website-scheduler';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
@@ -17,6 +18,7 @@ async function startServer() {
       console.log(`=======================================================`);
     });
     startAlertScheduler();
+    startWebsiteScheduler();
   } catch (error) {
     console.error('[Server Init Fatal Error] Failed to start server:', error instanceof Error ? error.message : error);
     process.exit(1);

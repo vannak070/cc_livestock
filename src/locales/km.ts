@@ -12,6 +12,7 @@ import { km as summaryPageKm } from './sections/summaryPage';
 import { km as farmLimitsKm } from './sections/farmLimits';
 import { km as longStayKm } from './sections/longStay';
 import { km as billingKm } from './sections/billing';
+import { km as websitePageKm } from './sections/websitePage';
 import { km as addCattleKm } from './sections/addCattle';
 import { km as batchesPageKm } from './sections/batchesPage';
 import { km as planningKm } from './sections/planning';
@@ -28,6 +29,7 @@ export const km: PartialTranslations = {
     // Short page names (2026-10-06): the long ones were cut off on phones. Drafted by Claude; need a native speaker's review.
     today: 'ថ្ងៃនេះ',
     billing: 'វិក្កយបត្រ',
+    website: 'គេហទំព័រ',
     summary: 'សង្ខេប',
     weights: 'ទម្ងន់',
     dailyWork: 'ការងារប្រចាំថ្ងៃ',
@@ -368,6 +370,7 @@ export const km: PartialTranslations = {
   farmLimits: farmLimitsKm,
   longStay: longStayKm,
   billing: billingKm,
+  websitePage: websitePageKm,
   addCattle: addCattleKm,
   batchesPage: batchesPageKm,
   planning: planningKm,

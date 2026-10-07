@@ -11,6 +11,7 @@ import { en as summaryPageEn } from './sections/summaryPage';
 import { en as farmLimitsEn } from './sections/farmLimits';
 import { en as longStayEn } from './sections/longStay';
 import { en as billingEn } from './sections/billing';
+import { en as websitePageEn } from './sections/websitePage';
 import { en as addCattleEn } from './sections/addCattle';
 import { en as batchesPageEn } from './sections/batchesPage';
 import { en as planningEn } from './sections/planning';
@@ -25,6 +26,7 @@ export const en = {
     dashboard: 'Summary',
     today: 'Today',
     billing: 'Billing',
+    website: 'Website',
     summary: 'Summary',
     weights: 'Weights',
     dailyWork: 'Daily work',
@@ -368,6 +370,7 @@ export const en = {
   farmLimits: farmLimitsEn,
   longStay: longStayEn,
   billing: billingEn,
+  websitePage: websitePageEn,
   addCattle: addCattleEn,
   batchesPage: batchesPageEn,
   planning: planningEn,

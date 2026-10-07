@@ -9,6 +9,17 @@
         "dev"
       ],
       "port": 3000
+    },
+    {
+      "name": "camcow-website",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../CamCow_Website",
+        "run",
+        "dev"
+      ],
+      "port": 3200
     }
   ]
 }

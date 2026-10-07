@@ -55,3 +55,6 @@ src/data/db.json
 
 # Local test accounts (passwords for local testing only)
 /.local/
+
+# public website snapshot (built by CC Livestock, read by the CamCow website; docs/website/README.md)
+/.website-snapshot/

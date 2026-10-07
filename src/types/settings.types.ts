@@ -29,7 +29,8 @@ export type PermissionKey =
   | 'feed_view'
   | 'feed_record'
   | 'feed_own_products'
-  | 'feed_manage';
+  | 'feed_manage'
+  | 'website_requests';
 
 export interface PermissionCategory {
   id: string;
@@ -120,6 +121,13 @@ export const PERMISSION_MODULES: PermissionCategory[] = [
     ]
   },
   {
+    id: 'website',
+    label: '🌐 Public Website',
+    items: [
+      { key: 'website_requests', label: 'Handle website requests', description: 'See and answer farm applications and price inquiries sent from the public website. Publishing farms and cattle on the website stays with Super Admin and Admin.' }
+    ]
+  },
+  {
     id: 'settings',
     label: '⚙️ Settings & Farms',
     items: [
@@ -135,7 +143,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
   'Super Admin': ALL_PERMISSIONS,
   'Admin': ALL_PERMISSIONS,
   'Company': [...ALL_PERMISSIONS.filter(p => p !== 'settings_manage'), 'settings_manage'],
-  'Farm Owner': ALL_PERMISSIONS.filter(p => p !== 'settings_manage' && p !== 'farms_manage' && p !== 'feed_manage'),
+  'Farm Owner': ALL_PERMISSIONS.filter(p => p !== 'settings_manage' && p !== 'farms_manage' && p !== 'feed_manage' && p !== 'website_requests'),
   'Farm Staff': ['dashboard_view', 'stock_view', 'batch_view', 'weight_view', 'weight_record', 'health_view', 'health_record', 'feed_view', 'feed_record', 'costs_view', 'costs_record'],
   'Veterinarian': ['dashboard_view', 'stock_view', 'stock_edit', 'weight_view', 'weight_record', 'health_view', 'health_record', 'health_delete', 'feed_view'],
   // Read-only oversight: sees every report, changes nothing. It holds no

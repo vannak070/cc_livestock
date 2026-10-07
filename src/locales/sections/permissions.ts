@@ -14,6 +14,7 @@ export const en = {
   mod_analytics: 'Business Intelligence Reports',
   mod_feed: 'Cattle Feed Stock Management',
   mod_settings: 'Settings & Farms',
+  mod_website: 'Public Website',
   perm_dashboard_view: 'View Dashboard',
   desc_dashboard_view: 'Access main KPI overview and metrics.',
   perm_stock_view: 'View Cattle Inventory',
@@ -72,9 +73,14 @@ export const en = {
   desc_settings_manage: 'Add and change office accounts and roles, and the choices in forms such as breeds and vaccines.',
   perm_farms_manage: 'Manage farms and their people',
   desc_farms_manage: "Add, rename and remove farms, and add, change or remove each farm's owner, staff and vets.",
+  perm_website_requests: 'Handle website requests',
+  desc_website_requests: 'See and answer farm applications and price inquiries sent from the public website. Publishing farms and cattle on the website stays with Super Admin and Admin.',
 };
 
 export const km: Partial<typeof en> = {
+  mod_website: 'គេហទំព័រសាធារណៈ',
+  perm_website_requests: 'ដោះស្រាយសំណើពីគេហទំព័រ',
+  desc_website_requests: 'មើល និងឆ្លើយតបពាក្យសុំចូលជាកសិដ្ឋាន និងសំណួរសួរតម្លៃ ដែលផ្ញើពីគេហទំព័រសាធារណៈ។ ការដាក់កសិដ្ឋាន និងគោបង្ហាញលើគេហទំព័រ នៅតែជាសិទ្ធិរបស់ Super Admin និង Admin។',
   mod_dashboard: 'ទិដ្ឋភាពទូទៅ',
   mod_stock: 'បញ្ជីគោ',
   mod_batch: 'កម្មវិធីបំប៉ន',

@@ -54,6 +54,8 @@ import { LimitRequestFlow } from './features/farms/FarmLimitFlows';
 import FollowUpFlow from './features/cattle/FollowUpFlow';
 import BillingPage from './features/billing/BillingPage';
 import { canSeeBilling } from '@/lib/billing';
+import WebsitePage from './features/website/WebsitePage';
+import { canOpenWebsitePage } from '@/lib/website/access';
 import type { FollowUpInput } from '@/lib/long-stay';
 import type { CattleFollowUp } from '@/lib/types';
 import { limitState } from '@/lib/farm-limit';
@@ -537,6 +539,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     // Settings is also a farm owner's People page, and Planning is for a few roles only, so they have their own rules.
     const blocked = activeTab === 'settings' ? !canOpenPeople(currentUser)
       : activeTab === 'billing' ? !canSeeBilling(currentUser)
+      : activeTab === 'website' ? !canOpenWebsitePage(currentUser)
       : activeTab === 'proposal-plan' ? !canUsePlanning(currentUser)
       : !!permissionKey && !hasPermission(currentUser, permissionKey);
     if (blocked && activeTab !== 'today') {
@@ -767,6 +770,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       )}
 
       {activeTab === 'billing' && canSeeBilling(currentUser) && <BillingPage />}
+      {activeTab === 'website' && canOpenWebsitePage(currentUser) && <WebsitePage />}
 
       {activeTab === 'farms' && (
         <FarmsPage
