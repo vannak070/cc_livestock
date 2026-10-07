@@ -3,12 +3,14 @@ import Link from 'next/link';
 import { FarmWindows } from '@/components/cattle/FarmWindows';
 import { MembersMap } from '@/components/members/MembersMap';
 import { ProfileGallery } from '@/components/members/ProfileGallery';
+import { PageHead } from '@/components/shared/PageHead';
 import { Photo } from '@/components/shared/Photo';
 import { NotFoundContent } from '@/components/shared/NotFoundContent';
 import { CONTACT } from '@/lib/contact';
 import { href } from '@/lib/i18n';
 import { pageLang } from '@/lib/page';
 import { getSnapshot } from '@/lib/snapshot/read';
+import { KmWords } from '@/components/shared/KmWords';
 
 type Params = Promise<{ lang: string; slug: string }>;
 
@@ -43,31 +45,28 @@ export default async function FarmPage({ params }: { params: Params }) {
 
   return (
     <>
-      <section className="page-head" style={{ paddingTop: 24 }}>
-        <div className="wrap stack" style={{ position: 'relative', gap: 22 }}>
-          <nav aria-label="Breadcrumb" className="small crumb"><Link href={href(lang, '/members')}>← {t.profile.back}</Link></nav>
-          <div className="prof-head">
-            <div className="rise"><ProfileGallery ids={farm.photoIds} alt={farm.publicName} label={t.profile.photos} /></div>
-            <div className="prof-intro stack" style={{ gap: 14 }}>
-              <span className="head-rule" aria-hidden="true" />
-              <h1 className="display h2 rise d1">{farm.publicName}</h1>
-              <p className="prof-place rise d1">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><path d="M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /></svg>
-                {place}
-              </p>
-              <div className="row" style={{ gap: 8 }}>
-                {listings.length > 0 && <span className="pill pill-now">{t.common.availNow}</span>}
-                {farm.badges.map(b => <span key={b} className="pill pill-badge">✓ {t.values.badge[b]}</span>)}
-              </div>
-              {story && <p className="prof-story">{story}</p>}
-              <div className="row" style={{ paddingTop: 6 }}>
-                <Link className="btn btn-red" href={askHref}>{t.profile.askCattle} <span aria-hidden="true">→</span></Link>
-                <a className="btn btn-line" href={`tel:${CONTACT.phoneTel}`}>{t.common.callUs}</a>
-              </div>
-            </div>
+      <PageHead
+        crumb={{ href: href(lang, '/members'), label: t.profile.back }}
+        eyebrow={t.eyebrow.farm}
+        title={farm.publicName}
+        aside={<ProfileGallery ids={farm.photoIds} alt={farm.publicName} label={t.profile.photos} />}
+      >
+        <p className="prof-place rise d1">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><path d="M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /></svg>
+          {place}
+        </p>
+        {(listings.length > 0 || farm.badges.length > 0) && (
+          <div className="row" style={{ gap: 8 }}>
+            {listings.length > 0 && <span className="pill pill-now">{t.common.availNow}</span>}
+            {farm.badges.map(b => <span key={b} className="pill pill-badge">✓ {t.values.badge[b]}</span>)}
           </div>
+        )}
+        {story && <p className="prof-story">{story}</p>}
+        <div className="row" style={{ paddingTop: 4 }}>
+          <Link className="btn btn-red" href={askHref}>{t.profile.askCattle} <span aria-hidden="true">→</span></Link>
+          <a className="btn btn-line" href={`tel:${CONTACT.phoneTel}`}>{t.common.callUs}</a>
         </div>
-      </section>
+      </PageHead>
 
       <section className="section" style={{ paddingTop: 40 }}>
         <div className="wrap stack" style={{ gap: 32 }}>
@@ -79,7 +78,7 @@ export default async function FarmPage({ params }: { params: Params }) {
           <div className="split">
             <div className="main stack" style={{ gap: 28 }}>
               <div className="stack" style={{ gap: 14 }}>
-                <h2 className="display h3">{t.profile.cattle}</h2>
+                <h2 className="display h3"><KmWords text={t.profile.cattle} /></h2>
                 {listings.length === 0 ? <p className="empty">{t.profile.noCattle}</p> : (
                   <div className="card stack" style={{ gap: 14 }}>
                     <FarmWindows windows={listings} t={t} lang={lang} />
@@ -106,7 +105,7 @@ export default async function FarmPage({ params }: { params: Params }) {
           </div>
           {others.length > 0 && (
             <div className="stack" style={{ gap: 16 }}>
-              <h2 className="display h3">{t.profile.more}</h2>
+              <h2 className="display h3"><KmWords text={t.profile.more} /></h2>
               <div className="more-farms">
                 {others.map(f => (
                   <Link key={f.slug} href={href(lang, `/members/${f.slug}`)} className="more-farm">

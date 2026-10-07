@@ -15,7 +15,7 @@ export default async function CattlePage({ params, searchParams }: { params: Pro
   const s = await getSnapshot();
   return (
     <>
-      <PageHead title={t.cattle.title} sub={t.cattle.sub} />
+      <PageHead eyebrow={t.eyebrow.cattle} title={t.cattle.title} sub={t.cattle.sub} />
       <section className="section" style={{ paddingTop: 32 }}>
         <div className="wrap">
           <CattleExplorer

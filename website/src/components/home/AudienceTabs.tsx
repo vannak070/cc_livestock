@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Photo } from '@/components/shared/Photo';
+import { KmWords } from '@/components/shared/KmWords';
 
 interface Tab { key: string; label: string; title: string; body: string; cta: string; href: string; photo: string; points: readonly string[] }
 
@@ -33,7 +34,7 @@ export function AudienceTabs({ tabs }: { tabs: Tab[] }) {
       <div id="audience-panel" role="tabpanel" aria-labelledby={`tab-${tab.key}`} className="aud-panel">
         <div key={tab.key} className="aud-text rise">
           <span className="aud-badge"><Icon k={tab.key} size={30} /></span>
-          <h3 className="display">{tab.title}</h3>
+          <h3 className="display"><KmWords text={tab.title} /></h3>
           <p className="lead">{tab.body}</p>
           <Link className="btn btn-red" href={tab.href}>{tab.cta} <span aria-hidden="true">→</span></Link>
         </div>

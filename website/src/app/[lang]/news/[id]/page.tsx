@@ -5,6 +5,7 @@ import { Photo } from '@/components/shared/Photo';
 import { href } from '@/lib/i18n';
 import { pageLang } from '@/lib/page';
 import { getSnapshot } from '@/lib/snapshot/read';
+import { KmWords } from '@/components/shared/KmWords';
 
 type Params = Promise<{ lang: string; id: string }>;
 
@@ -28,7 +29,7 @@ export default async function NewsPost({ params }: { params: Params }) {
       <article className="wrap stack" style={{ gap: 20, maxWidth: 820 }}>
         <Link href={href(lang, '/news')} className="small">← {t.news.back}</Link>
         <span className="small muted">{post.publishedAt.slice(0, 10)}</span>
-        <h1 className="display h2">{km ? post.titleKm : post.titleEn || post.titleKm}</h1>
+        <h1 className="display h2"><KmWords text={km ? post.titleKm : post.titleEn || post.titleKm} /></h1>
         {post.photoId && <Photo id={post.photoId} alt="" height={420} />}
         <p style={{ fontSize: 18, lineHeight: 1.8, whiteSpace: 'pre-line', color: 'var(--ink-2)' }}>{km ? post.bodyKm : post.bodyEn || post.bodyKm}</p>
       </article>

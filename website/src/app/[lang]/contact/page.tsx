@@ -6,6 +6,7 @@ import { ABOUT } from '@/lib/about';
 import { CONTACT } from '@/lib/contact';
 import { href } from '@/lib/i18n';
 import { pageLang } from '@/lib/page';
+import { KmWords } from '@/components/shared/KmWords';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { t } = await pageLang(params);
@@ -29,7 +30,7 @@ export default async function ContactPage({ params }: { params: Promise<{ lang: 
   ];
   return (
     <>
-      <PageHead title={t.contact.title} sub={t.contact.sub} />
+      <PageHead eyebrow={t.eyebrow.contact} title={t.contact.title} sub={t.contact.sub} />
       <section className="section" style={{ paddingTop: 40 }}>
         <div className="wrap stack" style={{ gap: 44 }}>
           <div className="ct-grid">
@@ -55,7 +56,7 @@ export default async function ContactPage({ params }: { params: Promise<{ lang: 
           </div>
 
           <div className="stack" style={{ gap: 18 }}>
-            <h2 className="display h3">{t.contact.helpTitle}</h2>
+            <h2 className="display h3"><KmWords text={t.contact.helpTitle} /></h2>
             <div className="ct-help">
               {help.map(({ tab, to }) => (
                 <Link key={tab.label} href={to} className="ct-help-card">

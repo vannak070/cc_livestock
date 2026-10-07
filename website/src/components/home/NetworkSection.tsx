@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { shownPartners } from '@/lib/partners';
 import type { Lang } from '@/lib/i18n';
+import { KmWords } from '@/components/shared/KmWords';
 
 /** "Our network": the organisations around the farms, and the farmers themselves as the last card. */
 export function NetworkSection({ lang, title, sub, farmers, visit }: {
@@ -18,7 +19,7 @@ export function NetworkSection({ lang, title, sub, farmers, visit }: {
       <div className="wrap stack" style={{ gap: 32 }}>
         <div className="stack" style={{ gap: 10, maxWidth: 680 }}>
           <span className="head-rule" aria-hidden="true" />
-          <h2 className="display h2">{title}</h2>
+          <h2 className="display h2"><KmWords text={title} /></h2>
           <p className="lead" style={{ margin: 0 }}>{sub}</p>
         </div>
         <div className="net-grid">

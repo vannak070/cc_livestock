@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { KmWords } from '@/components/shared/KmWords';
 
 export interface JoinRole { key: string; label: string; blurb: string; icon: string; info: ReactNode; formTitle: string; form: ReactNode }
 
@@ -18,7 +19,7 @@ export function JoinRoles({ title, roles, initial }: { title: string; roles: Joi
   return (
     <div className="stack" style={{ gap: 32 }}>
       <div className="stack" style={{ gap: 14 }}>
-        <h2 className="display h3">{title}</h2>
+        <h2 className="display h3"><KmWords text={title} /></h2>
         <div className="role-cards" role="tablist">
           {roles.map(r => (
             <button key={r.key} type="button" role="tab" id={`role-${r.key}`} aria-controls="role-panel" aria-selected={r.key === role.key} className="role-card" onClick={() => pick(r.key)}>
@@ -36,7 +37,7 @@ export function JoinRoles({ title, roles, initial }: { title: string; roles: Joi
         <div className="main" id="apply" style={{ scrollMarginTop: 96 }}>
           <div key={`${role.key}-form`} className="form-card jn-form rise">
             <span className="head-rule" aria-hidden="true" />
-            <h2 className="display h3">{role.formTitle}</h2>
+            <h2 className="display h3"><KmWords text={role.formTitle} /></h2>
             {role.form}
           </div>
         </div>

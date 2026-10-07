@@ -7,6 +7,8 @@ import { JoinRoles } from '@/components/join/JoinRoles';
 import { PageHead } from '@/components/shared/PageHead';
 import { href } from '@/lib/i18n';
 import { pageLang } from '@/lib/page';
+import { KmWords } from '@/components/shared/KmWords';
+import { markKmWords } from '@/lib/khmer-words';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { t } = await pageLang(params);
@@ -35,7 +37,7 @@ export default async function JoinPage({ params, searchParams }: { params: Promi
   // Elements passed inside the roles list need keys (React warns otherwise).
   const about = (key: string, title: string, body: string, items: readonly string[], more?: { to: string; label: string }) => (
     <div key={key} className="stack" style={{ gap: 14 }}>
-      <h2 className="display h3">{title}</h2>
+      <h2 className="display h3"><KmWords text={title} /></h2>
       <p style={{ margin: 0, color: 'var(--ink-2)', fontSize: 17 }}>{body}</p>
       {ticks(items)}
       {more && <Link className="btn btn-line" href={more.to} style={{ alignSelf: 'flex-start' }}>{more.label}</Link>}
@@ -44,11 +46,11 @@ export default async function JoinPage({ params, searchParams }: { params: Promi
   const farmerInfo = (
     <Fragment key="farmer-info">
       <div className="stack" style={{ gap: 14 }}>
-        <h2 className="display h3">{t.join.getTitle}</h2>
+        <h2 className="display h3"><KmWords text={t.join.getTitle} /></h2>
         {ticks(t.join.get)}
       </div>
       <div className="stack" style={{ gap: 14 }}>
-        <h2 className="display h3">{t.join.stepsTitle}</h2>
+        <h2 className="display h3"><KmWords text={t.join.stepsTitle} /></h2>
         <ol className="jn-steps">
           {t.join.steps.map(i => <li key={i}>{i}</li>)}
         </ol>
@@ -63,22 +65,22 @@ export default async function JoinPage({ params, searchParams }: { params: Promi
   );
   return (
     <>
-      <PageHead title={t.join.pageTitle} sub={t.join.pageSub} />
+      <PageHead eyebrow={t.eyebrow.join} title={t.join.pageTitle} sub={t.join.pageSub} />
       <section className="section" style={{ paddingTop: 40 }}>
         <div className="wrap">
           <JoinRoles
-            title={t.join.chooseTitle}
+            title={markKmWords(t.join.chooseTitle)}
             initial={role}
             roles={[
-              { key: 'farmer', label: tabs.farmer.label, blurb: tabs.farmer.title, icon: ICONS.farmer, info: farmerInfo, formTitle: t.join.formTitle,
+              { key: 'farmer', label: tabs.farmer.label, blurb: tabs.farmer.title, icon: ICONS.farmer, info: farmerInfo, formTitle: markKmWords(t.join.formTitle),
                 form: <ApplicationForm key="farmer-form" t={{ join: t.join, common: t.common }} lang={lang} membersHref={href(lang, '/members')} /> },
               { key: 'buyer', label: tabs.buyer.label, blurb: tabs.buyer.title, icon: ICONS.buyer,
                 info: about('buyer-info', tabs.buyer.title, tabs.buyer.body, tabs.buyer.points, { to: href(lang, '/cattle'), label: tabs.buyer.cta }),
-                formTitle: t.inquiry.title,
+                formTitle: markKmWords(t.inquiry.title),
                 form: <InquiryForm key="buyer-form" t={{ inquiry: t.inquiry, common: t.common, values: t.values }} lang={lang} listings={[]} /> },
               { key: 'investor', label: tabs.investor.label, blurb: tabs.investor.title, icon: ICONS.investor,
                 info: about('investor-info', tabs.investor.title, tabs.investor.body, tabs.investor.points),
-                formTitle: t.inquiry.investorTitle,
+                formTitle: markKmWords(t.inquiry.investorTitle),
                 form: <InquiryForm key="investor-form" t={{ inquiry: t.inquiry, common: t.common, values: t.values }} lang={lang} listings={[]} investor /> },
             ]}
           />

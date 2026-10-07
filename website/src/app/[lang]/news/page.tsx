@@ -16,7 +16,7 @@ export default async function NewsPage({ params }: { params: Promise<{ lang: str
   const { news } = await getSnapshot();
   return (
     <>
-      <PageHead title={t.news.title} />
+      <PageHead eyebrow={t.eyebrow.news} title={t.news.title} />
       <section className="section" style={{ paddingTop: 40 }}>
         <div className="wrap">
           {news.length === 0 ? <p className="empty">{t.news.none}</p> : (

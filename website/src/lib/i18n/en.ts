@@ -279,6 +279,8 @@ export const en = {
     ctaContact: 'Contact us',
   },
   notFound: { title: 'We could not find this page.', body: 'The address may be old or mistyped. These will help:', home: 'Home page' },
+  // Small green label above each inner page's title (shared page head).
+  eyebrow: { members: 'Our network', cattle: 'For cattle buyers', join: 'Farmers, buyers and investors', contact: 'We are here to help', news: 'From the field', farm: 'Member farm' },
   contact: { title: 'Contact us', sub: 'Call or message us. We answer in Khmer and English.', office: 'Office', officeText: 'Phnom Penh, Cambodia', call: 'Call now', directions: 'Get directions', open: 'Open Facebook', helpTitle: 'How can we help you?' },
   footer: {
     tagline: 'Cattle fattening with Cambodian family farms. Every animal recorded, from arrival to sale.',

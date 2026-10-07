@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
+import { KmWords } from '@/components/shared/KmWords';
+import { PageHead } from '@/components/shared/PageHead';
 import { Reveal } from '@/components/shared/Reveal';
 import { ABOUT } from '@/lib/about';
 import { CONTACT } from '@/lib/contact';
@@ -63,15 +65,12 @@ export default async function AboutPage({ params }: { params: Promise<{ lang: st
     <>
       {draft && <div className="draft-note" role="note"><div className="wrap">{a.draft}</div></div>}
 
-      <section className="ab-head">
-        <div className="wrap ab-head-in">
-          <div className="ab-statement">
-            <span className="ab-eyebrow rise">{a.title}</span>
-            <h1 className="display rise d1">{a.statement}</h1>
-            <p className="lead rise d2">{a.sub}</p>
-            {ABOUT.foundedYear ? <span className="ab-founded rise d3">{a.founded.replace('{year}', ABOUT.foundedYear)}</span> : todo(a.todoFounded)}
-          </div>
-          <aside className="ab-idcard rise d2" aria-label={a.company}>
+      <PageHead
+        eyebrow={a.title}
+        title={a.statement}
+        sub={a.sub}
+        aside={(
+          <div className="ph-card ab-idcard" aria-label={a.company}>
             <div className="ab-idcard-top">
               <Image src="/logo.png" alt="" width={64} height={64} />
               <div>
@@ -86,19 +85,21 @@ export default async function AboutPage({ params }: { params: Promise<{ lang: st
               {ABOUT.hours && <div><dt><Icon d={ICON.clock} size={18} />{a.hours}</dt><dd>{ABOUT.hours}</dd></div>}
             </dl>
             <Link className="btn btn-red" href={href(lang, '/join')}>{a.ctaJoin}</Link>
-          </aside>
-        </div>
-      </section>
+          </div>
+        )}
+      >
+        {ABOUT.foundedYear ? <span className="ab-founded rise d3">{a.founded.replace('{year}', ABOUT.foundedYear)}</span> : todo(a.todoFounded)}
+      </PageHead>
 
       <section className="section">
         <div className="wrap ab-story">
           <div className="stack" style={{ gap: 16, minWidth: 0 }}>
-            <h2 className="display h2">{a.storyTitle}</h2>
+            <h2 className="display h2"><KmWords text={a.storyTitle} /></h2>
             {a.story.map(p => <p key={p.slice(0, 24)} className="lead" style={{ maxWidth: '62ch' }}>{p}</p>)}
           </div>
           <blockquote className="ab-promise">
             <span>{a.missionLabel}</span>
-            <p>{t.home.title1}<br />{t.home.title2}</p>
+            <p><KmWords text={t.home.title1} /><br /><KmWords text={t.home.title2} /></p>
             <Image src="/logo.png" alt="" width={56} height={56} />
           </blockquote>
         </div>
@@ -106,7 +107,7 @@ export default async function AboutPage({ params }: { params: Promise<{ lang: st
 
       <section className="section section-mint">
         <div className="wrap stack" style={{ gap: 28 }}>
-          <h2 className="display h2">{a.whatTitle}</h2>
+          <h2 className="display h2"><KmWords text={a.whatTitle} /></h2>
           <Reveal className="grid">
             {a.what.map((w, i) => (
               <div key={w.title} className="card lift stack" style={{ gap: 10 }}>
@@ -121,7 +122,7 @@ export default async function AboutPage({ params }: { params: Promise<{ lang: st
 
       <section className="section">
         <div className="wrap stack" style={{ gap: 28 }}>
-          <h2 className="display h2">{a.stepsTitle}</h2>
+          <h2 className="display h2"><KmWords text={a.stepsTitle} /></h2>
           <ol className="ab-steps">
             {t.home.steps.map((st, i) => (
               <li key={st.title}>
@@ -136,7 +137,7 @@ export default async function AboutPage({ params }: { params: Promise<{ lang: st
 
       <section className="section section-white" style={{ borderTop: '1px solid var(--line)' }}>
         <div className="wrap stack" style={{ gap: 28 }}>
-          <h2 className="display h2">{a.valuesTitle}</h2>
+          <h2 className="display h2"><KmWords text={a.valuesTitle} /></h2>
           <div className="grid">
             {a.values.map((v, i) => (
               <div key={v.title} className="ab-value">
@@ -152,7 +153,7 @@ export default async function AboutPage({ params }: { params: Promise<{ lang: st
       {(ABOUT.team.length > 0 || draft) && (
         <section className="section section-white" style={{ borderTop: '1px solid var(--line)' }}>
           <div className="wrap stack" style={{ gap: 28 }}>
-            <h2 className="display h2">{a.teamTitle}</h2>
+            <h2 className="display h2"><KmWords text={a.teamTitle} /></h2>
             {ABOUT.team.length === 0 ? todo(a.todoTeam) : (
               <ul className="grid" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                 {ABOUT.team.map(m => (
@@ -173,7 +174,7 @@ export default async function AboutPage({ params }: { params: Promise<{ lang: st
       <section className="section section-white ab-visit-section">
         <div className="wrap stack" style={{ gap: 28 }}>
           <div className="stack" style={{ gap: 6 }}>
-            <h2 className="display h2">{a.officeTitle}</h2>
+            <h2 className="display h2"><KmWords text={a.officeTitle} /></h2>
             <p className="lead" style={{ margin: 0 }}>{a.officeSub}</p>
           </div>
           <div className="ab-visit">

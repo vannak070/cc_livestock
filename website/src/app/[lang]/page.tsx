@@ -6,6 +6,8 @@ import { NetworkSection } from '@/components/home/NetworkSection';
 import { LiveRecords } from '@/components/home/LiveRecords';
 import { OfferPanel } from '@/components/home/OfferPanel';
 import { HeroVisual } from '@/components/home/HeroVisual';
+import { KmWords } from '@/components/shared/KmWords';
+import { markKmWords } from '@/lib/khmer-words';
 import { Photo } from '@/components/shared/Photo';
 import { Reveal } from '@/components/shared/Reveal';
 import { CONTACT } from '@/lib/contact';
@@ -55,7 +57,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
         <div className="wrap hero-in">
           <div className="hero-text">
             <span className="kicker rise"><span className="live-dot" aria-hidden="true"><i className="pulse" /><i /></span>{t.home.kicker}</span>
-            <h1 className="display h1 rise d1"><span className="h1-line">{t.home.title1}</span><span className="h1-line"><span className="h1-accent">{t.home.title2}</span></span></h1>
+            <h1 className="display h1 rise d1"><span className="h1-line"><KmWords text={t.home.title1} /></span><span className="h1-line"><span className="h1-accent"><KmWords text={t.home.title2} /></span></span></h1>
             <p className="lead rise d3">{t.home.sub}</p>
             <div className="row rise d4" style={{ paddingTop: 6 }}>
               <Link className="btn btn-red" href={href(lang, '/join')}>{t.home.ctaJoin} <span aria-hidden="true">→</span></Link>
@@ -87,12 +89,13 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
 
       <section className="section">
         <div className="wrap stack" style={{ gap: 28 }}>
-          <h2 className="display h2">{t.home.tabsTitle}</h2>
+          <h2 className="display h2"><KmWords text={t.home.tabsTitle} /></h2>
+          {/* Titles are word-marked here on the server, so the client tabs render them the same way. */}
           <AudienceTabs tabs={[
             { key: 'farmer', ...t.home.tabs.farmer, href: href(lang, '/join'), photo: '' },
             { key: 'investor', ...t.home.tabs.investor, href: `${href(lang, '/join')}?role=investor#apply`, photo: '' },
             { key: 'buyer', ...t.home.tabs.buyer, href: href(lang, '/cattle'), photo: '' },
-          ]} />
+          ].map(tab => ({ ...tab, title: markKmWords(tab.title) }))} />
         </div>
       </section>
 
@@ -100,7 +103,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
         <div className="wrap stack" style={{ gap: 24 }}>
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div className="stack" style={{ gap: 6 }}>
-              <h2 className="display h2">{t.home.cattleTitle}</h2>
+              <h2 className="display h2"><KmWords text={t.home.cattleTitle} /></h2>
               <p className="lead">{t.common.priceNote}</p>
             </div>
             <Link className="btn btn-line" href={href(lang, '/cattle')}>{t.common.seeAll}</Link>
@@ -129,7 +132,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
       <section className="section section-white" id="how" style={{ borderTop: '1px solid var(--line)' }}>
         <div className="wrap stack" style={{ gap: 28 }}>
           <div className="stack" style={{ gap: 8 }}>
-            <h2 className="display h2">{t.home.journeyTitle}</h2>
+            <h2 className="display h2"><KmWords text={t.home.journeyTitle} /></h2>
             <p className="lead">{t.home.journeySub}</p>
           </div>
           <ol className="timeline">
@@ -157,7 +160,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
       <section className="section section-mint">
         <div className="wrap split" style={{ alignItems: 'center' }}>
           <div className="side stack" style={{ gap: 16 }}>
-            <h2 className="display h2">{t.home.mapTitle}</h2>
+            <h2 className="display h2"><KmWords text={t.home.mapTitle} /></h2>
             <p className="lead">{s.farms.length ? t.home.mapSub : t.home.mapSubEmpty}</p>
             {s.farms.length > 0 && <Link className="btn btn-red" href={href(lang, '/members')} style={{ alignSelf: 'flex-start' }}>{t.home.mapCta}</Link>}
           </div>
@@ -173,7 +176,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
         <div className="wrap stack" style={{ gap: 28 }}>
           <div className="stack" style={{ gap: 10 }}>
             <span className="head-rule" aria-hidden="true" />
-            <h2 className="display h2">{t.home.standardsTitle}</h2>
+            <h2 className="display h2"><KmWords text={t.home.standardsTitle} /></h2>
           </div>
           <Reveal className="std-grid">
             {t.home.standards.map((st, i) => (
@@ -194,7 +197,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
         <section className="section">
           <div className="wrap stack" style={{ gap: 24 }}>
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <h2 className="display h2">{t.home.newsTitle}</h2>
+              <h2 className="display h2"><KmWords text={t.home.newsTitle} /></h2>
               <Link className="btn btn-green" href={href(lang, '/news')}>{t.home.allStories}</Link>
             </div>
             <div className="grid">
@@ -217,7 +220,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><path d="M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /></svg>
             </span>
             <div className="join-text">
-              <h2 className="display">{t.home.joinTitle}</h2>
+              <h2 className="display"><KmWords text={t.home.joinTitle} /></h2>
               <p>{t.home.joinSub}</p>
               <ul className="join-points">
                 {t.home.offer.map(o => (
