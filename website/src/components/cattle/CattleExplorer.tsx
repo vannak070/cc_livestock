@@ -21,7 +21,8 @@ export function CattleExplorer({ cattle, farms, t, lang, initialAbout }: {
 }) {
   const groups = useMemo(() => groupByFarm(cattle, farms), [cattle, farms]);
   const [f, setF] = useState({ province: '', when: '' });
-  const [about, setAbout] = useState(groups.some(g => g.listingId === initialAbout) ? initialAbout : '');
+  // With one farm for sale the form is about that farm from the start; with several, the link's farm (or "any").
+  const [about, setAbout] = useState(groups.some(g => g.listingId === initialAbout) ? initialAbout : groups.length === 1 ? groups[0].listingId : '');
   const shown = useMemo(() => groups.filter(g =>
     (!f.province || g.farm.province === f.province) && (!f.when || g.windows.some(w => w.availability === f.when))
   ), [groups, f]);
@@ -83,8 +84,10 @@ export function CattleExplorer({ cattle, farms, t, lang, initialAbout }: {
         {groups.length > 0 && <p className="small muted">{t.cattle.roundedNote}</p>}
       </div>
       <aside className="side" id="inquiry">
-        <div className="card form-card stack" style={{ gap: 14 }}>
-          <h2 style={{ fontSize: 22 }}>{groups.length ? t.inquiry.title : t.inquiry.notifyTitle}</h2>
+        <div className="form-card jn-form">
+          <span className="head-rule" aria-hidden="true" />
+          <h2 className="display h3">{groups.length ? t.inquiry.title : t.inquiry.notifyTitle}</h2>
+          {groups.length > 0 && <p className="ask-chip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6" /></svg>{t.common.priceNote}</p>}
           {groups.length === 0 && <p style={{ color: 'var(--ink-2)', margin: 0 }}>{t.inquiry.notifyIntro}</p>}
           <InquiryForm t={t} lang={lang} kind={groups.length ? 'price' : 'notify'} listings={options} about={about} onAboutChange={setAbout} />
         </div>
