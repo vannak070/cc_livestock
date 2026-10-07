@@ -23,6 +23,13 @@ describe('public form checks', () => {
   it('checks inquiries, including the listing code shape', () => {
     expect(checkInquiry({ name: 'Dara', phone: '098765432', buyerType: 'trader', quantity: '20', weightClass: '350–400 kg', listingId: 'l-abc123', message: 'Hi' }).ok).toBe(true);
     expect(checkInquiry({ name: 'Dara', phone: '098765432', listingId: 'BATCH-1' })).toEqual({ ok: false, field: 'listingId' });
+    const price = checkInquiry({ name: 'Dara', phone: '098765432', listingId: 'l-abc123' });
+    expect(price.ok && price.value.kind).toBe('price');
+    const notify = checkInquiry({ name: 'Dara', phone: '098765432', kind: 'notify', listingId: 'l-abc123' });
+    expect(notify.ok && notify.value.kind).toBe('notify');
+    expect(notify.ok && notify.value.listingId).toBeNull();
+    const odd = checkInquiry({ name: 'Dara', phone: '098765432', kind: 'something' });
+    expect(odd.ok && odd.value.kind).toBe('price');
     expect(checkInquiry({ name: 'Dara', phone: '098765432', weightClass: '999 kg' })).toEqual({ ok: false, field: 'weightClass' });
   });
   it('spots robots by the hidden field', () => {

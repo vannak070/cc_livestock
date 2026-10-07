@@ -33,6 +33,7 @@ export class WebsiteRequestRepository {
   private inquiry(row: QueryResultRow): WebsiteInquiry {
     return {
       id: row.id,
+      kind: row.kind === 'notify' ? 'notify' : 'price',
       name: row.name,
       phone: row.phone,
       buyerType: row.buyer_type || '',

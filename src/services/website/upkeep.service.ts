@@ -1,8 +1,8 @@
 import { alertSettings } from '../../lib/alerts';
-import { REQUEST_KEEP_MONTHS, buildPublishFailedMessage, buildPublishRecoveredMessage, publishAlertDue } from '../../lib/website';
+import { REQUEST_KEEP_MONTHS, VISITS_KEEP_MONTHS, buildPublishFailedMessage, buildPublishRecoveredMessage, publishAlertDue } from '../../lib/website';
 import { withTransaction } from '../../config/database';
 import { settingsRepository } from '../../repositories/settings.repository';
-import { websiteRequestRepository } from '../../repositories/website';
+import { websiteEventRepository, websiteRequestRepository } from '../../repositories/website';
 import { telegramService } from '../telegram.service';
 
 /**
@@ -12,7 +12,7 @@ import { telegramService } from '../telegram.service';
  *   once when it works again (same rules as the other alerts: only where
  *   sending is allowed and with alerts switched on);
  * - deletes website requests older than 24 months (personal data is not kept
- *   longer than needed).
+ *   longer than needed) and visitor counts older than 13 months.
  */
 export class WebsiteUpkeepService {
   async alertPublishProblems(): Promise<'failed' | 'recovered' | null> {
@@ -30,8 +30,11 @@ export class WebsiteUpkeepService {
     return due;
   }
 
-  async deleteOldRequests(): Promise<{ applications: number; inquiries: number; photos: number }> {
-    return withTransaction(client => websiteRequestRepository.deleteOlderThan(REQUEST_KEEP_MONTHS, client));
+  async deleteOldRequests(): Promise<{ applications: number; inquiries: number; photos: number; visits: number }> {
+    return withTransaction(async client => ({
+      ...(await websiteRequestRepository.deleteOlderThan(REQUEST_KEEP_MONTHS, client)),
+      visits: await websiteEventRepository.deleteOlderThan(VISITS_KEEP_MONTHS, client),
+    }));
   }
 }
 

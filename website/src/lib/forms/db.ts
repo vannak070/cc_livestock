@@ -2,11 +2,12 @@ import 'server-only';
 import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
 import type { CheckedPhoto } from './photos';
+import type { EventIn } from '../visits';
 import type { ApplicationIn, InquiryIn } from './validate';
 
 /**
- * Writes form sends into CC Livestock with the insert-only account
- * (FORMS_DATABASE_URL, user camcow_website). That account cannot read
+ * Writes form sends (and visitor counts) into CC Livestock with the
+ * insert-only account (FORMS_DATABASE_URL, user camcow_website). That account cannot read
  * anything, so nothing is ever selected here. CC Livestock then shows the
  * request on its Website page and sends a Telegram message.
  */
@@ -50,8 +51,13 @@ export async function insertApplication(a: ApplicationIn, photos: CheckedPhoto[]
 
 export async function insertInquiry(i: InquiryIn): Promise<void> {
   await db().query(
-    `INSERT INTO website_inquiries (id, name, phone, buyer_type, quantity, weight_class, listing_ref, message, language)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [id('INQ'), i.name, i.phone, i.buyerType, i.quantity, i.weightClass, i.listingId, i.message, i.language]
+    `INSERT INTO website_inquiries (id, kind, name, phone, buyer_type, quantity, weight_class, listing_ref, message, language)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [id('INQ'), i.kind, i.name, i.phone, i.buyerType, i.quantity, i.weightClass, i.listingId, i.message, i.language]
   );
+}
+
+/** One page view or button press (no cookies, addresses or browser details). */
+export async function insertEvent(e: EventIn, device: 'phone' | 'computer'): Promise<void> {
+  await db().query('INSERT INTO website_events (kind, path, lang, device, referrer) VALUES ($1, $2, $3, $4, $5)', [e.kind, e.path, e.lang, device, e.referrer]);
 }

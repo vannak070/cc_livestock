@@ -22,6 +22,8 @@ export interface ApplicationIn {
 }
 
 export interface InquiryIn {
+  /** 'price' = Ask for a price; 'notify' = tell me when cattle are available. */
+  kind: 'price' | 'notify';
   name: string;
   phone: string;
   buyerType: string;
@@ -75,7 +77,8 @@ export function checkInquiry(raw: Record<string, unknown>): Checked<InquiryIn> {
   if (weightClass && !WEIGHT_CLASSES.includes(weightClass)) return { ok: false, field: 'weightClass' };
   if (listingId && !/^l-[a-z0-9]{6}$/.test(listingId)) return { ok: false, field: 'listingId' };
   const message = typeof raw.message === 'string' ? raw.message.trim().slice(0, 1000) : '';
-  return { ok: true, value: { name, phone, buyerType, quantity, weightClass, listingId: listingId || null, message, language: lang(raw.language) } };
+  const kind = raw.kind === 'notify' ? 'notify' : 'price';
+  return { ok: true, value: { kind, name, phone, buyerType, quantity, weightClass, listingId: kind === 'notify' ? null : listingId || null, message, language: lang(raw.language) } };
 }
 
 /** A filled hidden field ("website") means a robot filled the form. */

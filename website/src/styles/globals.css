@@ -191,6 +191,14 @@ p { margin: 0; }
   .reveal { opacity: 1; transform: none; }
 }
 
+/* Phones: Call / Telegram always in reach (ContactBar). */
+.contact-bar { display: none; }
+@media (max-width: 720px) {
+  .contact-bar { display: flex; gap: 10px; position: fixed; z-index: 1000; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: rgba(255, 255, 255, .97); border-top: 1px solid var(--line); box-shadow: 0 -6px 20px rgba(10, 68, 36, .08); }
+  .contact-bar .btn { flex: 1; justify-content: center; gap: 8px; }
+  body { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+}
+
 @media (max-width: 640px) {
   .section { padding: 60px 0; }
   .hero-in { padding-top: 40px; padding-bottom: 80px; }

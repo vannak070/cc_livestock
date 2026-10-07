@@ -58,12 +58,13 @@ export function CattleExplorer({ cattle, farmNames, t, lang, initialAbout }: {
             </article>
           ))}
         </div>
-        <p className="small muted">{t.cattle.roundedNote}</p>
+        {cattle.length > 0 && <p className="small muted">{t.cattle.roundedNote}</p>}
       </div>
       <aside className="side" id="inquiry">
         <div className="card form-card stack" style={{ gap: 14 }}>
-          <h2 style={{ fontSize: 22 }}>{t.inquiry.title}</h2>
-          <InquiryForm t={t} lang={lang} listings={cattle.map(c => ({ id: c.listingId, label: label(c) }))} about={about} onAboutChange={setAbout} />
+          <h2 style={{ fontSize: 22 }}>{cattle.length ? t.inquiry.title : t.inquiry.notifyTitle}</h2>
+          {cattle.length === 0 && <p style={{ color: 'var(--ink-2)', margin: 0 }}>{t.inquiry.notifyIntro}</p>}
+          <InquiryForm t={t} lang={lang} kind={cattle.length ? 'price' : 'notify'} listings={cattle.map(c => ({ id: c.listingId, label: label(c) }))} about={about} onAboutChange={setAbout} />
         </div>
       </aside>
     </div>

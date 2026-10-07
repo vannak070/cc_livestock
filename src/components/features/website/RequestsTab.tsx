@@ -158,8 +158,12 @@ function InquiryCard({ i, listingName, onSaved }: { i: WebsiteInquiry; listingNa
     <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-lg font-semibold text-ink">{i.name}</p>
-        <Pill tone={TONE[i.status]}>{tx(`status_${i.status}`)}</Pill>
+        <div className="flex flex-wrap gap-2">
+          {i.kind === 'notify' && <Pill tone="blue">{tx('waitingForCattle')}</Pill>}
+          <Pill tone={TONE[i.status]}>{tx(`status_${i.status}`)}</Pill>
+        </div>
       </div>
+      {i.kind === 'notify' && <p className="text-sm text-ink-muted">{tx('waitingHint')}</p>}
       <a href={`tel:${i.phone}`} className="inline-flex min-h-11 items-center gap-2 text-base font-medium text-emerald-700 underline"><Phone className="h-4 w-4" aria-hidden />{i.phone}</a>
       <dl className="grid gap-x-6 gap-y-1 text-base text-ink sm:grid-cols-2">
         <div><dt className="inline text-ink-muted">{tx('buyerType')}: </dt><dd className="inline">{i.buyerType || '—'}</dd></div>

@@ -1,12 +1,12 @@
 import { canManageUsers, type Actor } from '../../lib/authz';
-import type { BatchItem, WebsiteBatchListing, WebsiteConsent, WebsiteFarmProfile, WebsiteNewsPost } from '../../lib/types';
+import type { BatchItem, WebsiteBatchListing, WebsiteConsent, WebsiteFarmProfile, WebsiteNewsPost, WebsiteVisitors } from '../../lib/types';
 import {
   buildPublicSnapshot, canHandleWebsiteRequests, canPublishWebsite, currentConsent, listingFacts, listingIdOf, listingProblem,
   publishHealth, publishProblem, type ListingFacts, type PublishHealth, type PublicSnapshot,
 } from '../../lib/website';
 import { settingsRepository } from '../../repositories/settings.repository';
 import { farmMatcher } from '../../lib/farm-scope';
-import { websiteRequestRepository } from '../../repositories/website';
+import { websiteEventRepository, websiteRequestRepository } from '../../repositories/website';
 import { assertRequestHandler, assertWebsiteAdmin } from './guards';
 import { loadWebsiteData } from './website-data';
 import { snapshotPublisherService } from './snapshot-publisher.service';
@@ -83,6 +83,12 @@ export class WebsiteOverviewService {
 
     const health = publishHealth((await settingsRepository.getSettings()).websiteStatus, new Date());
     return { canPublish, canHandleRequests, farms, batches, news: data.news, newRequests, lastPublishedAt: await snapshotPublisherService.lastBuiltAt(), publishHealth: health, canCreateFarms, farmNames };
+  }
+
+  /** Page views and button presses over the last `days` days. Super Admin and Admin only. */
+  async visitors(actor: Actor, days: number): Promise<WebsiteVisitors> {
+    assertWebsiteAdmin(actor);
+    return websiteEventRepository.visitors([7, 30, 90].includes(days) ? days : 30);
   }
 
   /** Exactly what the public website would show right now. */

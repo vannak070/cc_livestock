@@ -10,9 +10,10 @@ import { FarmsTab } from './FarmsTab';
 import { NewsTab } from './NewsTab';
 import { PreviewTab } from './PreviewTab';
 import { RequestsTab } from './RequestsTab';
+import { VisitorsTab } from './VisitorsTab';
 import { errorText, ok } from './parts';
 
-type Tab = 'farms' | 'cattle' | 'requests' | 'news' | 'preview';
+type Tab = 'farms' | 'cattle' | 'requests' | 'news' | 'preview' | 'visitors';
 
 const utc = (iso: string) => iso.slice(0, 16).replace('T', ' ');
 
@@ -45,7 +46,7 @@ export default function WebsitePage() {
   const tabs: { key: Tab; label: string }[] = [
     ...(o.canPublish ? [{ key: 'farms' as const, label: tx('tabFarms') }, { key: 'cattle' as const, label: tx('tabCattle') }] : []),
     ...(o.canHandleRequests ? [{ key: 'requests' as const, label: newCount ? tx('tabRequestsNew', { n: newCount }) : tx('tabRequests') }] : []),
-    ...(o.canPublish ? [{ key: 'news' as const, label: tx('tabNews') }, { key: 'preview' as const, label: tx('tabPreview') }] : []),
+    ...(o.canPublish ? [{ key: 'news' as const, label: tx('tabNews') }, { key: 'preview' as const, label: tx('tabPreview') }, { key: 'visitors' as const, label: tx('tabVisitors') }] : []),
   ];
   const active = tab && tabs.some(t => t.key === tab) ? tab : tabs[0]?.key;
   const listingNames = Object.fromEntries(o.batches.map(b => [b.listingId, `${b.batch.name} (${b.batch.farmLocation ?? ''})`]));
@@ -87,6 +88,7 @@ export default function WebsitePage() {
         {active === 'requests' && <RequestsTab farms={o.farmNames} canCreateFarms={o.canCreateFarms} listingNames={listingNames} onChanged={refresh} />}
         {active === 'news' && <NewsTab news={o.news} onChanged={refresh} />}
         {active === 'preview' && <PreviewTab lastPublishedAt={o.lastPublishedAt} />}
+        {active === 'visitors' && <VisitorsTab />}
       </div>
     </div>
   );

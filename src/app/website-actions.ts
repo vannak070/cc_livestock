@@ -26,6 +26,10 @@ export async function getWebsitePreviewAction() {
   return runAction('Failed to build the preview', [], actor => websiteOverviewService.preview(actor), { revalidate: false });
 }
 
+export async function getWebsiteVisitorsAction(days: number) {
+  return runAction('Failed to load the visitor numbers', [], actor => websiteOverviewService.visitors(actor, days), { revalidate: false });
+}
+
 export async function getWebsiteRequestsAction() {
   return runAction('Failed to load the requests', [], actor => websiteRequestService.list(actor), { revalidate: false });
 }

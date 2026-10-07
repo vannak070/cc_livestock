@@ -66,3 +66,6 @@ export const buildPublishRecoveredMessage = (): string => '✅ <b>Website update
 
 /** Website requests (applications, inquiries and their photos) are kept for 24 months, then deleted. */
 export const REQUEST_KEEP_MONTHS = 24;
+
+/** Visitor counts (page views, button presses) are kept for 13 months, so a year can be compared. */
+export const VISITS_KEEP_MONTHS = 13;

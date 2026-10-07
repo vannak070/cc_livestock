@@ -151,6 +151,11 @@ export const en = {
     thanksTitle: 'Thank you, we got your request.',
     thanksBody: 'Our sales team will call or message you within 1 working day with prices and dates.',
     again: 'Send another',
+    notifyTitle: 'Tell me when cattle are available',
+    notifyIntro: 'Leave your number and what you need. We will call or message you as soon as we have cattle for you.',
+    notifySend: 'Tell me',
+    notifyThanksTitle: 'Thank you, we will let you know.',
+    notifyThanksBody: 'Our sales team will call or message you when cattle like this are available.',
   },
   join: {
     title: 'Join CamCow as a member farm',

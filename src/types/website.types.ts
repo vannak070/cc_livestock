@@ -87,9 +87,12 @@ export interface WebsiteApplication {
   updatedAt: string;
 }
 
-/** An "Ask for a price" form (table website_inquiries). */
+export type InquiryKind = 'price' | 'notify';
+
+/** An "Ask for a price" form, or a buyer's "tell me when cattle are available" (kind notify) (table website_inquiries). */
 export interface WebsiteInquiry {
   id: string;
+  kind: InquiryKind;
   name: string;
   phone: string;
   buyerType: string;
@@ -141,4 +144,18 @@ export interface WebsitePublishStatus {
   failingSince?: string | null;
   /** When the Telegram message about the current failures was sent. */
   failureAlertedAt?: string | null;
+}
+
+export type WebsiteEventKind = 'view' | 'join' | 'call' | 'telegram' | 'price' | 'notify';
+
+/** Visitor numbers for the Website page (from website_events; no cookies or addresses are stored). */
+export interface WebsiteVisitors {
+  days: number;
+  views: number;
+  /** One entry per day, oldest first, YYYY-MM-DD (Cambodia time). */
+  byDay: { day: string; views: number }[];
+  topPages: { path: string; views: number }[];
+  presses: Record<Exclude<WebsiteEventKind, 'view'>, number>;
+  phoneShare: number | null;
+  referrers: { host: string; views: number }[];
 }

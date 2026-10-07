@@ -61,6 +61,7 @@ src/
 │   ├── RequestsTab.tsx                    join applications and price inquiries
 │   ├── NewsTab.tsx                        news posts
 │   ├── PreviewTab.tsx                     exactly what the public will see
+│   ├── VisitorsTab.tsx                    page views and button presses (last 7 / 30 / 90 days)
 │   ├── PhotoPicker.tsx                    resizes photos in the browser (drops GPS data) and uploads
 │   └── parts.tsx                          small shared pieces (dialog, pill, field)
 └── locales/sections/websitePage.ts        all page text, English + Khmer (Khmer needs a native review)
@@ -101,7 +102,12 @@ Website forms (step 2) ──► insert-only ──► website_applications / we
   sick animals are left out, totals are rounded down, map pins are blurred to about 11 km unless the
   farmer allowed the exact place, and internal ids are replaced by short public codes.
 - Withdrawing consent takes the farm (and its cattle) off at once; the consent record is kept.
-- Applications, inquiries and their photos are **deleted after 24 months** (`REQUEST_KEEP_MONTHS`).
+- Applications, inquiries and their photos are **deleted after 24 months** (`REQUEST_KEEP_MONTHS`);
+  visitor counts after 13 months (`VISITS_KEEP_MONTHS`).
+- Visitor counts store no cookies, addresses or browser details: what happened, the page (no query),
+  the language, phone or computer, and the name of the site a visitor came from. Browsers that ask
+  not to be tracked (Do Not Track / Global Privacy Control) are not counted. The Visitors tab is for
+  Super Admin and Admin.
 - Photos are re-drawn in the browser (WebP, or JPEG on Safari), which drops GPS and camera data; the
   server refuses any file that still carries EXIF or XMP.
 
@@ -130,6 +136,7 @@ npm run dev                                  # Website appears in the menu for S
 | `src/services/website/request-notify.service.ts` + `src/lib/website/notify.ts` | One plain-English Telegram message per new application or inquiry (only where alerts may be sent; claimed first so it never repeats) |
 | `src/server/website-scheduler.ts` | In the API process (`npm run server`): snapshot every 15 minutes (then a Telegram message once if publishing starts failing, and once when it works again), request messages every 2 minutes, requests older than 24 months deleted every 6 hours |
 | `src/db/migrations/sql/022_website_notify.sql` | `notified_at` on both request tables |
+| `src/db/migrations/sql/023_website_notify_and_visits.sql` | `kind` on inquiries (`price`, or `notify` = "tell me when cattle are available"); `website_events` (page views and Join / Call / Telegram / form presses; no cookies or addresses), INSERT for the website's account |
 | `src/db/create-website-forms-user.ts` (`npm run website:forms-user`) | Creates the `camcow_website` database account: INSERT on the two request tables and `website_photos` (Join-form photos), nothing else |
 
 Every publish is recorded in `websiteStatus` (settings, admins only): the Website page shows a warning
@@ -177,6 +184,9 @@ Write these back into the SFD when it is next edited.
 - Requests deleted after 24 months.
 - Public API reads limited to 60 a minute per address (was: forms only, 5 an hour).
 - Breed and "new members" filters on the members map.
+- Added later the same day (not in the SFD): Call / Telegram bar on phones, "Tell me when cattle are
+  available" for buyers when none are listed, privacy-friendly visitor counts (Visitors tab), and the
+  "first farms" states while fewer than 3 farms are published (`website/src/lib/launch.ts`).
 
 **Still open**
 

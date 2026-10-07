@@ -68,6 +68,7 @@ src/
 │   ├── i18n/                        km.ts and en.ts: every word on the site; langs.ts: links per language
 │   ├── api/respond.ts               JSON answers, CORS, origin check
 │   ├── contact.ts                   phone, Telegram, Facebook (change here only)
+│   ├── visits.ts                    visitor counts: what may be sent and stored (no cookies, no addresses)
 │   ├── launch.ts                    while fewer than 3 farms are published: no live numbers, "be the first" map, empty sections hidden
 │   ├── places.ts                    the 25 provinces
 │   ├── districts.ts                 suggested districts for the Join form (same list as CC Livestock's src/lib/website/districts.ts)
@@ -83,6 +84,9 @@ src/
 - All text lives in `src/lib/i18n/km.ts` and `en.ts`. The Khmer was drafted by Claude and needs a native speaker's review before launch.
 - Forms: checks in `src/lib/forms/validate.ts` run in the browser and again on the server; a hidden
   "website" field catches robots; 5 sends an hour per address; only this site's origin is accepted.
+  "Ask for a price" becomes "Tell me when cattle are available" (inquiry kind `notify`) when no cattle are listed.
+  Page views and Join / Call / Telegram presses go to `POST /public/v1/events` (VisitCounter in the layout;
+  skipped for Do Not Track); phones get a Call (and Telegram, once `CONTACT.telegram` is set) bar at the bottom.
   Reads of `/public/v1` are limited to 60 a minute per address (429 + Retry-After). Both limits are in
   memory (`lib/forms/rate-limit.ts`): fine for one server; behind a proxy, set x-forwarded-for.
 

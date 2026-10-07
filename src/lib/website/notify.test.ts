@@ -3,7 +3,7 @@ import type { WebsiteApplication, WebsiteInquiry } from '../types';
 import { buildApplicationMessage, buildInquiryMessage } from './notify';
 
 const app = { id: 'A1', name: 'Sokha <b>', phone: '012345678', province: 'Takeo', district: 'Bati', cattleNow: 12, landM2: 5000, hasPens: true, photoIds: [], consentChecked: true, language: 'km', status: 'new', notes: '', createdAt: 'x', updatedAt: 'x' } as WebsiteApplication;
-const inq = { id: 'I1', name: 'Dara', phone: '098765432', buyerType: 'Trader', quantity: 20, weightClass: '350–400 kg', listingRef: 'l-abc', message: 'Need 20 bulls', language: 'en', status: 'new', notes: '', createdAt: 'x', updatedAt: 'x' } as WebsiteInquiry;
+const inq = { id: 'I1', kind: 'price', name: 'Dara', phone: '098765432', buyerType: 'Trader', quantity: 20, weightClass: '350–400 kg', listingRef: 'l-abc', message: 'Need 20 bulls', language: 'en', status: 'new', notes: '', createdAt: 'x', updatedAt: 'x' } as WebsiteInquiry;
 
 describe('website request messages', () => {
   it('says plainly who applied, how to reach them and what they have, with names escaped', () => {
@@ -22,5 +22,12 @@ describe('website request messages', () => {
     expect(m).toContain('How many: 20');
     expect(m).toContain('Asked about: Batch01');
     expect(m).toContain('“Need 20 bulls”');
+  });
+
+  it('says when a buyer is waiting for cattle rather than asking a price', () => {
+    const m = buildInquiryMessage({ ...inq, kind: 'notify', listingRef: undefined }, undefined);
+    expect(m).toContain('Buyer waiting for cattle · Dara');
+    expect(m).toContain('hear when cattle are available');
+    expect(m).not.toContain('New price inquiry');
   });
 });

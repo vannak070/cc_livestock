@@ -25,8 +25,9 @@ export function buildApplicationMessage(a: WebsiteApplication, appUrl?: string):
 }
 
 export function buildInquiryMessage(i: WebsiteInquiry, listingName?: string, appUrl?: string): string {
+  const notify = i.kind === 'notify';
   const lines = [
-    `💬 <b>New price inquiry · ${escapeHtml(i.name)}</b>`,
+    notify ? `🔔 <b>Buyer waiting for cattle · ${escapeHtml(i.name)}</b>` : `💬 <b>New price inquiry · ${escapeHtml(i.name)}</b>`,
     '',
     `Phone: ${escapeHtml(i.phone)}`,
     ...(i.buyerType ? [`Buyer: ${escapeHtml(i.buyerType)}`] : []),
@@ -35,7 +36,7 @@ export function buildInquiryMessage(i: WebsiteInquiry, listingName?: string, app
     ...(listingName ? [`Asked about: ${escapeHtml(listingName)}`] : []),
     ...(i.message ? ['', `“${escapeHtml(i.message.slice(0, 300))}”`] : []),
     '',
-    'Please call them with a price, then update the request on the Website page.',
+    notify ? 'They asked to hear when cattle are available. Please call them when you have some, then update the request on the Website page.' : 'Please call them with a price, then update the request on the Website page.',
   ];
   return lines.join('\n') + (appUrl ? `\n\n<a href="${escapeHtml(appUrl)}">Open CC Livestock</a>` : '');
 }

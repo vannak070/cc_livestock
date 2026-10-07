@@ -35,6 +35,7 @@ export function startWebsiteScheduler(): void {
     try {
       const r = await websiteUpkeepService.deleteOldRequests();
       if (r.applications + r.inquiries > 0) console.log(`[website] Deleted requests older than 24 months: ${r.applications} application(s), ${r.inquiries} inquiry(ies), ${r.photos} photo(s).`);
+      if (r.visits > 0) console.log(`[website] Deleted ${r.visits} visitor count(s) older than 13 months.`);
     } catch (err) {
       console.error('[website] Old request clean-up failed:', err instanceof Error ? err.message : err);
     }

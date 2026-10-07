@@ -3,31 +3,38 @@
 import { useState } from 'react';
 import { BUYER_TYPES, checkInquiry, WEIGHT_CLASSES } from '@/lib/forms/validate';
 import type { Dict } from '@/lib/i18n';
+import { countVisit } from '@/components/shared/VisitCounter';
 
 export interface ListingOption { id: string; label: string }
 
-/** "Ask for a price": goes to the CamCow office (and its Telegram group). Never shows a price. */
-export function InquiryForm({ t, lang, listings, about, onAboutChange }: {
+/**
+ * "Ask for a price", or with kind 'notify' "Tell me when cattle are available"
+ * (when none are listed): goes to the CamCow office (and its Telegram group).
+ * Never shows a price.
+ */
+export function InquiryForm({ t, lang, listings, about, onAboutChange, kind = 'price' }: {
   t: Pick<Dict, 'inquiry' | 'common' | 'values'>;
   lang: 'km' | 'en';
   listings: ListingOption[];
   about: string;
   onAboutChange: (id: string) => void;
+  kind?: 'price' | 'notify';
 }) {
+  const notify = kind === 'notify';
   const [form, setForm] = useState({ name: '', phone: '', buyerType: 'trader', quantity: '', weightClass: '', message: '', website: '' });
   const [bad, setBad] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => { setForm(f => ({ ...f, [k]: e.target.value })); setBad(''); };
 
   const send = async () => {
-    const raw = { ...form, listingId: about, language: lang };
+    const raw = { ...form, kind, listingId: notify ? '' : about, language: lang };
     const checked = checkInquiry(raw);
     if (!checked.ok) { setBad(checked.field); return; }
     setState('sending');
     try {
       const res = await fetch('/public/v1/inquiries', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(raw) });
       const body = await res.json().catch(() => ({}));
-      if (res.ok && body.ok) { setState('sent'); return; }
+      if (res.ok && body.ok) { countVisit(kind); setState('sent'); return; }
       if (body.field) { setBad(body.field); setState('idle'); return; }
       setState('error');
     } catch {
@@ -38,8 +45,8 @@ export function InquiryForm({ t, lang, listings, about, onAboutChange }: {
   if (state === 'sent') {
     return (
       <div className="thanks" role="status">
-        <b>{t.inquiry.thanksTitle}</b>
-        <p>{t.inquiry.thanksBody}</p>
+        <b>{notify ? t.inquiry.notifyThanksTitle : t.inquiry.thanksTitle}</b>
+        <p>{notify ? t.inquiry.notifyThanksBody : t.inquiry.thanksBody}</p>
         <button type="button" className="btn btn-line" style={{ alignSelf: 'flex-start' }} onClick={() => { setForm(f => ({ ...f, quantity: '', message: '' })); setState('idle'); }}>{t.inquiry.again}</button>
       </div>
     );
@@ -53,7 +60,7 @@ export function InquiryForm({ t, lang, listings, about, onAboutChange }: {
       <label className="field">{t.inquiry.buyerType}
         <select className="select" value={form.buyerType} onChange={set('buyerType')}>{BUYER_TYPES.map((v, i) => <option key={v} value={v}>{t.inquiry.buyerTypes[i]}</option>)}</select>
       </label>
-      {listings.length > 0 && (
+      {!notify && listings.length > 0 && (
         <label className="field">{t.inquiry.about}
           <select className="select" value={about} onChange={e => onAboutChange(e.target.value)}>
             <option value="">{t.inquiry.any}</option>
@@ -73,7 +80,7 @@ export function InquiryForm({ t, lang, listings, about, onAboutChange }: {
       <label className="field">{t.inquiry.message}<textarea className="textarea" value={form.message} onChange={set('message')} maxLength={1000} /></label>
       <label className="hp" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={form.website} onChange={set('website')} /></label>
       {state === 'error' && <p className="form-error" role="alert">{t.common.tryAgain}</p>}
-      <button type="submit" className="btn btn-red" disabled={state === 'sending'}>{state === 'sending' ? t.common.sending : t.inquiry.send}</button>
+      <button type="submit" className="btn btn-red" disabled={state === 'sending'}>{state === 'sending' ? t.common.sending : notify ? t.inquiry.notifySend : t.inquiry.send}</button>
       <p className="small muted">{t.inquiry.privacy}</p>
     </form>
   );

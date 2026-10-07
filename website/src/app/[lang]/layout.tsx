@@ -3,7 +3,9 @@ import { Fraunces, Kantumruy_Pro } from 'next/font/google';
 import type { ReactNode } from 'react';
 import '@/styles/globals.css';
 import { Footer } from '@/components/layout/Footer';
+import { ContactBar } from '@/components/layout/ContactBar';
 import { Header } from '@/components/layout/Header';
+import { VisitCounter } from '@/components/shared/VisitCounter';
 import { ENABLED_LANGS } from '@/lib/i18n';
 import { pageLang, siteUrl } from '@/lib/page';
 import { getSnapshot } from '@/lib/snapshot/read';
@@ -39,6 +41,8 @@ export default async function Layout({ children, params }: { children: ReactNode
         <Header lang={lang} t={t} hasNews={hasNews} />
         <main>{children}</main>
         <Footer lang={lang} t={t} hasNews={hasNews} />
+        <ContactBar t={t} />
+        <VisitCounter />
       </body>
     </html>
   );
