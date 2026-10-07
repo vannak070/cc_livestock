@@ -18,10 +18,10 @@ export const ABOUT = {
   /** e.g. "2025". */
   foundedYear: '',
   /** Street, district, city, as it should be shown. */
-  address: '',
+  address: 'GIA Tower, 23rd Floor, Sopheakmongkul Street, Diamond Island, Bassac, Chamkarmorn, Phnom Penh',
   /** e.g. "Monday to Saturday, 8:00–17:00". */
   hours: '',
   /** A Google Maps link to the office. */
-  mapLink: '',
+  mapLink: 'https://www.google.com/maps/search/?api=1&query=GIA+Tower+Diamond+Island+Phnom+Penh',
   team: [] as TeamMember[],
 };

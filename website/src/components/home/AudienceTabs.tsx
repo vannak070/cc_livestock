@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Photo } from '@/components/shared/Photo';
 
-interface Tab { key: string; label: string; title: string; body: string; cta: string; href: string; photo: string }
+interface Tab { key: string; label: string; title: string; body: string; cta: string; href: string; photo: string; points: readonly string[] }
 
 /** "One network, three ways in": Farmer / Investor / Buyer. */
 export function AudienceTabs({ tabs }: { tabs: Tab[] }) {
@@ -25,7 +25,19 @@ export function AudienceTabs({ tabs }: { tabs: Tab[] }) {
           <p className="lead">{tab.body}</p>
           <Link className="btn btn-green" href={tab.href} style={{ alignSelf: 'flex-start' }}>{tab.cta}</Link>
         </div>
-        <div style={{ flex: '1 1 360px', minWidth: 0 }}><Photo id={tab.photo || null} alt="" height={280} /></div>
+        <div style={{ flex: '1 1 360px', minWidth: 0 }}>
+          {tab.photo ? <Photo id={tab.photo} alt="" height={280} /> : (
+            // Until real photos arrive: the three things this visitor gets, instead of an empty picture frame.
+            <ul key={tab.key} className="tab-points rise">
+              {tab.points.map(p => (
+                <li key={p}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#138e46" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6" /></svg>
+                  {p}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );

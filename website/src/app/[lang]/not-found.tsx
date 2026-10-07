@@ -1,14 +1,6 @@
-import Link from 'next/link';
+import { NotFoundContent } from '@/components/shared/NotFoundContent';
 
-/** Unknown pages inside a language. */
+/** Unknown farm, story or page (the [lang] layout's own boundary does not catch nested ones). */
 export default function NotFound() {
-  return (
-    <section className="section">
-      <div className="wrap stack" style={{ gap: 16, alignItems: 'flex-start' }}>
-        <h1 className="display h2">404</h1>
-        <p className="lead">We could not find this page.</p>
-        <Link className="btn btn-green" href="/en">Home</Link>
-      </div>
-    </section>
-  );
+  return <NotFoundContent />;
 }

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import { MembersMap } from '@/components/members/MembersMap';
 import { HeroLines } from '@/components/shared/HeroLines';
+import { NotFoundContent } from '@/components/shared/NotFoundContent';
 import { Photo } from '@/components/shared/Photo';
 import { CONTACT } from '@/lib/contact';
 import { fill, href } from '@/lib/i18n';
@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { slug } = await params;
   const { lang } = await pageLang(params);
   const farm = (await getSnapshot()).farms.find(f => f.slug === slug);
-  if (!farm) return {};
+  if (!farm) return { robots: { index: false, follow: true } };
   return { title: farm.publicName, description: (lang === 'km' ? farm.storyKm : farm.storyEn) || `${farm.district}, ${lang === 'km' ? farm.provinceKm : farm.province}` };
 }
 
@@ -24,7 +24,9 @@ export default async function FarmPage({ params }: { params: Params }) {
   const { lang, t } = await pageLang(params);
   const s = await getSnapshot();
   const farm = s.farms.find(f => f.slug === slug);
-  if (!farm) notFound();
+  // A 404 page cannot be shown inside the per-language root layout (it comes out blank), so a missing
+  // one shows the not-found content here, kept out of search engines by generateMetadata.
+  if (!farm) return <NotFoundContent />;
   const km = lang === 'km';
   const listings = s.cattle.filter(c => c.farmSlug === slug);
   const story = (km ? farm.storyKm : farm.storyEn) || farm.storyKm || farm.storyEn;

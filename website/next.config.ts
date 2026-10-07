@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // Keep Turbopack inside this project (a lockfile higher up would widen it).
   turbopack: { root: path.resolve(__dirname) },
   poweredByHeader: false,
+  // The root layout is app/[lang]/layout.tsx, so unknown addresses need app/global-not-found.tsx (Next 16 docs: not-found.md).
+  experimental: { globalNotFound: true },
   async headers() {
     return [
       {

@@ -17,9 +17,10 @@ export function Header({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boo
     ['/cattle', t.nav.cattle],
     ['/#how', t.nav.how],
     ...(hasNews ? [['/news', t.nav.news] as [string, string]] : []),
-    ['/join', t.nav.join],
     ...(ABOUT.ready ? [['/about', t.nav.about] as [string, string]] : []),
     ['/contact', t.nav.contact],
+    // Last, shown as a button.
+    ['/join', t.nav.join],
   ];
   const current = (p: string) => (p !== '/#how' && (rest === p || rest.startsWith(`${p}/`)) ? 'page' : undefined);
 
@@ -35,7 +36,7 @@ export function Header({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boo
         </Link>
         <nav className={`nav${open ? ' open' : ''}`} aria-label={t.nav.menu}>
           {links.map(([p, label]) => (
-            <Link key={p} href={href(lang, p)} aria-current={current(p)} onClick={() => setOpen(false)}>{label}</Link>
+            <Link key={p} href={href(lang, p)} aria-current={current(p)} className={p === '/join' ? 'nav-cta' : undefined} onClick={() => setOpen(false)}>{label}</Link>
           ))}
         </nav>
         <div className="row" style={{ flexWrap: 'nowrap' }}>

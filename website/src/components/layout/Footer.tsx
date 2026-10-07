@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { href, type Dict, type Lang } from '@/lib/i18n';
 import { ABOUT } from '@/lib/about';
 import { CONTACT } from '@/lib/contact';
+import { FooterBand } from './FooterBand';
 
 const icon = {
   phone: 'M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z',
@@ -18,7 +19,7 @@ function Icon({ d }: { d: string }) {
 }
 
 /**
- * Site footer: a join band, then brand, pages, "for you" shortcuts and
+ * Site footer: a join band (not on pages that already end with one), then brand, pages, "for you" shortcuts and
  * contact, then the privacy promise and copyright. Pages that are empty or
  * not ready (Stories, About us) are left out, like in the header.
  */
@@ -26,18 +27,12 @@ export function Footer({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boo
   const f = t.footer;
   return (
     <footer className="footer" id="contact">
-      <div className="wrap">
-        <div className="footer-cta">
-          <div className="stack" style={{ gap: 6, flex: '1 1 320px' }}>
-            <b className="footer-cta-title">{f.ctaTitle}</b>
-            <span style={{ color: 'var(--ink-2)' }}>{f.ctaSub}</span>
-          </div>
-          <div className="row" style={{ gap: 10 }}>
-            <Link className="btn btn-red" href={href(lang, '/join')}>{t.home.ctaJoin}</Link>
-            <a className="btn btn-line" href={`tel:${CONTACT.phoneTel}`}><Icon d={icon.phone} />{CONTACT.phone}</a>
-          </div>
-        </div>
-      </div>
+      <FooterBand
+        title={f.ctaTitle}
+        sub={f.ctaSub}
+        joinHref={href(lang, '/join')}
+        joinLabel={t.home.ctaJoin}
+      />
 
       <div className="wrap footer-in">
         <div className="stack footer-brand" style={{ gap: 10 }}>
@@ -49,10 +44,6 @@ export function Footer({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boo
             </span>
           </Link>
           <p style={{ color: 'var(--ink-2)', margin: 0, maxWidth: '36ch' }}>{f.tagline}</p>
-          <div className="row" style={{ gap: 8 }}>
-            <a className="footer-social" href={CONTACT.facebook} target="_blank" rel="noopener noreferrer" aria-label={t.common.facebook}><Icon d={icon.facebook} /></a>
-            {CONTACT.telegram && <a className="footer-social" href={CONTACT.telegram} target="_blank" rel="noopener noreferrer" aria-label="Telegram"><Icon d={icon.telegram} /></a>}
-          </div>
         </div>
 
         <nav className="stack" style={{ gap: 10 }} aria-label={f.explore}>
@@ -76,7 +67,7 @@ export function Footer({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boo
           <b>{f.contact}</b>
           <a className="footer-line" href={`tel:${CONTACT.phoneTel}`}><Icon d={icon.phone} />{CONTACT.phone}</a>
           {CONTACT.telegram && <a className="footer-line" href={CONTACT.telegram} target="_blank" rel="noopener noreferrer"><Icon d={icon.telegram} />Telegram</a>}
-          <a className="footer-line" href={CONTACT.facebook} target="_blank" rel="noopener noreferrer"><Icon d={icon.facebook} /><span lang="km">ខេម ខោវ</span>&nbsp;Cam Cow</a>
+          <a className="footer-line" href={CONTACT.facebook} target="_blank" rel="noopener noreferrer" aria-label={`${t.common.facebook}: ខេម ខោវ Cam Cow`}><Icon d={icon.facebook} /><span><span lang="km">ខេម ខោវ</span> Cam Cow</span></a>
           {ABOUT.mapLink
             ? <a className="footer-line" href={ABOUT.mapLink} target="_blank" rel="noopener noreferrer"><Icon d={icon.pin} />{ABOUT.address || t.contact.officeText}</a>
             : <span className="footer-line"><Icon d={icon.pin} />{ABOUT.address || t.contact.officeText}</span>}

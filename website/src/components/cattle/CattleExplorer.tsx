@@ -43,7 +43,21 @@ export function CattleExplorer({ cattle, farmNames, t, lang, initialAbout }: {
             {filter('when', t.cattle.when, [['now', t.common.availNow], ['soon', t.common.availSoon]])}
           </div>
         )}
-        {cattle.length === 0 && <p className="empty">{t.cattle.none}</p>}
+        {cattle.length === 0 && (
+          <div className="stack" style={{ gap: 18 }}>
+            <p className="empty" style={{ fontSize: 18 }}>{t.cattle.none}</p>
+            <h2 style={{ fontSize: 24 }}>{t.cattle.expectTitle}</h2>
+            <ul className="grid" style={{ listStyle: 'none', margin: 0, padding: 0, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
+              {t.cattle.expect.map(e => (
+                <li key={e.title} className="card stack" style={{ gap: 6 }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#138e46" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6" /></svg>
+                  <b style={{ fontSize: 18 }}>{e.title}</b>
+                  <span style={{ color: 'var(--ink-2)' }}>{e.body}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {cattle.length > 0 && shown.length === 0 && <p className="empty">{t.cattle.noMatch}</p>}
         <div className="grid">
           {shown.map(c => (

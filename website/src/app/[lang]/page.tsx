@@ -164,7 +164,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
       <section className="section" style={{ paddingTop: 0 }}>
         <div className="wrap">
           <div className="banner">
-            <svg width="220" height="160" viewBox="0 0 220 160" aria-hidden="true" style={{ position: 'absolute', right: 24, bottom: -10, opacity: 0.3 }}>
+            <svg width="220" height="160" viewBox="0 0 220 160" aria-hidden="true" style={{ position: 'absolute', right: 24, bottom: -10, opacity: 0.14 }}>
               {['M30 160 C 30 110, 20 80, 40 40', 'M80 160 C 82 100, 70 70, 95 20', 'M130 160 C 128 115, 140 80, 120 45', 'M180 160 C 180 105, 190 75, 175 30'].map(d => (
                 <path key={d} className="sway" d={d} fill="none" stroke="#0a4424" strokeWidth="5" strokeLinecap="round" />
               ))}
