@@ -3,8 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-/** Pages that already end with their own "join" banner or form, or (Contact) are all about reaching us: the band would repeat them. */
-const HAS_OWN_JOIN = ['/', '/members', '/join', '/about', '/contact'];
+/**
+ * Pages that already end with their own "join" banner or form, or (Contact) are all about reaching us, or (Cattle) are
+ * for buyers: a farmer's "Raise cattle with CamCow" band would repeat them or be for the wrong visitor.
+ */
+const HAS_OWN_JOIN = ['/', '/members', '/join', '/about', '/contact', '/cattle'];
 
 /** The footer's "Raise cattle with CamCow" band, left out where the page already asks the same. */
 export function FooterBand({ title, sub, joinHref, joinLabel }: { title: string; sub: string; joinHref: string; joinLabel: string }) {

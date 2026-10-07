@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { FarmWindows } from '@/components/cattle/FarmWindows';
 import { MembersMap } from '@/components/members/MembersMap';
 import { HeroLines } from '@/components/shared/HeroLines';
 import { NotFoundContent } from '@/components/shared/NotFoundContent';
@@ -76,15 +77,10 @@ export default async function FarmPage({ params }: { params: Params }) {
             <div className="stack" style={{ gap: 12 }}>
               <h2 style={{ fontSize: 26 }}>{t.profile.cattle}</h2>
               {listings.length === 0 ? <p className="empty">{t.profile.noCattle}</p> : (
-                <div className="grid">
-                  {listings.map(c => (
-                    <div key={c.listingId} className="card lift stack" style={{ gap: 8 }}>
-                      <h3 style={{ fontSize: 19 }}>{[c.breed, t.values.sex[c.sex] ?? c.sex].filter(Boolean).join(' · ')}</h3>
-                      <p style={{ color: 'var(--ink-2)' }}>{t.values.weight[c.weightClass] ?? c.weightClass} · {t.values.count[c.headCount] ?? c.headCount}</p>
-                      <span className={`pill ${c.availability === 'now' ? 'pill-now' : 'pill-soon'}`} style={{ alignSelf: 'flex-start' }}>{c.availability === 'now' ? t.common.availNow : t.common.availSoon}</span>
-                      <Link className="btn btn-red" href={`${href(lang, '/cattle')}?about=${c.listingId}#inquiry`}>{t.common.askPrice}</Link>
-                    </div>
-                  ))}
+                <div className="card stack" style={{ gap: 12 }}>
+                  <FarmWindows windows={listings} t={t} lang={lang} />
+                  <p className="small muted">{t.cattle.vetChecked}</p>
+                  <Link className="btn btn-red" href={`${href(lang, '/cattle')}?about=${listings[0].listingId}#inquiry`}>{t.cattle.askFarm}</Link>
                 </div>
               )}
             </div>

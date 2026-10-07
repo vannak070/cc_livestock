@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BatchItem, WebsiteBatchListing, WebsiteConsent, WebsiteFarmProfile, WebsiteNewsPost } from '../types';
 import type { StockItem, WeightRecord } from '../xlsx-parser';
-import { buildPublicSnapshot, fieldsOutsideAllowList, listingIdOf, type SnapshotInput } from './snapshot';
+import { buildPublicSnapshot, farmListingIdOf, fieldsOutsideAllowList, type SnapshotInput } from './snapshot';
 
 const TODAY = '2026-10-07';
 // Confidential values that must never appear on the website.
@@ -57,7 +57,7 @@ describe('public snapshot', () => {
     const s = buildPublicSnapshot(input());
     expect(s.farms).toHaveLength(1);
     expect(s.farms[0]).toMatchObject({ publicName: 'Green Hill Farm', province: 'Kandal', provinceKm: 'កណ្តាល', lat: 11.5, lng: 105, sizeRange: 'Under 20 head', hasCattleAvailable: true, photoIds: ['p1'] });
-    expect(s.cattle[0]).toMatchObject({ listingId: listingIdOf(SECRET.batchId), weightClass: '350–400 kg', headCount: 'Under 10', availability: 'now', photoId: 'p2' });
+    expect(s.cattle).toEqual([{ listingId: farmListingIdOf(SECRET.farmId), farmSlug: s.farms[0].slug, headCount: 'Under 10', weightFrom: 350, weightTo: 400, province: 'Kandal', provinceKm: 'កណ្តាល', availability: 'now' }]);
     expect(s.summary).toMatchObject({ memberFarms: '1', provinces: 1, cattleRaised: '3', feedRecordedTodayPct: 0 });
     expect(s.news.map(n => n.id)).toEqual(['n1']);
   });
@@ -66,6 +66,24 @@ describe('public snapshot', () => {
     expect(buildPublicSnapshot(input({ profiles: [profile({ published: false })] })).farms).toEqual([]);
     expect(buildPublicSnapshot(input({ consents: [consent({ withdrawnOn: '2026-10-06' })] })).farms).toEqual([]);
     expect(buildPublicSnapshot(input({ consents: [] })).cattle).toEqual([]);
+  });
+
+  it('shows cattle by farm, with no breed, sex, photo or individual animal', () => {
+    const entry = buildPublicSnapshot(input()).cattle[0];
+    expect(Object.keys(entry).sort()).toEqual(['availability', 'farmSlug', 'headCount', 'listingId', 'province', 'provinceKm', 'weightFrom', 'weightTo']);
+    expect(entry.listingId).toBe(farmListingIdOf(SECRET.farmId));
+    expect(entry.listingId).not.toContain(SECRET.batchId);
+  });
+
+  it('offers a scheduled batch without any office click, and stops when the office hides it', () => {
+    expect(buildPublicSnapshot(input({ listings: [] })).cattle).toHaveLength(1);
+    expect(buildPublicSnapshot(input({ listings: [{ ...listing, published: false }] })).cattle).toEqual([]);
+    expect(buildPublicSnapshot(input({ listings: [{ ...listing, published: false }] })).farms[0].hasCattleAvailable).toBe(false);
+  });
+
+  it('shows cattle only for a farm that is on the website with consent', () => {
+    expect(buildPublicSnapshot(input({ listings: [], profiles: [profile({ published: false })] })).cattle).toEqual([]);
+    expect(buildPublicSnapshot(input({ listings: [], consents: [consent({ withdrawnOn: '2026-10-06' })] })).cattle).toEqual([]);
   });
 
   it('hides photos when the farmer did not allow them, and skips batches with no selling date soon', () => {

@@ -22,6 +22,8 @@ const RETRY_AFTER_FAILURE_MS = 10_000;
 let cache: { at: number; snapshot: PublicSnapshot } | null = null;
 let etag: string | null = null;
 let failedAt = 0;
+/** Whether the current outage has been reported, so it is logged once, not on every page. */
+let outageReported = false;
 
 export const EMPTY_SNAPSHOT: PublicSnapshot = {
   version: 1,
@@ -64,10 +66,15 @@ export async function getSnapshot(): Promise<PublicSnapshot> {
       const snapshot = await fromGateway();
       cache = { at: Date.now(), snapshot };
       failedAt = 0;
+      if (outageReported) { outageReported = false; console.info('[snapshot] CC Livestock is reachable again.'); }
       return snapshot;
     } catch (err) {
       failedAt = now;
-      console.error('[snapshot] Could not get the snapshot from CC Livestock:', err instanceof Error ? err.message : err);
+      // A warning, once per outage: the site carries on with what it has (and a dev overlay should not treat it as a crash).
+      if (!outageReported) {
+        outageReported = true;
+        console.warn('[snapshot] Cannot reach CC Livestock, showing the last good copy. Is the API server running (npm run server, or npm run dev:all)?', err instanceof Error ? err.message : err);
+      }
       return cache?.snapshot ?? EMPTY_SNAPSHOT; // the last good copy, or empty states
     }
   }
@@ -103,7 +110,7 @@ export async function readPhoto(key: string): Promise<{ data: Buffer; type: stri
       photoCache.set(key, { at: Date.now(), photo });
       return photo;
     } catch (err) {
-      console.error('[snapshot] Could not get a photo from CC Livestock:', err instanceof Error ? err.message : err);
+      console.warn('[snapshot] Could not get a photo from CC Livestock:', err instanceof Error ? err.message : err);
       return null;
     }
   }

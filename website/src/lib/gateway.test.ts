@@ -8,6 +8,7 @@ const snap = (builtAt: string) => ({ version: 1, builtAt, summary: { memberFarms
 const json = (body: unknown, init: ResponseInit = {}) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) }, ...init });
 
 let fetchMock: ReturnType<typeof vi.fn>;
+let warn: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   vi.resetModules();
@@ -18,6 +19,8 @@ beforeEach(() => {
   fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  vi.spyOn(console, 'info').mockImplementation(() => undefined);
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -108,6 +111,19 @@ describe('the snapshot through the gateway', () => {
     await vi.advanceTimersByTimeAsync(11_000);
     await getSnapshot();                                            // tries again
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('reports an outage once, as a warning, not on every page', async () => {
+    fetchMock.mockRejectedValue(new Error('down'));
+    const { getSnapshot } = await import('./snapshot/read');
+    await getSnapshot();
+    await vi.advanceTimersByTimeAsync(11_000);
+    await getSnapshot();
+    await vi.advanceTimersByTimeAsync(11_000);
+    await getSnapshot();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('npm run server');
+    expect(console.error).not.toHaveBeenCalled();
   });
 
   it('shows empty states when there is no copy at all and CC Livestock is down', async () => {

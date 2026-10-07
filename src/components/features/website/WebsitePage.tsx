@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { getWebsiteOverviewAction } from '@/app/website-actions';
 import { useText } from '@/hooks/useText';
+import { farmListingIdOf } from '@/lib/website';
 import { CattleTab } from './CattleTab';
 import { FarmsTab } from './FarmsTab';
 import { NewsTab } from './NewsTab';
@@ -49,7 +50,11 @@ export default function WebsitePage() {
     ...(o.canPublish ? [{ key: 'news' as const, label: tx('tabNews') }, { key: 'preview' as const, label: tx('tabPreview') }, { key: 'visitors' as const, label: tx('tabVisitors') }] : []),
   ];
   const active = tab && tabs.some(t => t.key === tab) ? tab : tabs[0]?.key;
-  const listingNames = Object.fromEntries(o.batches.map(b => [b.listingId, `${b.batch.name} (${b.batch.farmLocation ?? ''})`]));
+  // A price inquiry names a farm (older ones named a batch), so both kinds of reference are understood.
+  const listingNames: Record<string, string> = {
+    ...Object.fromEntries(o.batches.map(b => [b.listingId, `${b.batch.name} (${b.batch.farmLocation ?? ''})`])),
+    ...Object.fromEntries(o.farmNames.map(f => [farmListingIdOf(f.farmId), f.farmName])),
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-10">

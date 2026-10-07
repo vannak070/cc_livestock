@@ -20,7 +20,7 @@ export default async function CattlePage({ params, searchParams }: { params: Pro
         <div className="wrap">
           <CattleExplorer
             cattle={s.cattle}
-            farmNames={Object.fromEntries(s.farms.map(f => [f.slug, f.publicName]))}
+            farms={s.farms}
             t={{ cattle: t.cattle, inquiry: t.inquiry, common: t.common, values: t.values }}
             lang={lang}
             initialAbout={typeof about === 'string' ? about : ''}

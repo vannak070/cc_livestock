@@ -26,6 +26,7 @@ export const en = {
     count: { 'Under 10': 'Under 10 head', '10+': '10+ head', '20+': '20+ head', '50+': '50+ head' } as Record<string, string>,
     size: { 'Under 20 head': 'Under 20 head', '20–50 head': '20–50 head', '50–100 head': '50–100 head', '100+ head': '100+ head' } as Record<string, string>,
     weight: { 'Under 250 kg': 'Under 250 kg', '250–300 kg': '250–300 kg', '300–350 kg': '300–350 kg', '350–400 kg': '350–400 kg', '400 kg+': '400 kg+' } as Record<string, string>,
+    range: { between: '{from}–{to} kg', under: 'Under {to} kg', over: '{from} kg+', any: 'Any size' },
     badge: { feed: 'Daily feed records', weighing: 'Regular weighing', vet: 'Vet checked' } as Record<string, string>,
   },
   home: {
@@ -120,7 +121,7 @@ export const en = {
   },
   cattle: {
     title: 'Cattle available',
-    sub: 'Healthy, recorded cattle from our member farms. Tell us what you need and our sales team will send you a price privately.',
+    sub: 'Member farms with cattle ready to sell, and when. Tell us what you need and our sales team will send you a price privately.',
     breed: 'Breed',
     sex: 'Sex',
     weight: 'Weight class',
@@ -140,7 +141,8 @@ export const en = {
       { title: 'A price just for you', body: 'Our sales team sends prices and dates privately.' },
     ],
     from: 'From {farm}',
-    roundedNote: 'Weights are shown as classes and counts as "20+" on purpose. Exact numbers, dates and prices come from our sales team.',
+    askFarm: "Ask about this farm's cattle",
+    roundedNote: 'Counts are rounded (for example "10+") and weights are shown as ranges on purpose. Exact numbers, dates and prices come from our sales team.',
   },
   inquiry: {
     title: 'Ask for a price',

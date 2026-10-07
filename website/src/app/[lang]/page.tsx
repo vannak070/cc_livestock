@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { FarmWindows } from '@/components/cattle/FarmWindows';
 import { AudienceTabs } from '@/components/home/AudienceTabs';
 import { HomeMap } from '@/components/home/HomeMap';
 import { LiveRecords } from '@/components/home/LiveRecords';
@@ -6,6 +7,7 @@ import { OfferPanel } from '@/components/home/OfferPanel';
 import { HeroLines } from '@/components/shared/HeroLines';
 import { Photo } from '@/components/shared/Photo';
 import { Reveal } from '@/components/shared/Reveal';
+import { groupByFarm } from '@/lib/cattle';
 import { href } from '@/lib/i18n';
 import { showLiveNumbers } from '@/lib/launch';
 import { pageLang } from '@/lib/page';
@@ -128,13 +130,13 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
             <Link className="btn btn-line" href={href(lang, '/cattle')}>{t.common.seeAll}</Link>
           </div>
           <div className="grid">
-            {s.cattle.slice(0, 3).map(c => (
-              <article key={c.listingId} className="card lift stack" style={{ gap: 10 }}>
-                <Photo id={c.photoId} alt={c.breed} height={160} />
-                <h3 style={{ fontSize: 19 }}>{[c.breed, t.values.sex[c.sex] ?? c.sex].filter(Boolean).join(' · ')}</h3>
-                <p style={{ color: 'var(--ink-2)' }}>{t.values.weight[c.weightClass] ?? c.weightClass} · {t.values.count[c.headCount] ?? c.headCount} · {km ? c.provinceKm : c.province}</p>
-                <span className={`pill ${c.availability === 'now' ? 'pill-now' : 'pill-soon'}`} style={{ alignSelf: 'flex-start' }}>{c.availability === 'now' ? t.common.availNow : t.common.availSoon}</span>
-                <Link className="btn btn-red" href={`${href(lang, '/cattle')}?about=${c.listingId}#inquiry`}>{t.common.askPrice}</Link>
+            {groupByFarm(s.cattle, s.farms).slice(0, 3).map(g => (
+              <article key={g.farm.slug} className="card lift stack" style={{ gap: 10 }}>
+                <Photo id={g.farm.photoIds[0]} alt={g.farm.publicName} height={160} />
+                <h3 style={{ fontSize: 19 }}>{g.farm.publicName}</h3>
+                <p className="small muted">{g.farm.district} · {km ? g.farm.provinceKm : g.farm.province}</p>
+                <FarmWindows windows={g.windows} t={t} lang={lang} />
+                <Link className="btn btn-red" href={`${href(lang, '/cattle')}?about=${g.listingId}#inquiry`}>{t.cattle.askFarm}</Link>
               </article>
             ))}
           </div>

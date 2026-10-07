@@ -4,7 +4,7 @@
   "private": true,
   "description": "Public website of ខេម ខោវ (CamCow). Reads only the public snapshot published by CC Livestock.",
   "scripts": {
-    "dev": "next dev -p 3200",
+    "dev": "next dev --webpack -p 3200",
     "build": "next build",
     "start": "next start -p 3200",
     "lint": "eslint",

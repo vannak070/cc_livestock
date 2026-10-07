@@ -3,7 +3,7 @@ import type { StockItem, WeightRecord } from '../xlsx-parser';
 import { activeCattle } from '../attention';
 import { farmMatcher } from '../farm-scope';
 import { badgesFor, type BadgeKey } from './badges';
-import { listingFacts } from './listing';
+import { farmWindows } from './listing';
 import { provinceOf } from './places';
 import { farmSlug, farmSizeRange, percentTo5, publicCode, publicPin, roundedTotal } from './rounding';
 import { currentConsent } from './validation';
@@ -42,17 +42,24 @@ export interface PublicFarm {
   storyEn: string;
 }
 
+/**
+ * Cattle for sale, one entry per farm and time window ("now", "soon"). No
+ * breed, sex, photo or individual animal: only a rounded head count and a
+ * weight range of whole classes.
+ */
 export interface PublicListing {
+  /** The code of the FARM ("l-xxxxxx"); the price form carries it so the office knows which farm was asked about. */
   listingId: string;
   farmSlug: string;
-  breed: string;
-  sex: string;
-  weightClass: string;
+  /** "Under 10", "10+", "20+" or "50+". */
   headCount: string;
+  /** Lower edge of the smallest weight class in kg; null = no lower limit ("Under 250 kg"). */
+  weightFrom: number | null;
+  /** Upper edge of the largest weight class in kg; null = no upper limit ("400 kg+"). */
+  weightTo: number | null;
   province: string;
   provinceKm: string;
   availability: 'now' | 'soon';
-  photoId: string | null;
 }
 
 export interface PublicNews {
@@ -79,7 +86,7 @@ export const PUBLIC_FIELDS = {
   snapshot: ['version', 'builtAt', 'summary', 'farms', 'cattle', 'news'],
   summary: ['memberFarms', 'provinces', 'cattleRaised', 'feedRecordedTodayPct'],
   farm: ['slug', 'publicName', 'province', 'provinceKm', 'district', 'lat', 'lng', 'breeds', 'sizeRange', 'memberSince', 'badges', 'hasCattleAvailable', 'photoIds', 'storyKm', 'storyEn'],
-  listing: ['listingId', 'farmSlug', 'breed', 'sex', 'weightClass', 'headCount', 'province', 'provinceKm', 'availability', 'photoId'],
+  listing: ['listingId', 'farmSlug', 'headCount', 'weightFrom', 'weightTo', 'province', 'provinceKm', 'availability'],
   news: ['id', 'titleKm', 'titleEn', 'bodyKm', 'bodyEn', 'photoId', 'publishedAt'],
 } as const;
 
@@ -96,7 +103,10 @@ export function fieldsOutsideAllowList(snapshot: PublicSnapshot): string[] {
   ];
 }
 
-/** The public code for a batch listing; inquiries carry it so the office can find the batch. */
+/** The public code for a farm's cattle for sale; price inquiries carry it so the office can find the farm. */
+export const farmListingIdOf = (farmId: string): string => `l-${publicCode(farmId)}`;
+
+/** The older public code, for a batch. Inquiries sent before cattle were shown by farm still carry it. */
 export const listingIdOf = (batchId: string): string => `l-${publicCode(batchId)}`;
 
 export interface SnapshotInput {
@@ -135,25 +145,17 @@ export function buildPublicSnapshot(input: SnapshotInput): PublicSnapshot {
     const batches = input.batches.filter(b => b.status === 'Active' && onFarm(b.farmLocation));
     const slug = farmSlug(profile.publicName, profile.farmId);
 
-    const listed: PublicListing[] = [];
-    for (const batch of batches) {
-      const listing = input.listings.find(l => l.batchId === batch.id && l.published);
-      if (!listing) continue;
-      const facts = listingFacts(batch, listing, input.stock, input.weights, input.today, input.saleWindow);
-      if (!facts.availability || !facts.weightClass || !facts.headCount) continue;
-      listed.push({
-        listingId: listingIdOf(batch.id),
-        farmSlug: slug,
-        breed: facts.breed,
-        sex: facts.sex,
-        weightClass: facts.weightClass,
-        headCount: facts.headCount,
-        province: province.key,
-        provinceKm: province.km,
-        availability: facts.availability,
-        photoId: consent.mayShowPhotos ? listing.photoId ?? null : null,
-      });
-    }
+    // What this farm has for sale, from its batches' sell schedule (one entry per time window).
+    const listed: PublicListing[] = farmWindows(batches, input.listings, input.stock, input.weights, input.today, input.saleWindow).map(w => ({
+      listingId: farmListingIdOf(profile.farmId),
+      farmSlug: slug,
+      headCount: w.headCount,
+      weightFrom: w.weightFrom,
+      weightTo: w.weightTo,
+      province: province.key,
+      provinceKm: province.km,
+      availability: w.availability,
+    }));
 
     const pin = publicPin(profile.mapLat ?? province.lat, profile.mapLng ?? province.lng, consent.mayShowExactLocation);
     const breeds = [...new Set(active.map(c => c.breed.trim()).filter(Boolean))].sort().slice(0, 3);

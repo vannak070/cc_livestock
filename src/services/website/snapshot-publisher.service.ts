@@ -29,7 +29,7 @@ const extOf = (mime: string) => (mime === 'image/jpeg' ? 'jpg' : 'webp');
 
 /** Every photo id the snapshot shows. */
 export function photosIn(s: PublicSnapshot): string[] {
-  return [...new Set([...s.farms.flatMap(f => f.photoIds), ...s.cattle.map(l => l.photoId), ...s.news.map(n => n.photoId)].filter((x): x is string => !!x))];
+  return [...new Set([...s.farms.flatMap(f => f.photoIds), ...s.news.map(n => n.photoId)].filter((x): x is string => !!x))];
 }
 
 async function writeAtomic(file: string, data: string | Uint8Array): Promise<void> {

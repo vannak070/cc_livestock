@@ -1,7 +1,7 @@
 import { canManageUsers, type Actor } from '../../lib/authz';
 import type { BatchItem, WebsiteBatchListing, WebsiteConsent, WebsiteFarmProfile, WebsiteNewsPost, WebsiteVisitors } from '../../lib/types';
 import {
-  buildPublicSnapshot, canHandleWebsiteRequests, canPublishWebsite, currentConsent, listingFacts, listingIdOf, listingProblem,
+  batchOffered, buildPublicSnapshot, canHandleWebsiteRequests, canPublishWebsite, currentConsent, listingFacts, listingIdOf, listingProblem,
   publishHealth, publishProblem, type ListingFacts, type PublishHealth, type PublicSnapshot,
 } from '../../lib/website';
 import { settingsRepository } from '../../repositories/settings.repository';
@@ -25,6 +25,8 @@ export interface BatchRow {
   batch: Pick<BatchItem, 'id' | 'name' | 'farmLocation' | 'status' | 'sellingTargetDate'>;
   listing: WebsiteBatchListing | null;
   listingId: string;
+  /** Left on the website by the office (the default); false when the office switched this batch off. */
+  offered: boolean;
   facts: ListingFacts;
   farmPublished: boolean;
   /** Why it cannot be shown; null when it can. */
@@ -75,7 +77,7 @@ export class WebsiteOverviewService {
         const farmPublished = publishedFarms.some(m => m(b.farmLocation));
         return {
           batch: { id: b.id, name: b.name, farmLocation: b.farmLocation, status: b.status, sellingTargetDate: b.sellingTargetDate },
-          listing, listingId: listingIdOf(b.id), facts, farmPublished,
+          listing, listingId: listingIdOf(b.id), offered: batchOffered(listing), facts, farmPublished,
           listBlock: listingProblem(b, farmPublished, facts.healthyHead),
         };
       })

@@ -30,17 +30,24 @@ export interface PublicFarm {
   storyEn: string;
 }
 
+/**
+ * Cattle for sale, one entry per farm and time window ("now", "soon"): only a
+ * rounded head count and a weight range of whole classes. (Keep the same as
+ * CC Livestock's src/lib/website/snapshot.ts.)
+ */
 export interface PublicListing {
+  /** The code of the farm; the price form carries it so the office knows which farm was asked about. */
   listingId: string;
   farmSlug: string;
-  breed: string;
-  sex: string;
-  weightClass: string;
+  /** "Under 10", "10+", "20+" or "50+". */
   headCount: string;
+  /** Lower edge of the smallest weight class in kg; null = no lower limit. */
+  weightFrom: number | null;
+  /** Upper edge of the largest weight class in kg; null = no upper limit. */
+  weightTo: number | null;
   province: string;
   provinceKm: string;
   availability: 'now' | 'soon';
-  photoId: string | null;
 }
 
 export interface PublicNews {

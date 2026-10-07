@@ -1,5 +1,5 @@
 import { alertSettings } from '../../lib/alerts';
-import { buildApplicationMessage, buildInquiryMessage, listingIdOf } from '../../lib/website';
+import { buildApplicationMessage, buildInquiryMessage, farmListingIdOf, listingIdOf } from '../../lib/website';
 import { batchRepository } from '../../repositories/batch.repository';
 import { settingsRepository } from '../../repositories/settings.repository';
 import { websiteRequestRepository } from '../../repositories/website';
@@ -22,9 +22,12 @@ export class WebsiteRequestNotifyService {
     const { applications, inquiries } = await websiteRequestRepository.findUnnotified();
     if (applications.length + inquiries.length === 0) return { sent: 0, skipped: 'nothing-new' };
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '') || undefined;
-    const names = inquiries.some(i => i.listingRef)
-      ? new Map((await batchRepository.findAll()).map(b => [listingIdOf(b.id), b.name]))
-      : new Map<string, string>();
+    // A price inquiry names a farm (older ones named a batch).
+    const names = new Map<string, string>();
+    if (inquiries.some(i => i.listingRef)) {
+      for (const b of await batchRepository.findAll()) names.set(listingIdOf(b.id), b.name);
+      for (const f of (await settingsRepository.getSettings()).farms ?? []) names.set(farmListingIdOf(f.id), f.name);
+    }
 
     let sent = 0;
     const jobs: { kind: 'application' | 'inquiry'; id: string; text: string }[] = [

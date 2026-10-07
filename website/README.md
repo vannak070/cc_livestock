@@ -27,6 +27,10 @@ npm install                    # or, from CC Livestock: npm run website:install
 npm run dev                    # http://localhost:3200 (or from CC Livestock: npm run website:dev, or dev:all for everything)
 ```
 
+`npm run dev` uses webpack (`next dev --webpack`), not Turbopack. With Turbopack the dev server sat at 300 to 600% CPU for
+minutes with nobody visiting (it keeps rewriting its on-disk cache), and turning that cache off made the Google fonts fail to
+load. Webpack idles at about 0% CPU. `npm run build` and `npm start` are unaffected.
+
 `.env.local`:
 
 | Setting | What |

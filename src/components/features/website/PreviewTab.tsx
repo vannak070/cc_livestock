@@ -6,6 +6,7 @@ import { ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getWebsitePreviewAction, publishWebsiteNowAction } from '@/app/website-actions';
 import { useText } from '@/hooks/useText';
+import { weightRangeLabel } from '@/lib/website';
 import { errorText, ok, Pill, PhotoThumb } from './parts';
 
 /**
@@ -87,8 +88,8 @@ export function PreviewTab({ lastPublishedAt }: { lastPublishedAt: string | null
           <ul className="grid gap-3 md:grid-cols-2">
             {s.cattle.map(l => (
               <li key={l.listingId} className="space-y-1 rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-lg font-semibold text-ink">{[l.breed, l.sex].filter(Boolean).join(' · ')}</p>
-                <p className="text-base text-ink">{l.weightClass} · {l.headCount} · {km ? l.provinceKm : l.province}</p>
+                <p className="text-lg font-semibold text-ink">{s.farms.find(f => f.slug === l.farmSlug)?.publicName ?? '—'}</p>
+                <p className="text-base text-ink">{weightRangeLabel(l.weightFrom, l.weightTo)} · {l.headCount} · {km ? l.provinceKm : l.province}</p>
                 <Pill tone={l.availability === 'now' ? 'green' : 'amber'}>{l.availability === 'now' ? tx('availNow') : tx('availSoon')}</Pill>
                 <p className="text-sm text-ink-muted">{tx('askPrice')}</p>
               </li>

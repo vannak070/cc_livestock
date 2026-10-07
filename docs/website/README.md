@@ -33,7 +33,7 @@ src/
 │   ├── access.ts                          who may publish (Super Admin, Admin) / handle requests
 │   ├── places.ts                          the 25 provinces (English, Khmer, map centre)
 │   ├── rounding.ts                        weight classes, "20+" counts, size ranges, blurred map pins, public codes
-│   ├── listing.ts                         what a batch shows: breed, sex, class, "now" / "soon"
+│   ├── listing.ts                         cattle for sale BY FARM from the batches' sell schedule: "now" / "soon", rounded count, weight range
 │   ├── badges.ts                          standards badges (feed, weighing, vet) and their thresholds
 │   ├── districts.ts                       suggested districts per province (same list as website/src/lib/districts.ts; a test checks)
 │   ├── health.ts                          is publishing working? banner + Telegram rules; requests kept 24 months
@@ -46,7 +46,7 @@ src/
 │   ├── website-data.ts                    loads all records the rules need (also used by the sync job)
 │   ├── overview.service.ts                the Website page's data + Preview
 │   ├── farm-profile.service.ts            profile, consent, publish
-│   ├── batch-listing.service.ts           cattle available
+│   ├── batch-listing.service.ts           hide a batch from the website, or set its timing by hand
 │   ├── request.service.ts                 applications and inquiries; "Create the farm" from an application
 │   ├── upkeep.service.ts                  Telegram when publishing fails / works again; deletes requests after 24 months
 │   ├── news.service.ts                    news posts
@@ -57,7 +57,7 @@ src/
 ├── components/features/website/           the Website page
 │   ├── WebsitePage.tsx                    tabs; shows only what the user may use
 │   ├── FarmsTab.tsx                       member farms: profile, consent, on/off
-│   ├── CattleTab.tsx                      cattle available: on/off, what is shown
+│   ├── CattleTab.tsx                      cattle for sale: hide a batch, or set its timing
 │   ├── RequestsTab.tsx                    join applications and price inquiries
 │   ├── NewsTab.tsx                        news posts
 │   ├── PreviewTab.tsx                     exactly what the public will see
@@ -84,8 +84,12 @@ Website forms (step 2) ──► insert-only ──► website_applications / we
 1. A **Super Admin or Admin** sets up a farm's website profile (public name, province, district,
    optional map point, story, photos), records the farmer's **consent**, then switches it **on**.
    Publishing is refused without a current consent.
-2. They switch **batches** on as "cattle available". A batch shows only while its selling date is
-   within 60 days ("soon") or the sale review window / Ready to sell ("now").
+2. **Cattle for sale are shown by farm and come from the batch sell schedule: nobody has to switch batches on.** For a farm that is
+   on the website, every active batch with healthy animals counts: **"now"** when it is marked Ready to sell or its selling date is inside
+   the sale review window (or late), **"soon"** when the date is within 60 days. The public sees one card per farm with its windows, a
+   rounded head count ("10+") and a weight range of whole classes (for example "300–400 kg"): no breed, sex, photo or single animal, and
+   no exact dates, weights or prices. In the Cattle tab the office can **hide a batch** (it then never shows) or set its timing by hand.
+   A price inquiry carries the farm's code (`l-xxxxxx`); older ones carry a batch code, and the office reads both.
 3. Anyone with **`website_requests`** (Company by default; Super Admin and Admin always) answers
    applications and inquiries. Statuses only move forward. After calling an applicant (status
    Contacted), someone who may also manage farms can **Create the farm**: it makes the farm in
