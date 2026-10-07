@@ -177,11 +177,13 @@ Write these back into the SFD when it is next edited.
 
 **Closed after the first build (2026-10-07)**
 
-- Create farm from an accepted application (was: link to an existing farm only).
+- Create farm from an accepted application (was: link to an existing farm only); it also records the
+  consent ticked on the Join form (web form, name, district and photos; never the exact place).
 - District suggestions in the office profile and the Join form (was: free text only).
 - Publishing failures shown on the Website page and sent once to Telegram, plus a "working again"
   message (was: last publish time only).
-- Requests deleted after 24 months.
+- Requests deleted after 24 months, except applications that became a member farm (SFD section 9).
+- Applications and inquiries lists filter by status.
 - Public API reads limited to 60 a minute per address (was: forms only, 5 an hour).
 - Breed and "new members" filters on the members map.
 - Added later the same day (not in the SFD): Call / Telegram bar on phones, "Tell me when cattle are

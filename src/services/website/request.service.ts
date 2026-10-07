@@ -1,11 +1,15 @@
+import { randomUUID } from 'crypto';
 import type { Actor } from '../../lib/authz';
 import type { ApplicationStatus, InquiryStatus, WebsiteApplication, WebsiteInquiry } from '../../lib/types';
 import { NOTE_MAX, nextApplicationStatuses, nextInquiryStatuses, provinceOf } from '../../lib/website';
 import { withTransaction } from '../../config/database';
 import { settingsRepository } from '../../repositories/settings.repository';
-import { websiteFarmProfileRepository, websiteRequestRepository } from '../../repositories/website';
+import { websiteConsentRepository, websiteFarmProfileRepository, websiteRequestRepository } from '../../repositories/website';
 import { farmService } from '../farm.service';
 import { assertRequestHandler } from './guards';
+
+/** The calendar day (Cambodia time) an ISO time falls on. */
+const phnomPenhDay = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Phnom_Penh' });
 
 /** Farm applications and price inquiries from the website. Needs `website_requests`. */
 export class WebsiteRequestService {
@@ -33,7 +37,9 @@ export class WebsiteRequestService {
   /**
    * Makes a new farm in CC Livestock from an application the office has called
    * (Contacted or Accepted), accepts the application and links it to the farm,
-   * and starts an unpublished website profile with the place the farmer gave.
+   * starts an unpublished website profile with the place the farmer gave, and
+   * carries over the consent they ticked on the Join form (BRD section 5, SFD
+   * forms flow), so the office does not record it again before publishing.
    * Needs `website_requests` plus the right to manage farms. The farm gets no
    * cattle limit: a Super Admin or Admin sets that (src/lib/farm-limit.ts).
    */
@@ -53,6 +59,13 @@ export class WebsiteRequestService {
     }, null);
     await withTransaction(async client => {
       await websiteRequestRepository.updateApplication(id, 'accepted', app.notes, actor.name, farm.id, client);
+      if (app.consentChecked) {
+        // The Join form's box: name, district and approved photos may be shown; never the exact place.
+        await websiteConsentRepository.create(`CONSENT-${randomUUID().slice(0, 8).toUpperCase()}`, farm.id, {
+          givenByName: app.name.slice(0, 80), givenOn: phnomPenhDay(app.createdAt), method: 'web_form',
+          mayShowName: true, mayShowPhotos: true, mayShowExactLocation: false,
+        }, actor.name, client);
+      }
       if (province && !(await websiteFarmProfileRepository.find(farm.id, client))) {
         await websiteFarmProfileRepository.save(farm.id, {
           publicName: farm.name, province: province.key, district: app.district.trim().slice(0, 60), storyKm: '', storyEn: '', photoIds: [],

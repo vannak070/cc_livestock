@@ -103,12 +103,13 @@ export class WebsiteRequestRepository {
 
   /**
    * Deletes applications and inquiries older than `months`, with the
-   * application photos no profile, listing or news post uses. One transaction;
-   * returns how many of each went.
+   * application photos no profile, listing or news post uses. Applications
+   * that became a member farm (linked to a farm) are kept (SFD section 9).
+   * One transaction; returns how many of each went.
    */
   async deleteOlderThan(months: number, client: PoolClient): Promise<{ applications: number; inquiries: number; photos: number }> {
     const cutoff = `NOW() - make_interval(months => $1::int)`;
-    const apps = await client.query(`DELETE FROM website_applications WHERE created_at < ${cutoff} RETURNING photo_ids`, [months]);
+    const apps = await client.query(`DELETE FROM website_applications WHERE created_at < ${cutoff} AND farm_id IS NULL RETURNING photo_ids`, [months]);
     const inq = await client.query(`DELETE FROM website_inquiries WHERE created_at < ${cutoff}`, [months]);
     const photoIds = [...new Set(apps.rows.flatMap(r => ids(r.photo_ids)))];
     let photos = 0;

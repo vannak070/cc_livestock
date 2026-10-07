@@ -11,6 +11,8 @@ import { useText } from '@/hooks/useText';
 import { areaClass, errorText, inputClass, ok, Pill, PhotoThumb, type Tone } from './parts';
 
 const TONE: Record<string, Tone> = { new: 'amber', contacted: 'blue', accepted: 'green', declined: 'slate', closed: 'slate' };
+const APPLICATION_STATUSES: ApplicationStatus[] = ['new', 'contacted', 'accepted', 'declined'];
+const INQUIRY_STATUSES: InquiryStatus[] = ['new', 'contacted', 'closed'];
 const when = (iso: string) => iso.slice(0, 16).replace('T', ' ');
 
 /** Applications to join and price inquiries sent from the website. */
@@ -18,6 +20,7 @@ export function RequestsTab({ farms, canCreateFarms, listingNames, onChanged }: 
   const { tx } = useText('websitePage');
   const queryClient = useQueryClient();
   const [show, setShow] = useState<'applications' | 'inquiries'>('applications');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const query = useQuery({ queryKey: ['website', 'requests'], queryFn: async () => ok(await getWebsiteRequestsAction()), refetchOnMount: 'always' });
   const refresh = () => { queryClient.invalidateQueries({ queryKey: ['website', 'requests'] }); onChanged(); };
 
@@ -27,20 +30,39 @@ export function RequestsTab({ farms, canCreateFarms, listingNames, onChanged }: 
   const { applications, inquiries } = query.data;
   const openA = applications.filter(a => a.status === 'new').length;
   const openI = inquiries.filter(i => i.status === 'new').length;
+  const statuses = show === 'applications' ? APPLICATION_STATUSES : INQUIRY_STATUSES;
+  const list: { status: string }[] = show === 'applications' ? applications : inquiries;
+  const countOf = (s: string) => list.filter(r => r.status === s).length;
+  const keep = <T extends { status: string }>(rows: T[]) => (statusFilter === 'all' ? rows : rows.filter(r => r.status === statusFilter));
+  const shownA = keep(applications);
+  const shownI = keep(inquiries);
+  const pick = (next: 'applications' | 'inquiries') => { setShow(next); setStatusFilter('all'); };
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2" role="tablist" aria-label={tx('requestsTitle')}>
-        <Button role="tab" aria-selected={show === 'applications'} variant={show === 'applications' ? 'default' : 'outline'} size="sm" onClick={() => setShow('applications')}>{tx('applicationsTab', { n: openA })}</Button>
-        <Button role="tab" aria-selected={show === 'inquiries'} variant={show === 'inquiries' ? 'default' : 'outline'} size="sm" onClick={() => setShow('inquiries')}>{tx('inquiriesTab', { n: openI })}</Button>
+        <Button role="tab" aria-selected={show === 'applications'} variant={show === 'applications' ? 'default' : 'outline'} size="sm" onClick={() => pick('applications')}>{tx('applicationsTab', { n: openA })}</Button>
+        <Button role="tab" aria-selected={show === 'inquiries'} variant={show === 'inquiries' ? 'default' : 'outline'} size="sm" onClick={() => pick('inquiries')}>{tx('inquiriesTab', { n: openI })}</Button>
       </div>
+      {list.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label={tx('filterStatus')}>
+          <span className="text-sm text-ink-muted">{tx('filterStatus')}:</span>
+          {['all', ...statuses].map(s => (
+            <Button key={s} size="sm" variant={statusFilter === s ? 'secondary' : 'ghost'} aria-pressed={statusFilter === s} onClick={() => setStatusFilter(s)}>
+              {s === 'all' ? tx('filterAll', { n: list.length }) : `${tx(`status_${s}`)} (${countOf(s)})`}
+            </Button>
+          ))}
+        </div>
+      )}
       <p className="text-base text-ink-muted">{tx('requestsIntro')}</p>
       {show === 'applications' && (applications.length === 0
         ? <p className="rounded-2xl bg-slate-50 p-6 text-lg text-ink-muted">{tx('noApplications')}</p>
-        : <ul className="space-y-3">{applications.map(a => <li key={a.id}><ApplicationCard a={a} farms={farms} canCreateFarms={canCreateFarms} onSaved={refresh} /></li>)}</ul>)}
+        : shownA.length === 0 ? <p className="rounded-2xl bg-slate-50 p-6 text-lg text-ink-muted">{tx('noneWithStatus')}</p>
+        : <ul className="space-y-3">{shownA.map(a => <li key={a.id}><ApplicationCard a={a} farms={farms} canCreateFarms={canCreateFarms} onSaved={refresh} /></li>)}</ul>)}
       {show === 'inquiries' && (inquiries.length === 0
         ? <p className="rounded-2xl bg-slate-50 p-6 text-lg text-ink-muted">{tx('noInquiries')}</p>
-        : <ul className="space-y-3">{inquiries.map(i => <li key={i.id}><InquiryCard i={i} listingName={i.listingRef ? listingNames[i.listingRef] : undefined} onSaved={refresh} /></li>)}</ul>)}
+        : shownI.length === 0 ? <p className="rounded-2xl bg-slate-50 p-6 text-lg text-ink-muted">{tx('noneWithStatus')}</p>
+        : <ul className="space-y-3">{shownI.map(i => <li key={i.id}><InquiryCard i={i} listingName={i.listingRef ? listingNames[i.listingRef] : undefined} onSaved={refresh} /></li>)}</ul>)}
     </div>
   );
 }
