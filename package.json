@@ -24,7 +24,13 @@
     "db:check": "npx tsx src/db/migrations/check-data.ts",
     "login-fix": "npx tsx src/db/migrations/login-fix.ts",
     "set-pin": "npx tsx src/db/migrations/set-pin.ts",
-    "website:forms-user": "tsx src/db/create-website-forms-user.ts"
+    "website:forms-user": "tsx src/db/create-website-forms-user.ts",
+    "website:install": "npm --prefix website install",
+    "website:dev": "npm --prefix website run dev",
+    "website:build": "npm --prefix website run build",
+    "website:start": "npm --prefix website run start",
+    "website:test": "npm --prefix website test",
+    "website:typecheck": "npm --prefix website run typecheck"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

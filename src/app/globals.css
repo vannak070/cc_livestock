@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* The public website (website/) is a separate app with its own styles. */
+@source not "../../website";
 
 /*
  * CC Livestock look (UI proposal, Option C): white surfaces with the logo in

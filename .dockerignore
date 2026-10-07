@@ -1,4 +1,6 @@
 node_modules
+# The public website is a separate app, deployed on its own.
+website
 .next
 .git
 .gitignore

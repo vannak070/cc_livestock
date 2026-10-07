@@ -15,7 +15,7 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "--prefix",
-        "../CamCow_Website",
+        "website",
         "run",
         "dev"
       ],

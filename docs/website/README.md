@@ -17,7 +17,7 @@ Design documents (ask the project owner for access):
 | --- | --- | --- |
 | 1 | Office side in CC Livestock: tables, rules, permission, Website page | **Done** |
 | 2 | Snapshot publisher (after each office change + every 15 min), Telegram per new request, insert-only forms account | **Done** |
-| 3 | The website itself: separate project `../CamCow_Website`, http://localhost:3200 (public API `/public/v1` lives there) | **Done** |
+| 3 | The website itself: its own Next.js app in `website/`, http://localhost:3200 (public API `/public/v1` lives there) | **Done** |
 | 4 | Join-form photos, share previews, phone and speed checks | **Done** (real photos still to come) |
 | 5 | Launch: domain, HTTPS, hosting (only when the owner says so) | To do |
 
@@ -131,6 +131,9 @@ was last published.
 
 ## Step 3: the website
 
-A separate Next.js project next to this one: `../CamCow_Website` (see its README). Run with
-`npm run dev` there, or the `camcow-website` entry in `.claude/launch.json`. It reads the snapshot
-folder and posts forms with the insert-only account.
+Its own Next.js app in the `website/` folder of this repo (see `website/README.md`), with its own
+`package.json`, settings and port. It is NOT part of the CC Livestock app and never imports its
+code: that keeps the public site walled off from the private data. From this folder:
+`npm run website:install` once, then `npm run website:dev` (or `npm run dev:all` for the API, the
+web app and the website together, or the `camcow-website` entry in `.claude/launch.json`). It
+reads `../.website-snapshot` by default and posts forms with the insert-only account.
