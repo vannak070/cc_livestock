@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { InquiryForm } from '@/components/cattle/InquiryForm';
@@ -31,8 +32,9 @@ export default async function JoinPage({ params, searchParams }: { params: Promi
       {items.map(i => <li key={i}><span className="jn-tick"><Tick /></span>{i}</li>)}
     </ul>
   );
-  const about = (title: string, body: string, items: readonly string[], more?: { to: string; label: string }) => (
-    <div className="stack" style={{ gap: 14 }}>
+  // Elements passed inside the roles list need keys (React warns otherwise).
+  const about = (key: string, title: string, body: string, items: readonly string[], more?: { to: string; label: string }) => (
+    <div key={key} className="stack" style={{ gap: 14 }}>
       <h2 className="display h3">{title}</h2>
       <p style={{ margin: 0, color: 'var(--ink-2)', fontSize: 17 }}>{body}</p>
       {ticks(items)}
@@ -40,7 +42,7 @@ export default async function JoinPage({ params, searchParams }: { params: Promi
     </div>
   );
   const farmerInfo = (
-    <>
+    <Fragment key="farmer-info">
       <div className="stack" style={{ gap: 14 }}>
         <h2 className="display h3">{t.join.getTitle}</h2>
         {ticks(t.join.get)}
@@ -57,7 +59,7 @@ export default async function JoinPage({ params, searchParams }: { params: Promi
           {t.join.look.map(i => <li key={i}>{i}</li>)}
         </ul>
       </div>
-    </>
+    </Fragment>
   );
   return (
     <>
@@ -69,15 +71,15 @@ export default async function JoinPage({ params, searchParams }: { params: Promi
             initial={role}
             roles={[
               { key: 'farmer', label: tabs.farmer.label, blurb: tabs.farmer.title, icon: ICONS.farmer, info: farmerInfo, formTitle: t.join.formTitle,
-                form: <ApplicationForm t={{ join: t.join, common: t.common }} lang={lang} membersHref={href(lang, '/members')} /> },
+                form: <ApplicationForm key="farmer-form" t={{ join: t.join, common: t.common }} lang={lang} membersHref={href(lang, '/members')} /> },
               { key: 'buyer', label: tabs.buyer.label, blurb: tabs.buyer.title, icon: ICONS.buyer,
-                info: about(tabs.buyer.title, tabs.buyer.body, tabs.buyer.points, { to: href(lang, '/cattle'), label: tabs.buyer.cta }),
+                info: about('buyer-info', tabs.buyer.title, tabs.buyer.body, tabs.buyer.points, { to: href(lang, '/cattle'), label: tabs.buyer.cta }),
                 formTitle: t.inquiry.title,
-                form: <InquiryForm t={{ inquiry: t.inquiry, common: t.common, values: t.values }} lang={lang} listings={[]} /> },
+                form: <InquiryForm key="buyer-form" t={{ inquiry: t.inquiry, common: t.common, values: t.values }} lang={lang} listings={[]} /> },
               { key: 'investor', label: tabs.investor.label, blurb: tabs.investor.title, icon: ICONS.investor,
-                info: about(tabs.investor.title, tabs.investor.body, tabs.investor.points),
+                info: about('investor-info', tabs.investor.title, tabs.investor.body, tabs.investor.points),
                 formTitle: t.inquiry.investorTitle,
-                form: <InquiryForm t={{ inquiry: t.inquiry, common: t.common, values: t.values }} lang={lang} listings={[]} investor /> },
+                form: <InquiryForm key="investor-form" t={{ inquiry: t.inquiry, common: t.common, values: t.values }} lang={lang} listings={[]} investor /> },
             ]}
           />
         </div>

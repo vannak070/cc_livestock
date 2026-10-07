@@ -26,7 +26,7 @@ export function NetworkSection({ lang, title, sub, farmers, visit }: {
             const inner = (
               <>
                 <span className="net-tag">{p.tag[lang]}</span>
-                <span className="net-logo"><Image src={p.logo} alt="" width={104} height={104} /></span>
+                <span className="net-logo"><Image src={p.logo} alt="" width={104} height={104} style={{ width: '100%', height: '100%' }} /></span>
                 <h3>{p.name[lang]}</h3>
                 <p>{p.role[lang]}</p>
                 {p.link && <span className="net-visit">{visit} <span aria-hidden="true">↗</span></span>}

@@ -95,13 +95,27 @@ describe('same rules as the website', () => {
   it('gives the same answer to the same inquiry', () => {
     for (const i of inqs) expect(checkInquiryIn(i)).toEqual(checkInquiry(i));
   });
+  it('accepts what the website really forwards: its own checked values', () => {
+    for (const a of apps) {
+      const site = checkApplication(a);
+      if (site.ok) expect(checkApplicationIn({ ...site.value })).toEqual(site);
+    }
+    for (const i of inqs) {
+      const site = checkInquiry(i);
+      if (site.ok) expect(checkInquiryIn({ ...site.value })).toEqual(site);
+    }
+  });
   it('accepts whatever the website lets through as a visit count', () => {
     const raws = [{ kind: 'view', path: '/en/cattle', referrer: 'https://www.facebook.com/x' }, { kind: 'join', path: '/km/join' }, { kind: 'call', path: '/en' }, { kind: 'view', path: '/en/members/farm-1' }];
     for (const raw of raws) {
       const fromSite = checkEvent(raw, 'camcow.example');
       expect(fromSite).not.toBeNull();
       expect(checkEventIn({ ...raw, referrer: fromSite!.referrer })).toEqual(fromSite);
+      // What the website really forwards: the cleaned count plus the device.
+      expect(checkEventIn({ ...fromSite!, device: 'phone' })).toEqual(fromSite);
     }
+    expect(checkEventIn({ kind: 'view', lang: 'fr', path: '/members' })).toBeNull();
+    expect(checkEventIn({ kind: 'view', lang: 'en', path: '/<x>' })).toBeNull();
     for (const raw of [{ kind: 'x', path: '/en' }, { kind: 'view', path: '/zz/en' }]) {
       expect(checkEvent(raw, 'camcow.example')).toBeNull();
       expect(checkEventIn(raw)).toBeNull();

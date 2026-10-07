@@ -45,7 +45,7 @@ export default async function FarmPage({ params }: { params: Params }) {
     <>
       <section className="page-head" style={{ paddingTop: 24 }}>
         <div className="wrap stack" style={{ position: 'relative', gap: 22 }}>
-          <nav aria-label="Breadcrumb" className="small"><Link href={href(lang, '/members')}>← {t.profile.back}</Link></nav>
+          <nav aria-label="Breadcrumb" className="small crumb"><Link href={href(lang, '/members')}>← {t.profile.back}</Link></nav>
           <div className="prof-head">
             <div className="rise"><ProfileGallery ids={farm.photoIds} alt={farm.publicName} label={t.profile.photos} /></div>
             <div className="prof-intro stack" style={{ gap: 14 }}>

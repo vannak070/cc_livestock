@@ -14,7 +14,7 @@ export interface TeamMember {
 }
 
 export const ABOUT = {
-  ready: false,
+  ready: true,
   /** e.g. "2025". */
   foundedYear: '',
   /** Street, district, city, as it should be shown. */

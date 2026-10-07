@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: 'Page not found · ខេម ខោ�
 export default function GlobalNotFound() {
   const home = `/${DEFAULT_LANG}`;
   return (
-    <html lang={DEFAULT_LANG} className={`${body.variable} ${display.variable}`}>
+    <html lang={DEFAULT_LANG} className={`${body.variable} ${display.variable}`} data-scroll-behavior="smooth">
       <body>
         <main className="section">
           <div className="wrap stack" style={{ gap: 18, alignItems: 'flex-start', maxWidth: 720 }}>

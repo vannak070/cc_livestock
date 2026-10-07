@@ -39,7 +39,7 @@ export default async function Layout({ children, params }: { children: ReactNode
   // "Stories" is left out of the menus until there is one.
   const hasNews = (await getSnapshot()).news.length > 0;
   return (
-    <html lang={lang} className={`${body.variable} ${display.variable}`}>
+    <html lang={lang} className={`${body.variable} ${display.variable}`} data-scroll-behavior="smooth">
       <body>
         <Header lang={lang} t={t} hasNews={hasNews} />
         <main>{children}</main>

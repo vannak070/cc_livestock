@@ -118,12 +118,14 @@ export function referrerHost(raw: unknown, ownHost: string): string {
 }
 
 /**
- * A visit count the website sends. The website already turned the referrer
- * into a host name, so only its shape is checked here.
+ * A visit count the website sends. The website has already split the address
+ * into language + page ({ lang: 'en', path: '/members' }); a raw address
+ * ('/en/members') is accepted too. The referrer is already a host name, so
+ * only its shape is checked here.
  */
 export function checkEventIn(raw: Record<string, unknown>): EventIn | null {
   if (!EVENT_KINDS.includes(raw.kind as EventKind)) return null;
-  const where = cleanPath(raw.path);
+  const where = cleanPath(raw.path) ?? (raw.lang === 'en' || raw.lang === 'km' ? cleanPath(`/${raw.lang}${typeof raw.path === 'string' && raw.path !== '/' ? raw.path : ''}`) : null);
   if (!where) return null;
   const referrer = raw.kind === 'view' && typeof raw.referrer === 'string' && /^[a-z0-9.-]{1,100}$/.test(raw.referrer) ? raw.referrer : '';
   return { kind: raw.kind as EventKind, ...where, referrer };
