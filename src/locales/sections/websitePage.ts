@@ -161,6 +161,22 @@ export const en = {
   publishing: 'Publishing…',
   publishedOk: 'Published. The website shows it within a minute.',
   publishFailed: 'Could not publish. Please try again.',
+  // Publishing health (banner above the tabs)
+  healthFailing: 'The website could not be updated since {since} UTC. It still shows the version from {last} UTC.',
+  healthFailingNever: 'The website could not be updated since {since} UTC. Nothing has been published yet.',
+  healthReason: 'Reason: {error}',
+  healthStale: 'The website has not been updated since {last} UTC. The automatic update (in the API server) may have stopped.',
+  healthTry: 'Open Preview and press Publish now. If it keeps failing, tell the person who runs the server.',
+  // Create a farm from an application
+  createFarmTitle: 'Make their farm in CC Livestock',
+  createFarmHint: 'Creates the farm, accepts this application and starts its website profile with the place they gave. A Super Admin or Admin then sets its cattle limit.',
+  createFarmName: 'Farm name',
+  createFarm: 'Create the farm',
+  creatingFarm: 'Creating…',
+  createFarmFirst: 'Mark the application Contacted after you call them; then you can create their farm here.',
+  farmCreated: '{name} was created and linked. Set its cattle limit and owner on the Farms page.',
+  linkedTo: 'Linked farm: {name}',
+  districtHint: 'Choose from the list or type it.',
 };
 
 export const km: Partial<typeof en> = {
@@ -317,4 +333,18 @@ export const km: Partial<typeof en> = {
   publishing: 'កំពុងផ្សាយ…',
   publishedOk: 'បានផ្សាយ។ គេហទំព័របង្ហាញក្នុងរយៈពេលមួយនាទី។',
   publishFailed: 'មិនអាចផ្សាយបានទេ។ សូមព្យាយាមម្តងទៀត។',
+  healthFailing: 'គេហទំព័រមិនអាចធ្វើបច្ចុប្បន្នភាពបានទេតាំងពី {since} UTC។ វានៅតែបង្ហាញកំណែពី {last} UTC។',
+  healthFailingNever: 'គេហទំព័រមិនអាចធ្វើបច្ចុប្បន្នភាពបានទេតាំងពី {since} UTC។ មិនទាន់មានអ្វីផ្សាយទេ។',
+  healthReason: 'មូលហេតុ៖ {error}',
+  healthStale: 'គេហទំព័រមិនបានធ្វើបច្ចុប្បន្នភាពតាំងពី {last} UTC។ ការធ្វើបច្ចុប្បន្នភាពស្វ័យប្រវត្តិ (នៅក្នុងម៉ាស៊ីនមេ API) ប្រហែលជាបានឈប់។',
+  healthTry: 'បើក មើលជាមុន ហើយចុច ផ្សាយឥឡូវ។ បើនៅតែបរាជ័យ សូមប្រាប់អ្នកដែលគ្រប់គ្រងម៉ាស៊ីនមេ។',
+  createFarmTitle: 'បង្កើតកសិដ្ឋានរបស់ពួកគេក្នុង CC Livestock',
+  createFarmHint: 'បង្កើតកសិដ្ឋាន ទទួលយកពាក្យស្នើសុំនេះ និងចាប់ផ្តើមប្រវត្តិរូបគេហទំព័រជាមួយទីកន្លែងដែលពួកគេបានផ្តល់។ បន្ទាប់មក Super Admin ឬ Admin កំណត់ដែនកំណត់គោ។',
+  createFarmName: 'ឈ្មោះកសិដ្ឋាន',
+  createFarm: 'បង្កើតកសិដ្ឋាន',
+  creatingFarm: 'កំពុងបង្កើត…',
+  createFarmFirst: 'សម្គាល់ពាក្យស្នើសុំថា បានទាក់ទង ក្រោយពេលអ្នកទូរស័ព្ទទៅពួកគេ បន្ទាប់មកអ្នកអាចបង្កើតកសិដ្ឋានរបស់ពួកគេនៅទីនេះ។',
+  farmCreated: 'បានបង្កើត និងភ្ជាប់ {name}។ កំណត់ដែនកំណត់គោ និងម្ចាស់នៅទំព័រ កសិដ្ឋាន។',
+  linkedTo: 'កសិដ្ឋានដែលបានភ្ជាប់៖ {name}',
+  districtHint: 'ជ្រើសពីបញ្ជី ឬវាយបញ្ចូល។',
 };

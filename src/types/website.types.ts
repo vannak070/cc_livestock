@@ -129,3 +129,16 @@ export interface WebsitePhotoInfo {
   uploadedBy: string;
   createdAt: string;
 }
+
+/** Whether the public snapshot is being published (rules in src/lib/website/health.ts). Stored in MasterSetup.websiteStatus. */
+export interface WebsitePublishStatus {
+  /** The last snapshot that was written. */
+  lastOkAt?: string;
+  /** The last try that failed, and why (server wording, for admins only). */
+  lastFailedAt?: string;
+  lastError?: string | null;
+  /** When the current run of failures began; null once a publish works again. */
+  failingSince?: string | null;
+  /** When the Telegram message about the current failures was sent. */
+  failureAlertedAt?: string | null;
+}

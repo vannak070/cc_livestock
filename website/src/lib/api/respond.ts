@@ -1,4 +1,5 @@
 import 'server-only';
+import { clientAddress, MINUTE, overLimit } from '@/lib/forms/rate-limit';
 
 /**
  * Shared answers for the public API (/public/v1). Reads are cached for five
@@ -36,4 +37,14 @@ export async function readBody(request: Request, maxBytes = 20_000): Promise<Rec
   } catch {
     return null;
   }
+}
+
+/** Public API reads: at most 60 a minute from one address. Returns the refusal, or null to go ahead. */
+export const READS_PER_MINUTE = 60;
+
+export function readLimited(request: Request): Response | null {
+  if (!overLimit(`read:${clientAddress(request)}`, READS_PER_MINUTE, Date.now(), MINUTE)) return null;
+  const res = json({ error: 'too-many' }, 429, false);
+  res.headers.set('Retry-After', '60');
+  return res;
 }

@@ -57,6 +57,10 @@ export async function updateWebsiteApplicationAction(id: string, status: Applica
   return runAction('Failed to update the application', [], actor => websiteRequestService.updateApplication(actor, id, status, notes, farmId), { revalidate: false });
 }
 
+export async function createFarmFromApplicationAction(id: string, farmName: string) {
+  return runAction('Failed to create the farm', [], actor => websiteRequestService.createFarmFromApplication(actor, id, farmName));
+}
+
 export async function updateWebsiteInquiryAction(id: string, status: InquiryStatus, notes: string) {
   return runAction('Failed to update the inquiry', [], actor => websiteRequestService.updateInquiry(actor, id, status, notes), { revalidate: false });
 }

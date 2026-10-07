@@ -58,7 +58,7 @@ src/
 ├── components/
 │   ├── layout/                      Header (menu, language switch), Footer
 │   ├── home/                        LiveRecords (count-up), AudienceTabs, HomeMap
-│   ├── members/                     MembersMap (Leaflet + OpenStreetMap), MembersExplorer (filters)
+│   ├── members/                     MembersMap (Leaflet + OpenStreetMap), MembersExplorer (filters: province, breed, cattle available, new members = member since last year)
 │   ├── cattle/                      CattleExplorer (filters), InquiryForm
 │   ├── join/                        ApplicationForm
 │   └── shared/                      PageHead, HeroLines, Photo, Reveal
@@ -69,6 +69,7 @@ src/
 │   ├── api/respond.ts               JSON answers, CORS, origin check
 │   ├── contact.ts                   phone, Telegram, Facebook (change here only)
 │   ├── places.ts                    the 25 provinces
+│   ├── districts.ts                 suggested districts for the Join form (same list as CC Livestock's src/lib/website/districts.ts)
 │   └── page.ts                      reads the language from the address
 └── styles/globals.css               colours, layout, motion (all off with reduced motion)
 ```
@@ -81,6 +82,8 @@ src/
 - All text lives in `src/lib/i18n/km.ts` and `en.ts`. The Khmer was drafted by Claude and needs a native speaker's review before launch.
 - Forms: checks in `src/lib/forms/validate.ts` run in the browser and again on the server; a hidden
   "website" field catches robots; 5 sends an hour per address; only this site's origin is accepted.
+  Reads of `/public/v1` are limited to 60 a minute per address (429 + Retry-After). Both limits are in
+  memory (`lib/forms/rate-limit.ts`): fine for one server; behind a proxy, set x-forwarded-for.
 
 ## Checks
 

@@ -1,4 +1,5 @@
 import type { BillingSettings } from './billing.types';
+import type { WebsitePublishStatus } from './website.types';
 
 export type PermissionKey =
   | 'dashboard_view'
@@ -224,6 +225,8 @@ export interface MasterSetup {
   alerts?: { telegramEnabled?: boolean; chatId?: string; sendHour?: number };
   /** What the alert job last did; written by the server, never by a settings save. */
   alertStatus?: { lastRunAt?: string; lastSentAt?: string; lastSentCount?: number; lastError?: string | null; /** Written by the alert scheduler every check, so Settings can tell it is running. */ schedulerSeenAt?: string; lastDailyAt?: string; lastDailyCount?: number };
+  /** Whether the public website snapshot is being published (src/lib/website/health.ts); written by the server, admins only. */
+  websiteStatus?: WebsitePublishStatus;
   users: UserRoleItem[];
   roles?: CustomRoleDefinition[];
   farms?: FarmItem[];

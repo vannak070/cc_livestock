@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { checkApplication } from '@/lib/forms/validate';
 import type { Dict } from '@/lib/i18n';
+import { districtsOf } from '@/lib/districts';
 import { PROVINCES } from '@/lib/places';
 import { JoinPhotos, type JoinPhoto } from './JoinPhotos';
 
@@ -55,7 +56,10 @@ export function ApplicationForm({ t, lang, membersHref }: { t: Pick<Dict, 'join'
           </select>
           {err('province')}
         </label>
-        <label className="field">{t.join.district}<input className="input" value={form.district} onChange={set('district')} /></label>
+        <label className="field">{t.join.district}
+          <input className="input" value={form.district} onChange={set('district')} list="join-districts" autoComplete="off" />
+          <datalist id="join-districts">{districtsOf(form.province).map(d => <option key={d} value={d} />)}</datalist>
+        </label>
       </div>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <label className="field">{t.join.land}<input className="input" value={form.landM2} onChange={set('landM2')} inputMode="numeric" aria-invalid={bad === 'landM2'} />{err('landM2')}</label>

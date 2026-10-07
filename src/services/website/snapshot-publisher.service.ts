@@ -1,7 +1,8 @@
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'fs/promises';
 import path from 'path';
 import type { Actor } from '../../lib/authz';
-import { buildPublicSnapshot, fieldsOutsideAllowList, type PublicSnapshot } from '../../lib/website';
+import { afterFailure, afterSuccess, buildPublicSnapshot, fieldsOutsideAllowList, type PublicSnapshot } from '../../lib/website';
+import { settingsRepository } from '../../repositories/settings.repository';
 import { websitePhotoRepository } from '../../repositories/website';
 import { assertWebsiteAdmin } from './guards';
 import { loadWebsiteData } from './website-data';
@@ -50,8 +51,29 @@ export class SnapshotPublisherService {
 
   /** Builds and writes the snapshot. Calls that arrive while one runs share its result. */
   async publish(): Promise<PublishResult> {
-    if (!this.running) this.running = this.doPublish().finally(() => { this.running = null; });
+    if (!this.running) this.running = this.recorded().finally(() => { this.running = null; });
     return this.running;
+  }
+
+  /** Publishes and records how it went in settings.websiteStatus (shown on the Website page, alerted by the scheduler). */
+  private async recorded(): Promise<PublishResult> {
+    try {
+      const result = await this.doPublish();
+      await this.record(s => afterSuccess(s, result.builtAt));
+      return result;
+    } catch (err) {
+      await this.record(s => afterFailure(s, new Date().toISOString(), err instanceof Error ? err.message : String(err)));
+      throw err;
+    }
+  }
+
+  private async record(next: (s: Parameters<typeof afterSuccess>[0]) => ReturnType<typeof afterSuccess>): Promise<void> {
+    try {
+      const current = (await settingsRepository.getSettings()).websiteStatus;
+      await settingsRepository.patchBlob({ websiteStatus: next(current) });
+    } catch (err) {
+      console.error('[website] Could not record the publish status:', err instanceof Error ? err.message : err);
+    }
   }
 
   /** "Publish now" on the Preview tab. Super Admin and Admin only. */

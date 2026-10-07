@@ -1,9 +1,10 @@
-import type { Actor } from '../../lib/authz';
+import { canManageUsers, type Actor } from '../../lib/authz';
 import type { BatchItem, WebsiteBatchListing, WebsiteConsent, WebsiteFarmProfile, WebsiteNewsPost } from '../../lib/types';
 import {
   buildPublicSnapshot, canHandleWebsiteRequests, canPublishWebsite, currentConsent, listingFacts, listingIdOf, listingProblem,
-  publishProblem, type ListingFacts, type PublicSnapshot,
+  publishHealth, publishProblem, type ListingFacts, type PublishHealth, type PublicSnapshot,
 } from '../../lib/website';
+import { settingsRepository } from '../../repositories/settings.repository';
 import { farmMatcher } from '../../lib/farm-scope';
 import { websiteRequestRepository } from '../../repositories/website';
 import { assertRequestHandler, assertWebsiteAdmin } from './guards';
@@ -40,6 +41,12 @@ export interface WebsiteOverview {
   newRequests: { applications: number; inquiries: number };
   /** When the live public snapshot was built; null before the first publish. */
   lastPublishedAt: string | null;
+  /** Whether publishing works (admins only; null for request handlers). */
+  publishHealth: PublishHealth | null;
+  /** May make a farm from an application (needs farms_manage or settings_manage). */
+  canCreateFarms: boolean;
+  /** Every farm's id and name, for linking applications (request handlers get this too). */
+  farmNames: { farmId: string; farmName: string }[];
 }
 
 export class WebsiteOverviewService {
@@ -47,8 +54,10 @@ export class WebsiteOverviewService {
     const canPublish = canPublishWebsite(actor);
     const canHandleRequests = canHandleWebsiteRequests(actor);
     if (!canPublish) assertRequestHandler(actor);
+    const canCreateFarms = canManageUsers(actor);
+    const farmNames = ((await settingsRepository.getSettings()).farms ?? []).map(f => ({ farmId: f.id, farmName: f.name }));
     const newRequests = canHandleRequests ? await websiteRequestRepository.countNew() : { applications: 0, inquiries: 0 };
-    if (!canPublish) return { canPublish, canHandleRequests, farms: [], batches: [], news: [], newRequests, lastPublishedAt: null };
+    if (!canPublish) return { canPublish, canHandleRequests, farms: [], batches: [], news: [], newRequests, lastPublishedAt: null, publishHealth: null, canCreateFarms, farmNames };
 
     const data = await loadWebsiteData();
     const farms: FarmRow[] = data.farms.map(f => {
@@ -72,7 +81,8 @@ export class WebsiteOverviewService {
       })
       .sort((a, b) => (a.batch.farmLocation ?? '').localeCompare(b.batch.farmLocation ?? '') || a.batch.name.localeCompare(b.batch.name));
 
-    return { canPublish, canHandleRequests, farms, batches, news: data.news, newRequests, lastPublishedAt: await snapshotPublisherService.lastBuiltAt() };
+    const health = publishHealth((await settingsRepository.getSettings()).websiteStatus, new Date());
+    return { canPublish, canHandleRequests, farms, batches, news: data.news, newRequests, lastPublishedAt: await snapshotPublisherService.lastBuiltAt(), publishHealth: health, canCreateFarms, farmNames };
   }
 
   /** Exactly what the public website would show right now. */

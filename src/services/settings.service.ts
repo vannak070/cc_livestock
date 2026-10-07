@@ -24,7 +24,7 @@ interface RoleChanges {
 // Written only by their own operations, never by a settings save. `locations`
 // is the old copy of the farm names (removed by migration 005); an old screen
 // that still sends it is ignored.
-const OWNED_ELSEWHERE: string[] = ['users', 'farms', 'locations', 'alertStatus', 'billing'];
+const OWNED_ELSEWHERE: string[] = ['users', 'farms', 'locations', 'alertStatus', 'billing', 'websiteStatus'];
 
 export class SettingsService {
   async getSettings(): Promise<MasterSetup> {

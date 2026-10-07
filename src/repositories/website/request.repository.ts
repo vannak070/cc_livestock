@@ -100,6 +100,31 @@ export class WebsiteRequestRepository {
     await run(`UPDATE ${table} SET notified_at = NULL WHERE id = $1`, [id]);
   }
 
+  /**
+   * Deletes applications and inquiries older than `months`, with the
+   * application photos no profile, listing or news post uses. One transaction;
+   * returns how many of each went.
+   */
+  async deleteOlderThan(months: number, client: PoolClient): Promise<{ applications: number; inquiries: number; photos: number }> {
+    const cutoff = `NOW() - make_interval(months => $1::int)`;
+    const apps = await client.query(`DELETE FROM website_applications WHERE created_at < ${cutoff} RETURNING photo_ids`, [months]);
+    const inq = await client.query(`DELETE FROM website_inquiries WHERE created_at < ${cutoff}`, [months]);
+    const photoIds = [...new Set(apps.rows.flatMap(r => ids(r.photo_ids)))];
+    let photos = 0;
+    if (photoIds.length) {
+      const res = await client.query(
+        `DELETE FROM website_photos p WHERE p.id = ANY($1::text[])
+           AND NOT EXISTS (SELECT 1 FROM website_farm_profiles f WHERE f.photo_ids ? p.id)
+           AND NOT EXISTS (SELECT 1 FROM website_batch_listings l WHERE l.photo_id = p.id)
+           AND NOT EXISTS (SELECT 1 FROM website_news n WHERE n.photo_id = p.id)
+           AND NOT EXISTS (SELECT 1 FROM website_applications a WHERE a.photo_ids ? p.id)`,
+        [photoIds]
+      );
+      photos = res.rowCount ?? 0;
+    }
+    return { applications: apps.rowCount ?? 0, inquiries: inq.rowCount ?? 0, photos };
+  }
+
   /** How many requests are still New, for the menu badge. */
   async countNew(): Promise<{ applications: number; inquiries: number }> {
     const res = await run(

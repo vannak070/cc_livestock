@@ -49,10 +49,11 @@ export function canManageUsers(actor: Actor): boolean {
  * owner gets just the staff and vets of their own farm, the people they manage.
  */
 export function redactSettingsFor(actor: Actor, settings: MasterSetup): MasterSetup {
-  // The price CC Livestock is billed is only for Super Admin and Admin.
-  const { billing, ...rest } = settings;
+  // The price CC Livestock is billed, and the website's publishing status, are only for Super Admin and Admin.
+  const { billing, websiteStatus, ...rest } = settings;
   const visible = canSeeBilling(actor) ? settings : (rest as MasterSetup);
   void billing;
+  void websiteStatus;
   if (canManageUsers(actor)) return visible;
   if (isFarmOwner(actor) && actor.farmLocation) return { ...visible, users: visibleUsers(settings.users || [], actor) };
   return { ...visible, users: [] };

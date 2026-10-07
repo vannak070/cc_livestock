@@ -8,3 +8,4 @@ export { websitePhotoService, type PhotoUpload } from './photo.service';
 export { loadWebsiteData } from './website-data';
 export { snapshotPublisherService, snapshotDir, type PublishResult } from './snapshot-publisher.service';
 export { websiteRequestNotifyService } from './request-notify.service';
+export { websiteUpkeepService } from './upkeep.service';

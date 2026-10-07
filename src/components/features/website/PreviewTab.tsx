@@ -27,6 +27,7 @@ export function PreviewTab({ lastPublishedAt }: { lastPublishedAt: string | null
       queryClient.invalidateQueries({ queryKey: ['website'] });
     } catch (err) {
       setPublishMsg(errorText(err, tx('publishFailed')));
+      queryClient.invalidateQueries({ queryKey: ['website', 'overview'] }); // shows the failure banner
     } finally {
       setPublishing(false);
     }

@@ -7,7 +7,7 @@ import { ConfirmModal } from '@/components/ui/confirm-modal';
 import {
   recordWebsiteConsentAction, saveWebsiteProfileAction, setWebsiteProfilePublishedAction, withdrawWebsiteConsentAction,
 } from '@/app/website-actions';
-import { CONSENT_METHODS, MAX_PROFILE_PHOTOS, PROVINCES, provinceOf, type ConsentInput } from '@/lib/website';
+import { CONSENT_METHODS, MAX_PROFILE_PHOTOS, PROVINCES, districtsOf, provinceOf, type ConsentInput } from '@/lib/website';
 import type { ConsentMethod } from '@/lib/types';
 import type { FarmRow } from '@/services/website';
 import { useText } from '@/hooks/useText';
@@ -138,7 +138,10 @@ function ProfileDialog({ row, onClose, onSaved }: { row: FarmRow; onClose: () =>
             {PROVINCES.map(pr => <option key={pr.key} value={pr.key}>{language === 'km' ? `${pr.km} (${pr.key})` : pr.key}</option>)}
           </select>
         </Field>
-        <Field label={tx('district')}><input className={inputClass} value={district} maxLength={60} onChange={e => setDistrict(e.target.value)} /></Field>
+        <Field label={tx('district')} hint={districtsOf(province).length ? tx('districtHint') : undefined}>
+          <input className={inputClass} value={district} maxLength={60} list="website-districts" autoComplete="off" onChange={e => setDistrict(e.target.value)} />
+          <datalist id="website-districts">{districtsOf(province).map(d => <option key={d} value={d} />)}</datalist>
+        </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={tx('mapLat')} hint={tx('mapHint')}><input className={inputClass} inputMode="decimal" value={lat} onChange={e => setLat(e.target.value)} placeholder="11.48" /></Field>

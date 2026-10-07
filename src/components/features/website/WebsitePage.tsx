@@ -14,6 +14,8 @@ import { errorText, ok } from './parts';
 
 type Tab = 'farms' | 'cattle' | 'requests' | 'news' | 'preview';
 
+const utc = (iso: string) => iso.slice(0, 16).replace('T', ' ');
+
 /**
  * The office side of the public CamCow website (docs/website/README.md):
  * which member farms and cattle show, the farmers' consent, news, the
@@ -54,6 +56,17 @@ export default function WebsitePage() {
         <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
         <p className="text-base text-ink-muted">{tx('subtitle')}</p>
       </div>
+      {o.publishHealth && (o.publishHealth.state === 'failing' || o.publishHealth.state === 'stale') && (
+        <div role="alert" className="space-y-1 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-base text-amber-950">
+          {o.publishHealth.state === 'failing' ? (
+            <>
+              <p className="font-semibold">{o.publishHealth.lastOkAt ? tx('healthFailing', { since: utc(o.publishHealth.since), last: utc(o.publishHealth.lastOkAt) }) : tx('healthFailingNever', { since: utc(o.publishHealth.since) })}</p>
+              <p className="break-words text-sm">{tx('healthReason', { error: o.publishHealth.error })}</p>
+            </>
+          ) : <p className="font-semibold">{tx('healthStale', { last: utc(o.publishHealth.lastOkAt) })}</p>}
+          <p className="text-sm">{tx('healthTry')}</p>
+        </div>
+      )}
       <div role="tablist" aria-label={tx('title')} className="flex flex-wrap gap-2">
         {tabs.map(t => (
           <button
@@ -71,7 +84,7 @@ export default function WebsitePage() {
       <div role="tabpanel">
         {active === 'farms' && <FarmsTab farms={o.farms} onChanged={refresh} />}
         {active === 'cattle' && <CattleTab batches={o.batches} onChanged={refresh} />}
-        {active === 'requests' && <RequestsTab farms={o.farms.map(f => ({ farmId: f.farmId, farmName: f.farmName }))} listingNames={listingNames} onChanged={refresh} />}
+        {active === 'requests' && <RequestsTab farms={o.farmNames} canCreateFarms={o.canCreateFarms} listingNames={listingNames} onChanged={refresh} />}
         {active === 'news' && <NewsTab news={o.news} onChanged={refresh} />}
         {active === 'preview' && <PreviewTab lastPublishedAt={o.lastPublishedAt} />}
       </div>

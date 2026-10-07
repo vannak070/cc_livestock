@@ -32,6 +32,7 @@ export default async function MembersPage({ params }: { params: Promise<{ lang: 
               profileHref={Object.fromEntries(s.farms.map(f => [f.slug, href(lang, `/members/${f.slug}`)]))}
               sizeText={t.values.size}
               badgeText={t.values.badge}
+              newSince={new Date().getFullYear() - 1}
             />
           )}
           <div className="banner" style={{ padding: '32px 36px' }}>
