@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { ABOUT } from '@/lib/about';
 import { ENABLED_LANGS, href, type Dict, type Lang } from '@/lib/i18n';
 
 /** Site header: logo with ខេម ខោវ first, menu, Khmer / English switch. */
@@ -17,6 +18,7 @@ export function Header({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boo
     ['/#how', t.nav.how],
     ...(hasNews ? [['/news', t.nav.news] as [string, string]] : []),
     ['/join', t.nav.join],
+    ...(ABOUT.ready ? [['/about', t.nav.about] as [string, string]] : []),
     ['/contact', t.nav.contact],
   ];
   const current = (p: string) => (p !== '/#how' && (rest === p || rest.startsWith(`${p}/`)) ? 'page' : undefined);

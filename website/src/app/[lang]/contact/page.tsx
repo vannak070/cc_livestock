@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageHead } from '@/components/shared/PageHead';
+import { ABOUT } from '@/lib/about';
 import { CONTACT } from '@/lib/contact';
 import { href } from '@/lib/i18n';
 import { pageLang } from '@/lib/page';
@@ -27,7 +28,8 @@ export default async function ContactPage({ params }: { params: Promise<{ lang: 
           </div>
           <div className="card stack" style={{ gap: 10 }}>
             <h2 style={{ fontSize: 20 }}>{t.contact.office}</h2>
-            <p style={{ color: 'var(--ink-2)' }}>{t.contact.officeText}</p>
+            <p style={{ color: 'var(--ink-2)' }}>{ABOUT.address || t.contact.officeText}</p>
+            {ABOUT.hours && <p style={{ color: 'var(--ink-2)' }}>{ABOUT.hours}</p>}
             <Link href={href(lang, '/cattle') + '#inquiry'}>{t.inquiry.title} →</Link>
           </div>
         </div>

@@ -68,6 +68,7 @@ src/
 │   ├── i18n/                        km.ts and en.ts: every word on the site; langs.ts: links per language
 │   ├── api/respond.ts               JSON answers, CORS, origin check
 │   ├── contact.ts                   phone, Telegram, Facebook (change here only)
+│   ├── about.ts                     About us content: founded year, address, hours, map link, team; `ready: true` puts /about in the menu
 │   ├── visits.ts                    visitor counts: what may be sent and stored (no cookies, no addresses)
 │   ├── launch.ts                    while fewer than 3 farms are published: no live numbers, "be the first" map, empty sections hidden
 │   ├── places.ts                    the 25 provinces
