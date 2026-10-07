@@ -60,7 +60,7 @@ export function Footer({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boo
           <b>{f.forYou}</b>
           <Link href={href(lang, '/join')}>{f.forFarmers}</Link>
           <Link href={`${href(lang, '/cattle')}#inquiry`}>{f.forBuyers}</Link>
-          <Link href={href(lang, '/contact')}>{f.forInvestors}</Link>
+          <Link href={`${href(lang, '/join')}?role=investor#apply`}>{f.forInvestors}</Link>
         </nav>
 
         <div className="stack" style={{ gap: 10 }}>
@@ -78,7 +78,6 @@ export function Footer({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boo
       <div className="footer-bottom">
         <div className="wrap footer-bottom-in">
           <span>{f.rights.replace('{year}', String(new Date().getFullYear()))}</span>
-          <span className="footer-privacy">{f.privacy}</span>
           <a href="#top" className="footer-line"><Icon d={icon.up} />{f.top}</a>
         </div>
       </div>

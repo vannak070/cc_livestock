@@ -15,7 +15,7 @@ export interface RangeWords {
 /** "300–400 kg", "Under 250 kg", "400 kg+" or "Any size", in Khmer digits for Khmer. */
 export function weightRangeText(from: number | null, to: number | null, words: RangeWords, lang: 'km' | 'en' = 'en'): string {
   const put = (template: string) => template.replace('{from}', String(from)).replace('{to}', String(to));
-  const text = from === null && to === null ? words.any : from === null ? put(words.under) : to === null ? put(words.over) : put(words.between);
+  const text = from == null && to == null ? words.any : from == null ? put(words.under) : to == null ? put(words.over) : put(words.between);
   return lang === 'km' ? khDigits(text) : text;
 }
 

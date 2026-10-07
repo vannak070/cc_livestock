@@ -11,21 +11,25 @@ const parse = (v: string) => {
 };
 
 /**
- * "Live from our records": the network's rounded numbers, counting up when
- * they come into view. With reduced motion they show straight away.
+ * "Live from our records": the network's rounded numbers. They are in the page
+ * itself (so link previews, search engines and slow phones see the real values).
+ * Numbers that start below the fold count up once when scrolled into view;
+ * numbers already on screen, or with reduced motion, are simply shown.
  */
-export function LiveRecords({ title, updated, stats }: { title: string; updated: string; stats: Stat[] }) {
+export function LiveRecords({ title, updated, stats, compact }: { title: string; updated: string; stats: Stat[]; compact?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [p, setP] = useState(0);
+  const [p, setP] = useState(1);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     let frame = 0;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      frame = requestAnimationFrame(() => setP(1));
-      return () => cancelAnimationFrame(frame);
-    }
+    const box = el.getBoundingClientRect();
+    const onScreen = box.top < window.innerHeight && box.bottom > 0;
+    // Already on screen, in a hidden tab (nothing to watch), or reduced motion: just show the numbers.
+    if (onScreen || window.innerHeight === 0 || document.visibilityState === 'hidden' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // Below the fold: hide the final values until they scroll into view, then count up.
+    frame = requestAnimationFrame(() => setP(0));
     const io = new IntersectionObserver(entries => {
       if (!entries.some(e => e.isIntersecting)) return;
       io.disconnect();
@@ -42,7 +46,7 @@ export function LiveRecords({ title, updated, stats }: { title: string; updated:
   }, []);
 
   return (
-    <div ref={ref} className="live rise d3" aria-live="off">
+    <div ref={ref} className={`live${compact ? ' live-compact' : ' rise d3'}`} aria-live="off">
       <div className="live-head">
         <span>{title}</span>
         <span className="small" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'var(--green-700)', fontWeight: 500 }}>

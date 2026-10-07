@@ -1,12 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
-import { Photo } from '@/components/shared/Photo';
 import { groupByFarm, weightRangeText } from '@/lib/cattle';
 import { href, type Dict } from '@/lib/i18n';
 import type { PublicFarm, PublicListing } from '@/lib/snapshot/types';
-import { FarmWindows } from './FarmWindows';
+import { FarmSaleCard } from './FarmSaleCard';
 import { InquiryForm } from './InquiryForm';
 
 /**
@@ -68,16 +66,17 @@ export function CattleExplorer({ cattle, farms, t, lang, initialAbout }: {
           </div>
         )}
         {groups.length > 0 && shown.length === 0 && <p className="empty">{t.cattle.noMatch}</p>}
-        <div className="grid">
+        <div className="sale-grid" data-count={shown.length}>
           {shown.map(g => (
-            <article key={g.farm.slug} className="card lift stack" style={{ gap: 10, boxShadow: about === g.listingId ? '0 0 0 3px var(--green)' : undefined }}>
-              <Photo id={g.farm.photoIds[0]} alt={g.farm.publicName} height={160} size="large" />
-              <h2 style={{ fontSize: 20 }}><Link href={href(lang, `/members/${g.farm.slug}`)}>{g.farm.publicName}</Link></h2>
-              <p className="small muted">{g.farm.district} · {lang === 'km' ? g.farm.provinceKm : g.farm.province}</p>
-              <FarmWindows windows={g.windows} t={t} lang={lang} />
-              <p className="small muted">{t.cattle.vetChecked}</p>
-              <a href="#inquiry" className="btn btn-red" onClick={() => setAbout(g.listingId)}>{t.cattle.askFarm}</a>
-            </article>
+            <FarmSaleCard
+              key={g.farm.slug}
+              group={g}
+              t={t}
+              lang={lang}
+              nameHref={href(lang, `/members/${g.farm.slug}`)}
+              selected={about === g.listingId}
+              action={<a href="#inquiry" className="btn btn-red" onClick={() => setAbout(g.listingId)}>{t.cattle.askFarm}</a>}
+            />
           ))}
         </div>
         {groups.length > 0 && <p className="small muted">{t.cattle.roundedNote}</p>}

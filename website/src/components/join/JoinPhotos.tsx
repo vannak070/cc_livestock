@@ -66,7 +66,6 @@ export function JoinPhotos({ photos, onChange, t }: { photos: JoinPhoto[]; onCha
 
   return (
     <div className="stack" style={{ gap: 8 }}>
-      <span className="field" style={{ paddingBottom: 0 }}>{t.photos}</span>
       {photos.length > 0 && (
         <div className="row" style={{ gap: 10 }}>
           {photos.map((p, i) => (

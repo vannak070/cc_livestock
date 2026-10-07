@@ -12,7 +12,7 @@ const HAS_OWN_JOIN = ['/', '/members', '/join', '/about', '/contact', '/cattle']
 /** The footer's "Raise cattle with CamCow" band, left out where the page already asks the same. */
 export function FooterBand({ title, sub, joinHref, joinLabel }: { title: string; sub: string; joinHref: string; joinLabel: string }) {
   const rest = (usePathname() || '/').replace(/^\/(km|en)/, '') || '/';
-  if (HAS_OWN_JOIN.includes(rest)) return null;
+  if (HAS_OWN_JOIN.includes(rest) || rest.startsWith('/members/')) return null; // a farm's page has its own questions to ask
   return (
     <div className="wrap">
       <div className="footer-cta">

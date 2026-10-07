@@ -19,12 +19,15 @@ export default async function MembersPage({ params }: { params: Promise<{ lang: 
   return (
     <>
       <PageHead title={t.members.title} sub={s.farms.length ? t.members.sub : t.home.mapSubEmpty}>
-        {showLiveNumbers(s.farms.length) && <div className="row rise d2" style={{ gap: 28 }}>
-          <span><b style={{ fontSize: 26, color: 'var(--green-700)' }}>{s.summary.memberFarms}</b> <span className="muted">{t.home.statFarms}</span></span>
-          <span><b style={{ fontSize: 26, color: 'var(--green-700)' }}>{s.summary.provinces}</b> <span className="muted">{t.home.statProvinces}</span></span>
-        </div>}
+        {showLiveNumbers(s.farms.length) && (
+          <div className="head-stats rise d2">
+            <span><b>{s.summary.memberFarms}</b>{t.home.statFarms}</span>
+            <span><b>{s.summary.provinces}</b>{t.home.statProvinces}</span>
+            {s.farms.some(f => f.hasCattleAvailable) && <span><b>{s.farms.filter(f => f.hasCattleAvailable).length}</b>{t.members.cattleAvailable}</span>}
+          </div>
+        )}
       </PageHead>
-      <section className="section" style={{ paddingTop: 32 }}>
+      <section className="section" style={{ paddingTop: 36 }}>
         <div className="wrap stack" style={{ gap: 28 }}>
           {s.farms.length === 0 ? (
             <HomeMap farms={[]} hrefs={{}} note={t.members.pinNote} height={480} empty={{ title: t.home.mapEmptyTitle, body: t.home.mapEmptyBody, cta: t.members.joinCta, href: href(lang, '/join') }} />
@@ -36,13 +39,26 @@ export default async function MembersPage({ params }: { params: Promise<{ lang: 
               profileHref={Object.fromEntries(s.farms.map(f => [f.slug, href(lang, `/members/${f.slug}`)]))}
               sizeText={t.values.size}
               badgeText={t.values.badge}
-              newSince={new Date().getFullYear() - 1}
             />
           )}
           {s.farms.length > 0 && (
-            <div className="banner" style={{ padding: '32px 36px' }}>
-              <span style={{ fontSize: 20, fontWeight: 600 }}>{t.members.joinBanner}</span>
-              <Link className="btn btn-red" href={href(lang, '/join')}>{t.members.joinCta}</Link>
+            <div className="join-cta">
+              <span className="join-pin" aria-hidden="true">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><path d="M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /></svg>
+              </span>
+              <div className="join-text">
+                <h2 className="display">{t.members.joinBanner}</h2>
+                <p>{t.home.mapEmptyBody}</p>
+                <ul className="join-points">
+                  {t.home.offer.map(o => (
+                    <li key={o.title}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6" /></svg>
+                      {o.title}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <Link className="btn btn-red" href={href(lang, '/join')}>{t.members.joinCta} <span aria-hidden="true">→</span></Link>
             </div>
           )}
         </div>

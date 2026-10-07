@@ -36,6 +36,9 @@ export const EMPTY_SNAPSHOT: PublicSnapshot = {
 
 const usable = (s: unknown): s is PublicSnapshot => !!s && (s as PublicSnapshot).version === 1 && Array.isArray((s as PublicSnapshot).farms);
 
+/** Cattle entries from before the by-farm format (no weight range) are left out, rather than shown as "undefined kg". */
+const current = (s: PublicSnapshot): PublicSnapshot => ({ ...s, cattle: (s.cattle ?? []).filter(c => 'weightFrom' in c && 'weightTo' in c) });
+
 /** CAMCOW_SNAPSHOT_DIR, or else CC Livestock's own .website-snapshot (this app lives in its website/ folder). */
 export function snapshotDir(): string {
   const dir = process.env.CAMCOW_SNAPSHOT_DIR?.trim();
@@ -49,12 +52,12 @@ async function fromGateway(): Promise<PublicSnapshot> {
   const parsed: unknown = await res.json();
   if (!usable(parsed)) throw new Error('CC Livestock sent a snapshot this site does not understand.');
   etag = res.headers.get('etag');
-  return parsed;
+  return current(parsed);
 }
 
 async function fromFolder(): Promise<PublicSnapshot> {
   const parsed: unknown = JSON.parse(await readFile(path.join(snapshotDir(), 'latest.json'), 'utf8'));
-  return usable(parsed) ? parsed : EMPTY_SNAPSHOT;
+  return usable(parsed) ? current(parsed) : EMPTY_SNAPSHOT;
 }
 
 export async function getSnapshot(): Promise<PublicSnapshot> {

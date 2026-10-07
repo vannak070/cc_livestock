@@ -36,6 +36,9 @@ export function ApplicationForm({ t, lang, membersHref }: { t: Pick<Dict, 'join'
   if (state === 'sent') {
     return (
       <div className="thanks" role="status">
+        <span className="thanks-tick" aria-hidden="true">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg>
+        </span>
         <b>{t.join.thanksTitle}</b>
         <p>{t.join.thanksBody}</p>
         <Link href={membersHref} className="btn btn-line" style={{ alignSelf: 'flex-start' }}>{t.join.seeMembers}</Link>
@@ -45,9 +48,11 @@ export function ApplicationForm({ t, lang, membersHref }: { t: Pick<Dict, 'join'
 
   const err = (field: string, text = t.common.required) => (bad === field ? <span className="form-error">{text}</span> : null);
   return (
-    <form className="stack" style={{ gap: 14 }} noValidate onSubmit={e => { e.preventDefault(); void send(); }}>
+    <form className="stack" style={{ gap: 16 }} noValidate onSubmit={e => { e.preventDefault(); void send(); }}>
+      <h3 className="form-section"><span>1</span>{t.join.sectionYou}</h3>
       <label className="field">{t.join.name}<input className="input" value={form.name} onChange={set('name')} autoComplete="name" aria-invalid={bad === 'name'} />{err('name')}</label>
-      <label className="field">{t.join.phone}<input className="input" value={form.phone} onChange={set('phone')} inputMode="tel" autoComplete="tel" aria-invalid={bad === 'phone'} />{err('phone')}</label>
+      <label className="field">{t.join.phone}<input className="input" value={form.phone} onChange={set('phone')} inputMode="tel" autoComplete="tel" aria-invalid={bad === 'phone'} />{err('phone', t.join.phoneBad)}</label>
+      <h3 className="form-section"><span>2</span>{t.join.sectionFarm}</h3>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <label className="field">{t.join.province}
           <select className="select" value={form.province} onChange={set('province')} aria-invalid={bad === 'province'}>
@@ -62,20 +67,21 @@ export function ApplicationForm({ t, lang, membersHref }: { t: Pick<Dict, 'join'
         </label>
       </div>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-        <label className="field">{t.join.land}<input className="input" value={form.landM2} onChange={set('landM2')} inputMode="numeric" aria-invalid={bad === 'landM2'} />{err('landM2')}</label>
-        <label className="field">{t.join.cattleNow}<input className="input" value={form.cattleNow} onChange={set('cattleNow')} inputMode="numeric" aria-invalid={bad === 'cattleNow'} />{err('cattleNow')}</label>
+        <label className="field">{t.join.land}<input className="input" value={form.landM2} onChange={set('landM2')} inputMode="numeric" aria-invalid={bad === 'landM2'} />{err('landM2', t.join.numberBad)}</label>
+        <label className="field">{t.join.cattleNow}<input className="input" value={form.cattleNow} onChange={set('cattleNow')} inputMode="numeric" aria-invalid={bad === 'cattleNow'} />{err('cattleNow', t.join.numberBad)}</label>
       </div>
       <fieldset style={{ border: 0, margin: 0, padding: 0 }}>
         <legend className="field" style={{ paddingBottom: 6 }}>{t.join.pens}</legend>
-        <div className="row" style={{ gap: 18 }}>
+        <div className="seg">
           {(['yes', 'no'] as const).map(v => (
-            <label key={v} className="row" style={{ gap: 8, minHeight: 44, cursor: 'pointer' }}>
-              <input type="radio" name="pens" checked={form.hasPens === v} onChange={() => setForm(f => ({ ...f, hasPens: v }))} style={{ width: 20, height: 20, accentColor: 'var(--green-700)' }} />
+            <label key={v} className={form.hasPens === v ? 'on' : ''}>
+              <input type="radio" name="pens" checked={form.hasPens === v} onChange={() => setForm(f => ({ ...f, hasPens: v }))} />
               {v === 'yes' ? t.join.yes : t.join.notYet}
             </label>
           ))}
         </div>
       </fieldset>
+      <h3 className="form-section"><span>3</span>{t.join.photos}</h3>
       <JoinPhotos photos={photos} onChange={p => { setPhotos(p); setBad(''); }} t={t.join} />
       {err('photos', t.join.photoFailed)}
       <label className="check">
@@ -85,7 +91,8 @@ export function ApplicationForm({ t, lang, membersHref }: { t: Pick<Dict, 'join'
       {err('consent', t.join.consentNeeded)}
       <label className="hp" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={form.website} onChange={set('website')} /></label>
       {state === 'error' && <p className="form-error" role="alert">{t.common.tryAgain}</p>}
-      <button type="submit" className="btn btn-red" disabled={state === 'sending'}>{state === 'sending' ? t.common.sending : t.join.send}</button>
+      <button type="submit" className="btn btn-red btn-wide" disabled={state === 'sending'}>{state === 'sending' ? t.common.sending : t.join.send} <span aria-hidden="true">→</span></button>
+      <p className="form-note">{t.join.reassure}</p>
     </form>
   );
 }
