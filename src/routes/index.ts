@@ -8,6 +8,7 @@ import settingsRoutes from './settings.routes';
 import authRoutes from './auth.routes';
 import feedRoutes from './feed.routes';
 import proposalPlanRoutes from './proposal-plan.routes';
+import websiteGatewayRoutes from './website-gateway.routes';
 import { requireAuth } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -15,6 +16,9 @@ const router = Router();
 // Sign-in endpoints are the only ones reachable without a session token.
 // /auth/me applies requireAuth itself.
 router.use('/auth', authRoutes);
+
+// The public website's own door: it signs in with a shared key instead of a user session (see website-gateway.routes.ts).
+router.use('/site', websiteGatewayRoutes);
 
 // Everything below requires a valid session; each route then checks the
 // specific permission it needs (see the individual *.routes.ts files).

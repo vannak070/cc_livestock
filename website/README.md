@@ -32,6 +32,7 @@ npm run dev                    # http://localhost:3200 (or from CC Livestock: np
 | Setting | What |
 | --- | --- |
 | `CAMCOW_SNAPSHOT_DIR` | Optional. The snapshot folder; leave it out to use `../.website-snapshot` (CC Livestock's). Set it in production if the site runs from another folder |
+| `CAMCOW_API_URL`, `CAMCOW_API_KEY` | The link to CC Livestock's API (`docs/website/api-link.md`). When set, the snapshot, photos and forms all go through it, and the two settings below are not needed |
 | `FORMS_DATABASE_URL` | The insert-only account. Create it in CC Livestock: `WEBSITE_FORMS_DB_PASSWORD=... npm run website:forms-user` |
 | `SITE_URL` | This site's address (share links, sitemap, allowed form origin) |
 
