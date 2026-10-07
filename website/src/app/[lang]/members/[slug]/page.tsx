@@ -11,6 +11,7 @@ import { href } from '@/lib/i18n';
 import { pageLang } from '@/lib/page';
 import { getSnapshot } from '@/lib/snapshot/read';
 import { KmWords } from '@/components/shared/KmWords';
+import { preconnectMapTiles } from '@/lib/map-tiles';
 
 type Params = Promise<{ lang: string; slug: string }>;
 
@@ -23,6 +24,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 export default async function FarmPage({ params }: { params: Params }) {
+  preconnectMapTiles();
   const { slug } = await params;
   const { lang, t } = await pageLang(params);
   const s = await getSnapshot();

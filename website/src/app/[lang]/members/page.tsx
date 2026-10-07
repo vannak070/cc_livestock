@@ -8,6 +8,7 @@ import { showLiveNumbers } from '@/lib/launch';
 import { pageLang } from '@/lib/page';
 import { getSnapshot } from '@/lib/snapshot/read';
 import { KmWords } from '@/components/shared/KmWords';
+import { preconnectMapTiles } from '@/lib/map-tiles';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { t } = await pageLang(params);
@@ -15,6 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
 }
 
 export default async function MembersPage({ params }: { params: Promise<{ lang: string }> }) {
+  preconnectMapTiles();
   const { lang, t } = await pageLang(params);
   const s = await getSnapshot();
   return (

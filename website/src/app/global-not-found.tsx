@@ -22,7 +22,7 @@ export default function GlobalNotFound() {
         <main className="section">
           <div className="wrap stack" style={{ gap: 18, alignItems: 'flex-start', maxWidth: 720 }}>
             <a href={home} className="brand" aria-label="ខេម ខោវ CamCow">
-              <Image src="/logo.png" alt="" width={56} height={56} priority />
+              <Image src="/logo.png" alt="" width={56} height={56} preload />
               <span>
                 <span className="brand-km" lang="km">ខេម ខោវ</span>
                 <span className="brand-en">CamCow</span>

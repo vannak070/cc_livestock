@@ -16,6 +16,7 @@ import { href } from '@/lib/i18n';
 import { showLiveNumbers } from '@/lib/launch';
 import { pageLang } from '@/lib/page';
 import { getSnapshot } from '@/lib/snapshot/read';
+import { preconnectMapTiles } from '@/lib/map-tiles';
 
 /** One simple icon per step of the journey: arrival (tag), feeding (bowl), weighing (scale), ready for sale (tick). */
 const STEP_ICONS = [
@@ -34,6 +35,7 @@ const STD_ICONS = [
 ];
 
 export default async function Home({ params }: { params: Promise<{ lang: string }> }) {
+  preconnectMapTiles();
   const { lang, t } = await pageLang(params);
   const s = await getSnapshot();
   const km = lang === 'km';

@@ -35,7 +35,7 @@ export function Header({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boo
     <header className={`header${scrolled ? ' scrolled' : ''}`}>
       <div className="wrap header-in">
         <Link href={href(lang)} className="brand" aria-label={`${t.brand.km} ${t.brand.en}`}>
-          <Image src="/logo.png" alt="" width={52} height={52} priority />
+          <Image src="/logo.png" alt="" width={52} height={52} preload />
           <span>
             <span className="brand-km" lang="km">{t.brand.km}</span>
             <span className="brand-en">{t.brand.en}</span>

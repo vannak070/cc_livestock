@@ -29,6 +29,17 @@
         "dev"
       ],
       "port": 3200
+    },
+    {
+      "name": "website-prod",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "website",
+        "run",
+        "start"
+      ],
+      "port": 3200
     }
   ]
 }

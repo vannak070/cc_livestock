@@ -67,9 +67,10 @@ export function CattleExplorer({ cattle, farms, t, lang, initialAbout }: {
         )}
         {groups.length > 0 && shown.length === 0 && <p className="empty">{t.cattle.noMatch}</p>}
         <div className="sale-grid" data-count={shown.length}>
-          {shown.map(g => (
+          {shown.map((g, idx) => (
             <FarmSaleCard
               key={g.farm.slug}
+              priority={idx === 0}
               group={g}
               t={t}
               lang={lang}

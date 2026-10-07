@@ -12,7 +12,9 @@ const PIN = 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6
  * with a rounded count and weight range, and an action (ask about it).
  * layout "row" is a wide feature card for a single farm; "stack" is a card for a grid.
  */
-export function FarmSaleCard({ group, t, lang, action, layout = 'stack', nameHref, selected }: {
+export function FarmSaleCard({ group, t, lang, action, layout = 'stack', nameHref, selected, priority = false }: {
+  /** Load the photo straight away (the first card on the page). */
+  priority?: boolean;
   group: FarmCattle;
   t: Pick<Dict, 'cattle' | 'common' | 'values'>;
   lang: 'km' | 'en';
@@ -24,7 +26,7 @@ export function FarmSaleCard({ group, t, lang, action, layout = 'stack', nameHre
   const { farm, windows } = group;
   return (
     <article className={`sale-card lift${layout === 'row' ? ' sale-row' : ''}`} style={selected ? { boxShadow: '0 0 0 3px var(--green)' } : undefined}>
-      <div className="sale-photo"><Photo id={farm.photoIds[0]} alt={farm.publicName} height={220} size="large" /></div>
+      <div className="sale-photo"><Photo id={farm.photoIds[0]} alt={farm.publicName} height={220} size="large" priority={priority} /></div>
       <div className="sale-body">
         <div className="stack" style={{ gap: 6 }}>
           <h3 className="sale-name">{nameHref ? <Link href={nameHref}>{farm.publicName}</Link> : farm.publicName}</h3>
