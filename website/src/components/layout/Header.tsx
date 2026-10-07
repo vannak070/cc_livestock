@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { ENABLED_LANGS, href, type Dict, type Lang } from '@/lib/i18n';
 
 /** Site header: logo with ខេម ខោវ first, menu, Khmer / English switch. */
-export function Header({ lang, t }: { lang: Lang; t: Dict }) {
+export function Header({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boolean }) {
   const pathname = usePathname() || `/${lang}`;
   const [open, setOpen] = useState(false);
   const rest = pathname.replace(/^\/(km|en)/, '') || '/';
@@ -15,7 +15,7 @@ export function Header({ lang, t }: { lang: Lang; t: Dict }) {
     ['/members', t.nav.members],
     ['/cattle', t.nav.cattle],
     ['/#how', t.nav.how],
-    ['/news', t.nav.news],
+    ...(hasNews ? [['/news', t.nav.news] as [string, string]] : []),
     ['/join', t.nav.join],
     ['/contact', t.nav.contact],
   ];

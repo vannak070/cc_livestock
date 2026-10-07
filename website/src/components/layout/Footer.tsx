@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { href, type Dict, type Lang } from '@/lib/i18n';
 import { CONTACT } from '@/lib/contact';
 
-export function Footer({ lang, t }: { lang: Lang; t: Dict }) {
+export function Footer({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boolean }) {
   return (
     <footer className="footer" id="contact">
       <div className="wrap footer-in">
@@ -24,7 +24,7 @@ export function Footer({ lang, t }: { lang: Lang; t: Dict }) {
           <Link href={href(lang, '/members')}>{t.nav.members}</Link>
           <Link href={href(lang, '/cattle')}>{t.nav.cattle}</Link>
           <Link href={href(lang, '/join')}>{t.nav.join}</Link>
-          <Link href={href(lang, '/news')}>{t.nav.news}</Link>
+          {hasNews && <Link href={href(lang, '/news')}>{t.nav.news}</Link>}
         </div>
       </div>
       <div className="wrap muted small" style={{ paddingBottom: 24 }}>{t.footer.rights}</div>

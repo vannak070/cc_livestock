@@ -2,10 +2,12 @@ import Link from 'next/link';
 import { AudienceTabs } from '@/components/home/AudienceTabs';
 import { HomeMap } from '@/components/home/HomeMap';
 import { LiveRecords } from '@/components/home/LiveRecords';
+import { OfferPanel } from '@/components/home/OfferPanel';
 import { HeroLines } from '@/components/shared/HeroLines';
 import { Photo } from '@/components/shared/Photo';
 import { Reveal } from '@/components/shared/Reveal';
 import { href } from '@/lib/i18n';
+import { showLiveNumbers } from '@/lib/launch';
 import { pageLang } from '@/lib/page';
 import { getSnapshot } from '@/lib/snapshot/read';
 
@@ -14,6 +16,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
   const s = await getSnapshot();
   const km = lang === 'km';
   const provinces = [...new Set(s.farms.map(f => (km ? f.provinceKm : f.province)))];
+  const hasCattle = s.cattle.length > 0;
   const farmHref = Object.fromEntries(s.farms.map(f => [f.slug, href(lang, `/members/${f.slug}`)]));
   const stats = [
     { value: s.summary.memberFarms, label: t.home.statFarms },
@@ -33,10 +36,14 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
             <p className="lead rise d3">{t.home.sub}</p>
             <div className="row rise d4" style={{ paddingTop: 6 }}>
               <Link className="btn btn-red" href={href(lang, '/join')}>{t.home.ctaJoin} <span aria-hidden="true">→</span></Link>
-              <Link className="btn btn-line" href={href(lang, '/cattle')}>{t.home.ctaCattle}</Link>
+              {hasCattle
+                ? <Link className="btn btn-line" href={href(lang, '/cattle')}>{t.home.ctaCattle}</Link>
+                : <Link className="btn btn-line" href={`${href(lang, '/cattle')}#inquiry`}>{t.home.ctaAsk}</Link>}
             </div>
           </div>
-          <LiveRecords title={t.home.liveTitle} updated={t.home.liveUpdated} stats={stats} />
+          {showLiveNumbers(s.farms.length)
+            ? <LiveRecords title={t.home.liveTitle} updated={t.home.liveUpdated} stats={stats} />
+            : <OfferPanel title={t.home.offerTitle} items={t.home.offer} note={t.home.offerNote} />}
         </div>
       </section>
 
@@ -87,11 +94,11 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
         <div className="wrap split" style={{ alignItems: 'center' }}>
           <div className="side stack" style={{ gap: 16 }}>
             <h2 className="display h2">{t.home.mapTitle}</h2>
-            <p className="lead">{t.home.mapSub}</p>
-            <Link className="btn btn-red" href={href(lang, '/members')} style={{ alignSelf: 'flex-start' }}>{t.home.mapCta}</Link>
+            <p className="lead">{s.farms.length ? t.home.mapSub : t.home.mapSubEmpty}</p>
+            {s.farms.length > 0 && <Link className="btn btn-red" href={href(lang, '/members')} style={{ alignSelf: 'flex-start' }}>{t.home.mapCta}</Link>}
           </div>
           <div className="main">
-            <HomeMap farms={s.farms} hrefs={farmHref} note={t.members.pinNote} />
+            <HomeMap farms={s.farms} hrefs={farmHref} note={t.members.pinNote} empty={{ title: t.home.mapEmptyTitle, body: t.home.mapEmptyBody, cta: t.home.ctaJoin, href: href(lang, '/join') }} />
           </div>
         </div>
       </section>
@@ -111,7 +118,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
         </div>
       </section>
 
-      <section className="section section-mint">
+      {hasCattle && <section className="section section-mint">
         <div className="wrap stack" style={{ gap: 24 }}>
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div className="stack" style={{ gap: 6 }}>
@@ -120,21 +127,19 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
             </div>
             <Link className="btn btn-line" href={href(lang, '/cattle')}>{t.common.seeAll}</Link>
           </div>
-          {s.cattle.length === 0 ? <p className="empty">{t.cattle.none}</p> : (
-            <div className="grid">
-              {s.cattle.slice(0, 3).map(c => (
-                <article key={c.listingId} className="card lift stack" style={{ gap: 10 }}>
-                  <Photo id={c.photoId} alt={c.breed} height={160} />
-                  <h3 style={{ fontSize: 19 }}>{[c.breed, t.values.sex[c.sex] ?? c.sex].filter(Boolean).join(' · ')}</h3>
-                  <p style={{ color: 'var(--ink-2)' }}>{t.values.weight[c.weightClass] ?? c.weightClass} · {t.values.count[c.headCount] ?? c.headCount} · {km ? c.provinceKm : c.province}</p>
-                  <span className={`pill ${c.availability === 'now' ? 'pill-now' : 'pill-soon'}`} style={{ alignSelf: 'flex-start' }}>{c.availability === 'now' ? t.common.availNow : t.common.availSoon}</span>
-                  <Link className="btn btn-red" href={`${href(lang, '/cattle')}?about=${c.listingId}#inquiry`}>{t.common.askPrice}</Link>
-                </article>
-              ))}
-            </div>
-          )}
+          <div className="grid">
+            {s.cattle.slice(0, 3).map(c => (
+              <article key={c.listingId} className="card lift stack" style={{ gap: 10 }}>
+                <Photo id={c.photoId} alt={c.breed} height={160} />
+                <h3 style={{ fontSize: 19 }}>{[c.breed, t.values.sex[c.sex] ?? c.sex].filter(Boolean).join(' · ')}</h3>
+                <p style={{ color: 'var(--ink-2)' }}>{t.values.weight[c.weightClass] ?? c.weightClass} · {t.values.count[c.headCount] ?? c.headCount} · {km ? c.provinceKm : c.province}</p>
+                <span className={`pill ${c.availability === 'now' ? 'pill-now' : 'pill-soon'}`} style={{ alignSelf: 'flex-start' }}>{c.availability === 'now' ? t.common.availNow : t.common.availSoon}</span>
+                <Link className="btn btn-red" href={`${href(lang, '/cattle')}?about=${c.listingId}#inquiry`}>{t.common.askPrice}</Link>
+              </article>
+            ))}
+          </div>
         </div>
-      </section>
+      </section>}
 
       {s.news.length > 0 && (
         <section className="section">

@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { HomeMap } from '@/components/home/HomeMap';
 import { MembersExplorer } from '@/components/members/MembersExplorer';
 import { PageHead } from '@/components/shared/PageHead';
 import { href } from '@/lib/i18n';
+import { showLiveNumbers } from '@/lib/launch';
 import { pageLang } from '@/lib/page';
 import { getSnapshot } from '@/lib/snapshot/read';
 
@@ -16,15 +18,17 @@ export default async function MembersPage({ params }: { params: Promise<{ lang: 
   const s = await getSnapshot();
   return (
     <>
-      <PageHead title={t.members.title} sub={t.members.sub}>
-        <div className="row rise d2" style={{ gap: 28 }}>
+      <PageHead title={t.members.title} sub={s.farms.length ? t.members.sub : t.home.mapSubEmpty}>
+        {showLiveNumbers(s.farms.length) && <div className="row rise d2" style={{ gap: 28 }}>
           <span><b style={{ fontSize: 26, color: 'var(--green-700)' }}>{s.summary.memberFarms}</b> <span className="muted">{t.home.statFarms}</span></span>
           <span><b style={{ fontSize: 26, color: 'var(--green-700)' }}>{s.summary.provinces}</b> <span className="muted">{t.home.statProvinces}</span></span>
-        </div>
+        </div>}
       </PageHead>
       <section className="section" style={{ paddingTop: 32 }}>
         <div className="wrap stack" style={{ gap: 28 }}>
-          {s.farms.length === 0 ? <p className="empty">{t.members.none}</p> : (
+          {s.farms.length === 0 ? (
+            <HomeMap farms={[]} hrefs={{}} note={t.members.pinNote} height={480} empty={{ title: t.home.mapEmptyTitle, body: t.home.mapEmptyBody, cta: t.members.joinCta, href: href(lang, '/join') }} />
+          ) : (
             <MembersExplorer
               farms={s.farms}
               lang={lang}
@@ -35,10 +39,12 @@ export default async function MembersPage({ params }: { params: Promise<{ lang: 
               newSince={new Date().getFullYear() - 1}
             />
           )}
-          <div className="banner" style={{ padding: '32px 36px' }}>
-            <span style={{ fontSize: 20, fontWeight: 600 }}>{t.members.joinBanner}</span>
-            <Link className="btn btn-red" href={href(lang, '/join')}>{t.members.joinCta}</Link>
-          </div>
+          {s.farms.length > 0 && (
+            <div className="banner" style={{ padding: '32px 36px' }}>
+              <span style={{ fontSize: 20, fontWeight: 600 }}>{t.members.joinBanner}</span>
+              <Link className="btn btn-red" href={href(lang, '/join')}>{t.members.joinCta}</Link>
+            </div>
+          )}
         </div>
       </section>
     </>

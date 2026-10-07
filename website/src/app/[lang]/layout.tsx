@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
 import { ENABLED_LANGS } from '@/lib/i18n';
 import { pageLang, siteUrl } from '@/lib/page';
+import { getSnapshot } from '@/lib/snapshot/read';
 
 const body = Kantumruy_Pro({ subsets: ['khmer', 'latin'], weight: ['400', '500', '600', '700'], variable: '--font-body', display: 'swap' });
 const display = Fraunces({ subsets: ['latin'], weight: ['600', '700'], variable: '--font-display', display: 'swap' });
@@ -30,12 +31,14 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
 
 export default async function Layout({ children, params }: { children: ReactNode; params: Promise<{ lang: string }> }) {
   const { lang, t } = await pageLang(params);
+  // "Stories" is left out of the menus until there is one.
+  const hasNews = (await getSnapshot()).news.length > 0;
   return (
     <html lang={lang} className={`${body.variable} ${display.variable}`}>
       <body>
-        <Header lang={lang} t={t} />
+        <Header lang={lang} t={t} hasNews={hasNews} />
         <main>{children}</main>
-        <Footer lang={lang} t={t} />
+        <Footer lang={lang} t={t} hasNews={hasNews} />
       </body>
     </html>
   );

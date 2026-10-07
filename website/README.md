@@ -68,6 +68,7 @@ src/
 │   ├── i18n/                        km.ts and en.ts: every word on the site; langs.ts: links per language
 │   ├── api/respond.ts               JSON answers, CORS, origin check
 │   ├── contact.ts                   phone, Telegram, Facebook (change here only)
+│   ├── launch.ts                    while fewer than 3 farms are published: no live numbers, "be the first" map, empty sections hidden
 │   ├── places.ts                    the 25 provinces
 │   ├── districts.ts                 suggested districts for the Join form (same list as CC Livestock's src/lib/website/districts.ts)
 │   └── page.ts                      reads the language from the address
