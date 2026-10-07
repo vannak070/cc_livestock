@@ -1,8 +1,9 @@
 /**
  * Creates (or updates) the database account the public CamCow website uses
  * for its two forms (docs/website/README.md). It can only INSERT new rows
- * into website_applications and website_inquiries: it cannot read them, or
- * anything else in CC Livestock.
+ * into website_applications, website_inquiries and website_photos (photos
+ * sent with a Join application): it cannot read them, or anything else in
+ * CC Livestock.
  *
  *   WEBSITE_FORMS_DB_PASSWORD=... npx tsx src/db/create-website-forms-user.ts
  *
@@ -24,8 +25,8 @@ async function main() {
   await query(`GRANT CONNECT ON DATABASE "${db}" TO ${USER}`, []);
   await query(`GRANT USAGE ON SCHEMA public TO ${USER}`, []);
   await query(`REVOKE ALL ON ALL TABLES IN SCHEMA public FROM ${USER}`, []);
-  await query(`GRANT INSERT ON website_applications, website_inquiries TO ${USER}`, []);
-  console.log(`${exists ? 'Updated' : 'Created'} ${USER}: INSERT on website_applications and website_inquiries only.`);
+  await query(`GRANT INSERT ON website_applications, website_inquiries, website_photos TO ${USER}`, []);
+  console.log(`${exists ? 'Updated' : 'Created'} ${USER}: INSERT on website_applications, website_inquiries and website_photos only.`);
   process.exit(0);
 }
 

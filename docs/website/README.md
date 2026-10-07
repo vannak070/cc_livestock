@@ -18,7 +18,7 @@ Design documents (ask the project owner for access):
 | 1 | Office side in CC Livestock: tables, rules, permission, Website page | **Done** |
 | 2 | Snapshot publisher (after each office change + every 15 min), Telegram per new request, insert-only forms account | **Done** |
 | 3 | The website itself: separate project `../CamCow_Website`, http://localhost:3200 (public API `/public/v1` lives there) | **Done** |
-| 4 | Forms end to end, search and sharing, speed and phone checks | To do |
+| 4 | Join-form photos, share previews, phone and speed checks | **Done** (real photos still to come) |
 | 5 | Launch: domain, HTTPS, hosting (only when the owner says so) | To do |
 
 ## Where everything is (step 1)
@@ -123,7 +123,7 @@ npm run dev                                  # Website appears in the menu for S
 | `src/services/website/request-notify.service.ts` + `src/lib/website/notify.ts` | One plain-English Telegram message per new application or inquiry (only where alerts may be sent; claimed first so it never repeats) |
 | `src/server/website-scheduler.ts` | In the API process (`npm run server`): snapshot every 15 minutes, request messages every 2 minutes |
 | `src/db/migrations/sql/022_website_notify.sql` | `notified_at` on both request tables |
-| `src/db/create-website-forms-user.ts` (`npm run website:forms-user`) | Creates the `camcow_website` database account: INSERT on the two request tables, nothing else |
+| `src/db/create-website-forms-user.ts` (`npm run website:forms-user`) | Creates the `camcow_website` database account: INSERT on the two request tables and `website_photos` (Join-form photos), nothing else |
 
 Snapshot folder: `WEBSITE_SNAPSHOT_DIR`, default `./.website-snapshot` (git-ignored). Office changes on
 the Website page publish straight away; the Preview tab has **Publish now** and shows when the site
