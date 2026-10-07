@@ -38,7 +38,7 @@ export default async function ContactPage({ params }: { params: Promise<{ lang: 
               <Icon><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z" /></Icon>
               <h2>{t.common.phone}</h2>
               <a className="ct-big" href={`tel:${CONTACT.phoneTel}`}>{CONTACT.phone}</a>
-              <a className="btn btn-red" href={`tel:${CONTACT.phoneTel}`}>{t.contact.call}</a>
+              <a className="btn btn-green" href={`tel:${CONTACT.phoneTel}`}>{t.contact.call}</a>
             </div>
             <div className="ct-card">
               <Icon><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></Icon>

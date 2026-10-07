@@ -63,7 +63,7 @@ export default async function FarmPage({ params }: { params: Params }) {
         )}
         {story && <p className="prof-story">{story}</p>}
         <div className="row" style={{ paddingTop: 4 }}>
-          <Link className="btn btn-red" href={askHref}>{t.profile.askCattle} <span aria-hidden="true">→</span></Link>
+          <Link className="btn btn-green" href={askHref}>{t.profile.askCattle} <span aria-hidden="true">→</span></Link>
           <a className="btn btn-line" href={`tel:${CONTACT.phoneTel}`}>{t.common.callUs}</a>
         </div>
       </PageHead>
@@ -83,7 +83,7 @@ export default async function FarmPage({ params }: { params: Params }) {
                   <div className="card stack" style={{ gap: 14 }}>
                     <FarmWindows windows={listings} t={t} lang={lang} />
                     <p className="small muted" style={{ margin: 0 }}>{t.cattle.vetChecked}</p>
-                    <Link className="btn btn-red" style={{ alignSelf: 'flex-start' }} href={`${href(lang, '/cattle')}?about=${listings[0].listingId}#inquiry`}>{t.cattle.askFarm} <span aria-hidden="true">→</span></Link>
+                    <Link className="btn btn-line" style={{ alignSelf: 'flex-start' }} href={`${href(lang, '/cattle')}?about=${listings[0].listingId}#inquiry`}>{t.cattle.askFarm} <span aria-hidden="true">→</span></Link>
                   </div>
                 )}
               </div>
@@ -98,7 +98,7 @@ export default async function FarmPage({ params }: { params: Params }) {
               <div className="card stack" style={{ gap: 12 }}>
                 <h2 style={{ fontSize: 20 }}>{t.profile.contactTitle}</h2>
                 <p style={{ color: 'var(--ink-2)', margin: 0 }}>{t.profile.contactBody}</p>
-                <a className="btn btn-red" href={`tel:${CONTACT.phoneTel}`}>{t.common.callUs} {CONTACT.phone}</a>
+                <a className="btn btn-green" href={`tel:${CONTACT.phoneTel}`}>{t.common.callUs} {CONTACT.phone}</a>
                 {CONTACT.telegram && <a className="btn btn-line" href={CONTACT.telegram}>{t.common.telegram}</a>}
               </div>
             </aside>

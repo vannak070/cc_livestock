@@ -120,7 +120,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
                     lang={lang}
                     layout={groups.length === 1 ? 'row' : 'stack'}
                     nameHref={href(lang, `/members/${g.farm.slug}`)}
-                    action={<Link className="btn btn-red" href={`${href(lang, '/cattle')}?about=${g.listingId}#inquiry`}>{t.cattle.askFarm} <span aria-hidden="true">→</span></Link>}
+                    action={<Link className="btn btn-green" href={`${href(lang, '/cattle')}?about=${g.listingId}#inquiry`}>{t.cattle.askFarm} <span aria-hidden="true">→</span></Link>}
                   />
                 ))}
               </div>
@@ -151,7 +151,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
             ))}
           </ol>
           <div className="t-end">
-            <Link className="btn btn-red" href={href(lang, '/join')}>{t.home.journeyCta} <span aria-hidden="true">→</span></Link>
+            <Link className="btn btn-line" href={href(lang, '/join')}>{t.home.journeyCta} <span aria-hidden="true">→</span></Link>
             <span className="small muted">{t.home.journeyCtaNote}</span>
           </div>
         </div>
@@ -162,7 +162,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
           <div className="side stack" style={{ gap: 16 }}>
             <h2 className="display h2"><KmWords text={t.home.mapTitle} /></h2>
             <p className="lead">{s.farms.length ? t.home.mapSub : t.home.mapSubEmpty}</p>
-            {s.farms.length > 0 && <Link className="btn btn-red" href={href(lang, '/members')} style={{ alignSelf: 'flex-start' }}>{t.home.mapCta}</Link>}
+            {s.farms.length > 0 && <Link className="btn btn-line" href={href(lang, '/members')} style={{ alignSelf: 'flex-start' }}>{t.home.mapCta}</Link>}
           </div>
           <div className="main">
             <HomeMap farms={s.farms} hrefs={farmHref} note={t.members.pinNote} empty={{ title: t.home.mapEmptyTitle, body: t.home.mapEmptyBody, cta: t.home.ctaJoin, href: href(lang, '/join') }} />

@@ -186,7 +186,7 @@ export default async function AboutPage({ params }: { params: Promise<{ lang: st
               {ABOUT.hours ? <p className="ab-visit-hours"><Icon d={ICON.clock} size={18} />{ABOUT.hours}</p> : todo(a.todoHours)}
               <div className="row" style={{ gap: 10, marginTop: 'auto', paddingTop: 8 }}>
                 {ABOUT.mapLink ? <a className="btn btn-line" href={ABOUT.mapLink} target="_blank" rel="noopener noreferrer">{t.contact.directions}</a> : todo(a.todoMap)}
-                <a className="btn btn-red" href={`tel:${CONTACT.phoneTel}`}><Icon d={ICON.phone} size={18} />{t.common.callUs}</a>
+                <a className="btn btn-green" href={`tel:${CONTACT.phoneTel}`}><Icon d={ICON.phone} size={18} />{t.common.callUs}</a>
               </div>
             </div>
             <div className="ab-reach">

@@ -75,7 +75,7 @@ export function CattleExplorer({ cattle, farms, t, lang, initialAbout }: {
               lang={lang}
               nameHref={href(lang, `/members/${g.farm.slug}`)}
               selected={about === g.listingId}
-              action={<a href="#inquiry" className="btn btn-red" onClick={() => setAbout(g.listingId)}>{t.cattle.askFarm}</a>}
+              action={<a href="#inquiry" className="btn btn-green" onClick={() => setAbout(g.listingId)}>{t.cattle.askFarm}</a>}
             />
           ))}
         </div>

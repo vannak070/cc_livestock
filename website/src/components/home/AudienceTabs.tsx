@@ -36,7 +36,7 @@ export function AudienceTabs({ tabs }: { tabs: Tab[] }) {
           <span className="aud-badge"><Icon k={tab.key} size={30} /></span>
           <h3 className="display"><KmWords text={tab.title} /></h3>
           <p className="lead">{tab.body}</p>
-          <Link className="btn btn-red" href={tab.href}>{tab.cta} <span aria-hidden="true">→</span></Link>
+          <Link className="btn btn-green" href={tab.href}>{tab.cta} <span aria-hidden="true">→</span></Link>
         </div>
         <div className="aud-side">
           {tab.photo ? <Photo id={tab.photo} alt="" height={280} /> : (
