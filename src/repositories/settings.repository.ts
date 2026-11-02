@@ -178,10 +178,12 @@ export class SettingsRepository {
   // The account behind a session token, re-read on every request so that a
   // deactivated, deleted or re-permissioned user loses access immediately
   // instead of keeping whatever their token said when it was issued.
-  async getActiveUserById(id: string): Promise<UserRoleItem | null> {
+  // `issuedAt` (the token's iat, seconds): a token from before the last password change is refused.
+  async getActiveUserById(id: string, issuedAt?: number): Promise<UserRoleItem | null> {
     const res = await query("SELECT * FROM users WHERE id = $1 AND status = 'Active' LIMIT 1", [id]);
     if (res.rows.length === 0) return null;
     const row = res.rows[0];
+    if (issuedAt !== undefined && row.sessions_valid_after && issuedAt < Math.floor(new Date(row.sessions_valid_after).getTime() / 1000)) return null;
     let perms = row.permissions;
     if (typeof perms === 'string') {
       try { perms = JSON.parse(perms); } catch { perms = []; }
@@ -231,6 +233,12 @@ export class SettingsRepository {
     void _users;
     await this.patchBlob(rest, client);
     return this.getSettings();
+  }
+
+  /** Just the sign-in time limit, read on every sign-in and renewal, so not the whole settings document. */
+  async getSessionSettings(): Promise<MasterSetup['session'] | undefined> {
+    const res = await query("SELECT data->'session' AS session FROM master_settings WHERE key = 'master_setup'");
+    return res.rows[0]?.session ?? undefined;
   }
 
   /** Merges some sections into the stored settings document, locking it so two saves cannot overwrite each other. */
@@ -317,7 +325,7 @@ export class SettingsRepository {
     const sets = ['name = $1', 'email = $2', 'role = $3', 'permissions = $4', 'farm_location = $5'];
     const params: unknown[] = [fields.name, fields.email, fields.role, JSON.stringify(fields.permissions || []), fields.farmLocation || null];
     const typedPassword = (fields.password || '').trim();
-    if (typedPassword) { params.push(await hashPassword(typedPassword)); sets.push(`password = $${params.length}`); }
+    if (typedPassword) { params.push(await hashPassword(typedPassword)); sets.push(`password = $${params.length}`, 'sessions_valid_after = now()'); }
     const typedPin = (fields.pin || '').trim();
     if (fields.clearPin) { sets.push('pin_hash = NULL'); }
     else if (typedPin) { await this.assertPinFree(typedPin, id, client); params.push(await hashPassword(typedPin)); sets.push(`pin_hash = $${params.length}`); }
@@ -337,8 +345,15 @@ export class SettingsRepository {
     await this.executeQuery('UPDATE users SET status = $1 WHERE id = $2', [status, id], client);
   }
 
+  /** Only the name (My account); email, role and farm are changed by admins through updateUser. */
+  async setUserName(id: string, name: string, client?: PoolClient): Promise<void> {
+    const res = await this.executeQuery('UPDATE users SET name = $1 WHERE id = $2', [name, id], client);
+    if (res.rowCount === 0) throw new Error('That person no longer exists.');
+  }
+
+  /** Also ends every sign-in made before now (other phones and browsers must sign in again). */
   async setUserPassword(id: string, plain: string, client?: PoolClient): Promise<void> {
-    await this.executeQuery('UPDATE users SET password = $1 WHERE id = $2', [await hashPassword(plain), id], client);
+    await this.executeQuery('UPDATE users SET password = $1, sessions_valid_after = now() WHERE id = $2', [await hashPassword(plain), id], client);
   }
 
   async deleteUser(id: string, client?: PoolClient): Promise<boolean> {

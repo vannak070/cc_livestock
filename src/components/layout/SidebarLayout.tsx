@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import {
   LogOut,
   Calendar,
   Settings,
   PieChart,
-  LayoutDashboard,
   X,
   Building,
   ChevronRight,
@@ -14,6 +14,7 @@ import {
   Syringe,
   Package,
   Calculator,
+  ClipboardCheck,
   Home,
   Scale,
   Layers,
@@ -25,10 +26,11 @@ import {
   Globe
 } from 'lucide-react';
 import { UserRoleItem } from '@/lib/types';
-import { canUsePlanning, hasPermission } from '@/lib/utils';
+import { canOpenReports, canUsePlanning, hasPermission } from '@/lib/utils';
 import { canOpenPeople, isFarmOwner } from '@/lib/user-admin';
 import { useLanguage } from '@/context/LanguageContext';
 import { canSeeBilling } from '@/lib/billing';
+import { canSeeActionPlans } from '@/lib/action-plans';
 import { canOpenWebsitePage } from '@/lib/website/access';
 import { khmerLongDate } from '@/lib/khmer-date';
 import LanguageSwitcher from '../LanguageSwitcher';
@@ -37,7 +39,6 @@ import ShareAppButton from '../ShareAppButton';
 
 export type ActiveTabType =
   | 'today'
-  | 'dashboard'
   | 'cow-inventory'
   | 'batch-management'
   | 'feed-inventory'
@@ -46,6 +47,7 @@ export type ActiveTabType =
   | 'sales-finance'
   | 'analytics'
   | 'proposal-plan'
+  | 'action-plans'
   | 'settings'
   | 'farms'
   | 'billing'
@@ -69,6 +71,8 @@ interface SidebarLayoutProps {
   vaccineAlertsCount: number;
   currentUser?: UserRoleItem | null;
   onLogout?: () => void;
+  /** Opens My account (change your own name and password); the name and role in the footer become a button. */
+  onOpenAccount?: () => void;
   /** The "Working on" farm choice for office accounts; shown in the header, or above the page on phones. */
   workingOn?: React.ReactNode;
 }
@@ -140,6 +144,7 @@ export default function SidebarLayout({
   vaccineAlertsCount,
   currentUser,
   onLogout,
+  onOpenAccount,
   workingOn
 }: SidebarLayoutProps) {
   const { t, language } = useLanguage();
@@ -158,7 +163,6 @@ export default function SidebarLayout({
   // Page names shown in the header (one source for the menu and the header).
   const tabLabels: Record<ActiveTabType, string> = {
     'today': t('nav.today', 'Today'),
-    'dashboard': t('nav.summary', 'Summary'),
     'cow-inventory': t('nav.cattleRegistry'),
     'weight-tracking': t('nav.weights', 'Weights'),
     'health-tracking': t('nav.healthVaccines'),
@@ -168,6 +172,7 @@ export default function SidebarLayout({
     'sales-finance': t('nav.financeLedger'),
     'analytics': t('nav.analytics'),
     'proposal-plan': t('nav.proposalPlan'),
+    'action-plans': t('nav.actionPlans', 'Action plans'),
     'farms': t('nav.farmsBranches'),
     'billing': t('nav.billing', 'Billing'),
     'website': t('nav.website', 'Website'),
@@ -177,8 +182,7 @@ export default function SidebarLayout({
 
   // "Office" pages are for people who look at money and reports; farm staff
   // and vets (who have none of these permissions) see only daily work.
-  const showSummary = can('dashboard_view') && (can('sales_view') || can('analytics_view'));
-  const hasOffice = showSummary || can('sales_view') || can('analytics_view') || canUsePlanning(currentUser) || can('farms_manage') || canSeeBilling(currentUser) || canOpenPeople(currentUser);
+  const hasOffice = canOpenReports(currentUser) || can('sales_view') || canUsePlanning(currentUser) || canSeeActionPlans(currentUser) || can('farms_manage') || canSeeBilling(currentUser) || canOpenPeople(currentUser);
 
   const userInitials = currentUser?.name
     ? currentUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
@@ -204,7 +208,7 @@ export default function SidebarLayout({
       <div className="flex items-center justify-between h-20 px-4 border-b-4 border-brand flex-shrink-0 bg-white max-md:sticky max-md:top-0 max-md:z-10">
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 flex items-center justify-center flex-shrink-0">
-            <img src="/logo.png" alt="CC Livestock logo" className="h-full w-full object-contain" />
+            <Image src="/logo-2026.png" alt="CC Livestock logo" width={48} height={48} loading="eager" className="h-full w-full object-contain" />
           </div>
           <div>
             <p className="text-brand font-bold text-lg leading-tight">CC Livestock</p>
@@ -255,17 +259,18 @@ export default function SidebarLayout({
 
         {hasOffice && (
           <NavSection label={t('nav.office', 'Office')}>
-            {showSummary && (
-              <NavItem icon={<LayoutDashboard className="h-5 w-5" />} label={tabLabels['dashboard']} isActive={activeTab === 'dashboard'} onClick={() => handleTabChange('dashboard')} onBottomBar={recordActions.length === 0} />
+            {canOpenReports(currentUser) && (
+              <NavItem icon={<PieChart className="h-5 w-5" />} label={tabLabels['analytics']} isActive={activeTab === 'analytics'} onClick={() => handleTabChange('analytics')} onBottomBar={recordActions.length === 0} />
             )}
             {can('sales_view') && (
               <NavItem icon={<DollarSign className="h-5 w-5" />} label={tabLabels['sales-finance']} isActive={activeTab === 'sales-finance'} onClick={() => handleTabChange('sales-finance')} />
             )}
-            {can('analytics_view') && (
-              <NavItem icon={<PieChart className="h-5 w-5" />} label={tabLabels['analytics']} isActive={activeTab === 'analytics'} onClick={() => handleTabChange('analytics')} />
-            )}
+
             {canUsePlanning(currentUser) && (
               <NavItem icon={<Calculator className="h-5 w-5" />} label={tabLabels['proposal-plan']} isActive={activeTab === 'proposal-plan'} onClick={() => handleTabChange('proposal-plan')} />
+            )}
+            {canSeeActionPlans(currentUser) && (
+              <NavItem icon={<ClipboardCheck className="h-5 w-5" />} label={tabLabels['action-plans']} isActive={activeTab === 'action-plans'} onClick={() => handleTabChange('action-plans')} />
             )}
             {can('farms_manage') && (
               <NavItem icon={<Building className="h-5 w-5" />} label={tabLabels['farms']} isActive={activeTab === 'farms'} onClick={() => handleTabChange('farms')} />
@@ -292,16 +297,25 @@ export default function SidebarLayout({
       {/* ─── User Profile Footer ─── */}
       {currentUser && (
         <div className="flex-shrink-0 mx-3 mb-3 mt-1 border-t border-slate-200 pt-3">
-          <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-3 py-2.5">
-            <div className="h-10 w-10 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-sm text-white flex-shrink-0">
-              {userInitials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-ink truncate leading-tight">{currentUser.name}</p>
-              <span className={`inline-block text-xs font-bold px-1.5 py-0.5 rounded-full border mt-0.5 ${roleBadgeClass}`}>
-                {currentUser.role}
+          <div className="flex items-center gap-1 bg-slate-50 rounded-xl px-1.5 py-1.5">
+            <button
+              type="button"
+              onClick={onOpenAccount}
+              disabled={!onOpenAccount}
+              className="flex flex-1 min-w-0 items-center gap-3 rounded-lg px-1.5 py-1 text-left transition-colors enabled:hover:bg-white enabled:cursor-pointer"
+              title={t('myAccount.open', 'My account')}
+              aria-label={t('myAccount.openAria', 'Open my account').replace('{name}', currentUser.name)}
+            >
+              <span className="h-10 w-10 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-sm text-white flex-shrink-0">
+                {userInitials}
               </span>
-            </div>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold text-ink truncate leading-tight">{currentUser.name}</span>
+                <span className={`inline-block text-xs font-bold px-1.5 py-0.5 rounded-full border mt-0.5 ${roleBadgeClass}`}>
+                  {currentUser.role}
+                </span>
+              </span>
+            </button>
             {onLogout && (
               <button
                 onClick={onLogout}
@@ -381,7 +395,7 @@ export default function SidebarLayout({
       <main className="flex-1 flex flex-col bg-canvas min-w-0 overflow-y-auto">
         <header className="border-b border-slate-200 bg-white px-4 sm:px-6 h-16 md:h-20 flex items-center justify-between gap-4 sticky top-0 z-20">
           <div className="flex items-center gap-3 min-w-0">
-            <img src="/logo.png" alt="" className="md:hidden h-10 w-10 object-contain flex-shrink-0" />
+            <Image src="/logo-2026.png" alt="" width={40} height={40} loading="eager" className="md:hidden h-10 w-10 object-contain flex-shrink-0" />
             <h1 className="text-xl md:text-2xl font-bold text-ink truncate">{tabLabels[activeTab]}</h1>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
@@ -404,11 +418,11 @@ export default function SidebarLayout({
 
       {/* Phone bottom bar: Today · Cattle · Record · More */}
       <nav aria-label="Quick" className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 grid grid-cols-4 pb-[env(safe-area-inset-bottom)]">
-        {bottomTab(tabLabels['today'], <Home className="h-6 w-6" />, () => handleTabChange(can('dashboard_view') ? 'today' : 'dashboard'), activeTab === 'today')}
+        {bottomTab(tabLabels['today'], <Home className="h-6 w-6" />, () => handleTabChange('today'), activeTab === 'today')}
         {bottomTab(tabLabels['cow-inventory'], <Beef className="h-6 w-6" />, () => handleTabChange('cow-inventory'), activeTab === 'cow-inventory')}
         {recordActions.length > 0
           ? bottomTab(t('nav.record', 'Record'), <PlusCircle className="h-6 w-6" />, () => { setMobileMenuOpen(false); setRecordSheetOpen(true); }, recordSheetOpen)
-          : bottomTab(tabLabels['dashboard'], <LayoutDashboard className="h-6 w-6" />, () => handleTabChange('dashboard'), activeTab === 'dashboard')}
+          : bottomTab(tabLabels['analytics'], <PieChart className="h-6 w-6" />, () => handleTabChange('analytics'), activeTab === 'analytics')}
         {bottomTab(t('nav.more', 'More'), <MoreHorizontal className="h-6 w-6" />, () => { setRecordSheetOpen(false); setMobileMenuOpen(true); }, mobileMenuOpen)}
       </nav>
 

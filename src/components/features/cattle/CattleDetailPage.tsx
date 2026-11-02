@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getCattlePhotoAction, getCattleReceiptAction, getReceiptFileAction } from '@/app/actions';
+import PageTabs from '@/components/ui/page-tabs';
 import { ArrowLeft, Beef, Scale, Syringe, DollarSign, Trash2 } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
@@ -80,6 +83,49 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger' | 'success'; confirmText: string; onConfirm?: () => void }>(null);
 
   const cow = stock.find(c => c.id?.trim().toLowerCase() === cowId.trim().toLowerCase());
+  // The photo is not in the cattle list (it can be large); it is loaded when this page opens.
+  const photo = useQuery({
+    queryKey: ['cattle-photo', cow?.id],
+    enabled: !!cow?.hasPhoto,
+    staleTime: Infinity,
+    queryFn: async () => {
+      const res = await getCattlePhotoAction(cow!.id);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+  });
+  const photoUrl = photo.data ?? null;
+  // The supplier receipt this animal was registered from (Cattle -> Upload), with the kept original file; admins only.
+  const isAdmin = canSetLimits(currentUser);
+  const receipt = useQuery({
+    queryKey: ['cattle-receipt', cow?.id],
+    enabled: !!cow?.id && isAdmin,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const res = await getCattleReceiptAction(cow!.id);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+  });
+  const [receiptBusy, setReceiptBusy] = useState(false);
+  const [receiptError, setReceiptError] = useState('');
+  const downloadReceipt = async (id: string) => {
+    setReceiptBusy(true);
+    setReceiptError('');
+    try {
+      const res = await getReceiptFileAction(id);
+      if (!res.success) throw new Error(res.error);
+      const bytes = Uint8Array.from(atob(res.data.base64), c => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: res.data.type }));
+      const a = document.createElement('a');
+      a.href = url; a.download = res.data.name; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (e) {
+      setReceiptError(getErrorMessage(e, tx('receiptFailed')));
+    } finally {
+      setReceiptBusy(false);
+    }
+  };
   const points = useMemo(
     () => weighPoints(cowId, weightTracking, stock.find(c => c.id?.trim().toLowerCase() === cowId.trim().toLowerCase())?.purchaseDate),
     [cowId, weightTracking, stock]
@@ -143,9 +189,9 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
       {/* Who this is */}
       <section className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
         <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 sm:h-28 sm:w-28">
-          {cow.imageUrl && !photoFailed ? (
+          {photoUrl && !photoFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={cow.imageUrl} alt={tx('photoAlt', { id: cow.id })} onError={() => setPhotoFailed(true)} className="h-full w-full object-cover" />
+            <img src={photoUrl} alt={tx('photoAlt', { id: cow.id })} onError={() => setPhotoFailed(true)} className="h-full w-full object-cover" />
           ) : (
             <Beef className="h-10 w-10 text-slate-400" aria-hidden />
           )}
@@ -196,20 +242,7 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
       </section>
 
       {/* Tabs */}
-      <div role="tablist" aria-label={tx('detailsAria')} className="flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.filter(t => t.key !== 'money' || canSeeMoney).map(t => (
-          <button
-            key={t.key}
-            role="tab"
-            type="button"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
-            className={`min-h-12 flex-1 whitespace-nowrap border-b-4 px-2 text-base font-medium sm:px-4 sm:text-lg ${tab === t.key ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-ink-muted hover:text-ink'}`}
-          >
-            {tx(t.label)}{t.key === 'health' && logs.length > 0 ? ` (${logs.length})` : ''}
-          </button>
-        ))}
-      </div>
+      <PageTabs label={tx('detailsAria')} active={tab} onChange={id => setTab(id as typeof tab)} tabs={TABS.filter(t => t.key !== 'money' || canSeeMoney).map(t => ({ id: t.key, label: `${tx(t.label)}${t.key === 'health' && logs.length > 0 ? ` (${logs.length})` : ''}` }))} />
 
       {tab === 'overview' && (
         <dl className="rounded-2xl border border-slate-200 bg-white px-5">
@@ -220,6 +253,15 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
           <Row label={tx('weightAtArrival')} value={kgText(g.startWeight)} />
           <Row label={tx('paidBy')} value={cow.paymentMethod && cow.paymentMethod !== 'N/A' ? cow.paymentMethod : '—'} />
           {cow.remark && <Row label={tx('note')} value={cow.remark} />}
+          {receipt.data && (
+            <Row label={tx('receipt')} value={
+              <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                <span>{tx('receiptFrom', { no: receipt.data.invoiceNo || tx('receiptNoNumber'), date: dateText(receipt.data.receiptDate), by: receipt.data.importedBy || '—' })}</span>
+                {receipt.data.hasFile && <Button type="button" variant="outline" size="sm" disabled={receiptBusy} onClick={() => void downloadReceipt(receipt.data!.id)}>{tx('receiptDownload')}</Button>}
+                {receiptError && <span role="alert" className="basis-full text-right text-sm font-medium text-rose-700">{receiptError}</span>}
+              </span>
+            } />
+          )}
         </dl>
       )}
 

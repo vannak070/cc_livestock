@@ -58,3 +58,12 @@ src/data/db.json
 
 # public website snapshot (built by CC Livestock, read by the CamCow website; docs/website/README.md)
 /.website-snapshot/
+
+# Claude local: auto-start hook, its logs
+.claude/settings.local.json
+.claude/start-dev.sh
+.claude/logs/
+
+# Website form entries waiting to be sent (names, phones) and the watcher state
+/website/.outbox/
+/.website-watch.json

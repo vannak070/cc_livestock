@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateSettingsAction } from '@/app/actions';
 import type { MasterSetup, UserRoleItem } from '@/types/settings.types';
@@ -9,6 +10,8 @@ import PeoplePanel from './PeoplePanel';
 import RolesPanel from './RolesPanel';
 import ListsPanel from './ListsPanel';
 import AlertsPanel from './AlertsPanel';
+import SignInPanel from './SignInPanel';
+import { canSetSessionPolicy } from '@/lib/session-policy';
 import { useText } from '@/hooks/useText';
 
 interface SettingsPageProps {
@@ -18,7 +21,7 @@ interface SettingsPageProps {
   onOpenFarms?: () => void;
 }
 
-type Tab = 'people' | 'roles' | 'lists' | 'alerts';
+type Tab = 'people' | 'roles' | 'lists' | 'alerts' | 'signin';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'people', label: 'tabPeople' },
   { key: 'roles', label: 'tabRoles' },
@@ -28,7 +31,7 @@ const TABS: { key: Tab; label: string }[] = [
 
 export default function SettingsPage({ settings, currentUser, onOpenFarms }: SettingsPageProps) {
   const queryClient = useQueryClient();
-  const { tx } = useText('settingsPage');
+  const { tx, t } = useText('settingsPage');
   const [tab, setTab] = useState<Tab>('people');
 
   const save = useMutation({
@@ -50,25 +53,27 @@ export default function SettingsPage({ settings, currentUser, onOpenFarms }: Set
   return (
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div>
-        <h2 className="text-2xl font-semibold text-ink">{ownerOnly ? tx('titlePeople') : tx('titleSettings')}</h2>
         <p className="text-base text-ink-muted">{ownerOnly ? tx('introPeople') : tx('introSettings')}</p>
       </div>
 
       {!ownerOnly && (
-        <div role="tablist" aria-label={tx('titleSettings')} className="flex rounded-xl bg-slate-100 p-1 sm:w-fit">
-          {TABS.map(t => (
-            <button key={t.key} role="tab" type="button" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
-              className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-4 text-base font-medium sm:px-6 ${tab === t.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-              {tx(t.label)}
-            </button>
-          ))}
-        </div>
+        <PageTabs
+          label={tx('titleSettings')}
+          active={tab}
+          onChange={id => setTab(id as Tab)}
+          tabs={[
+            ...TABS.map(tb => ({ id: tb.key, label: tx(tb.label) })),
+            // The sign-in time limit is the Super Admin's alone.
+            ...(canSetSessionPolicy(currentUser) ? [{ id: 'signin', label: t('session.tab') }] : []),
+          ]}
+        />
       )}
 
       {(ownerOnly || tab === 'people') && <PeoplePanel settings={settings} actor={currentUser} onChanged={onChanged} onOpenFarms={onOpenFarms} />}
       {!ownerOnly && tab === 'roles' && <RolesPanel settings={settings} actor={currentUser} onSettings={onSettings} />}
       {!ownerOnly && tab === 'lists' && <ListsPanel settings={settings} onSettings={onSettings} />}
       {!ownerOnly && tab === 'alerts' && <AlertsPanel settings={settings} onSettings={onSettings} />}
+      {!ownerOnly && tab === 'signin' && canSetSessionPolicy(currentUser) && <SignInPanel settings={settings} />}
     </div>
   );
 }

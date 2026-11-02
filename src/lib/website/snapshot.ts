@@ -1,4 +1,5 @@
 import type { BatchItem, FarmItem, FeedStockTransaction, HealthLogItem, WebsiteBatchListing, WebsiteConsent, WebsiteFarmProfile, WebsiteNewsPost } from '../types';
+import { canonicalBreed } from './breeds';
 import type { StockItem, WeightRecord } from '../xlsx-parser';
 import { activeCattle } from '../attention';
 import { farmMatcher } from '../farm-scope';
@@ -8,6 +9,7 @@ import { provinceOf } from './places';
 import { farmSlug, farmSizeRange, percentTo5, publicCode, publicPin, roundedTotal } from './rounding';
 import { currentConsent } from './validation';
 import { feedDayStatus } from '../daily-feed';
+import { cleanSiteImages, isSiteImageSlot, type SiteImages } from './site-images';
 
 /**
  * The public snapshot: everything the website may show, and nothing else
@@ -79,11 +81,13 @@ export interface PublicSnapshot {
   farms: PublicFarm[];
   cattle: PublicListing[];
   news: PublicNews[];
+  /** Built-in website pictures replaced from the office (site-images.ts): slot -> photo id. Empty = the originals. */
+  siteImages: SiteImages;
 }
 
 /** The allow-list: the only fields each public object may carry. */
 export const PUBLIC_FIELDS = {
-  snapshot: ['version', 'builtAt', 'summary', 'farms', 'cattle', 'news'],
+  snapshot: ['version', 'builtAt', 'summary', 'farms', 'cattle', 'news', 'siteImages'],
   summary: ['memberFarms', 'provinces', 'cattleRaised', 'feedRecordedTodayPct'],
   farm: ['slug', 'publicName', 'province', 'provinceKm', 'district', 'lat', 'lng', 'breeds', 'sizeRange', 'memberSince', 'badges', 'hasCattleAvailable', 'photoIds', 'storyKm', 'storyEn'],
   listing: ['listingId', 'farmSlug', 'headCount', 'weightFrom', 'weightTo', 'province', 'provinceKm', 'availability'],
@@ -100,6 +104,7 @@ export function fieldsOutsideAllowList(snapshot: PublicSnapshot): string[] {
     ...snapshot.farms.flatMap(f => extra(f, PUBLIC_FIELDS.farm, 'farm')),
     ...snapshot.cattle.flatMap(l => extra(l, PUBLIC_FIELDS.listing, 'listing')),
     ...snapshot.news.flatMap(n => extra(n, PUBLIC_FIELDS.news, 'news')),
+    ...Object.keys(snapshot.siteImages ?? {}).filter(k => !isSiteImageSlot(k)).map(k => `siteImages.${k}`),
   ];
 }
 
@@ -124,6 +129,8 @@ export interface SnapshotInput {
   /** YYYY-MM-DD, farm time. */
   today: string;
   builtAt: string;
+  /** Pictures chosen in Website -> Pictures (slot -> photo id). */
+  siteImages?: Record<string, string>;
 }
 
 export function buildPublicSnapshot(input: SnapshotInput): PublicSnapshot {
@@ -158,7 +165,7 @@ export function buildPublicSnapshot(input: SnapshotInput): PublicSnapshot {
     }));
 
     const pin = publicPin(profile.mapLat ?? province.lat, profile.mapLng ?? province.lng, consent.mayShowExactLocation);
-    const breeds = [...new Set(active.map(c => c.breed.trim()).filter(Boolean))].sort().slice(0, 3);
+    const breeds = [...new Set(active.map(c => canonicalBreed(c.breed)).filter(Boolean))].sort().slice(0, 3);
     farms.push({
       slug,
       publicName: profile.publicName.trim(),
@@ -199,5 +206,6 @@ export function buildPublicSnapshot(input: SnapshotInput): PublicSnapshot {
     farms,
     cattle: cattle.sort((a, b) => (a.availability === b.availability ? 0 : a.availability === 'now' ? -1 : 1) || a.province.localeCompare(b.province)),
     news,
+    siteImages: cleanSiteImages(input.siteImages),
   };
 }

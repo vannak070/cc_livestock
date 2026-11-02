@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Photo } from '@/components/shared/Photo';
+import { breedList, canonicalBreed } from '@/lib/breeds';
 import type { PublicFarm } from '@/lib/snapshot/types';
 import { MembersMap } from './MembersMap';
 
@@ -21,17 +22,17 @@ export interface MembersText {
 }
 
 /**
- * Farmer Members: province chips, breed, "has cattle available" and "new
- * filters, the map and the list, all filtered together. Choosing a farm in one
- * highlights it in the other.
+ * Farmer Members: province chips, breed, "has cattle available" and the farm count in one filter bar, then the map
+ * and the list side by side (same top, same height; the list scrolls and fades at the bottom), all filtered
+ * together. Choosing a farm in one highlights it in the other. List rows stay short: name, place, size and
+ * member year, "cattle available"; breeds and record badges are on each farm's page.
  */
-export function MembersExplorer({ farms, lang, t, profileHref, sizeText, badgeText }: {
+export function MembersExplorer({ farms, lang, t, profileHref, sizeText }: {
   farms: PublicFarm[];
   lang: 'km' | 'en';
   t: MembersText;
   profileHref: Record<string, string>;
   sizeText: Record<string, string>;
-  badgeText: Record<string, string>;
 }) {
   const [province, setProvince] = useState('');
   const [onlyAvail, setOnlyAvail] = useState(false);
@@ -39,9 +40,9 @@ export function MembersExplorer({ farms, lang, t, profileHref, sizeText, badgeTe
   const [picked, setPicked] = useState<string | null>(null);
 
   const provinces = useMemo(() => [...new Map(farms.map(f => [f.province, lang === 'km' ? f.provinceKm : f.province])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [farms, lang]);
-  const breeds = useMemo(() => [...new Set(farms.flatMap(f => f.breeds))].sort((a, b) => a.localeCompare(b)), [farms]);
+  const breeds = useMemo(() => breedList(farms.map(f => f.breeds), lang), [farms, lang]);
   const shown = useMemo(() => farms.filter(f =>
-    (!province || f.province === province) && (!onlyAvail || f.hasCattleAvailable) && (!breed || f.breeds.includes(breed))
+    (!province || f.province === province) && (!onlyAvail || f.hasCattleAvailable) && (!breed || f.breeds.some(b => canonicalBreed(b) === breed))
   ), [farms, province, onlyAvail, breed]);
   const countIn = (key: string) => farms.filter(f => !key || f.province === key).length;
   const countText = shown.length === 1 ? t.countOne : t.count.replace('{n}', String(shown.length));
@@ -56,11 +57,12 @@ export function MembersExplorer({ farms, lang, t, profileHref, sizeText, badgeTe
           ))}
         </div>
         <div className="tool-right">
+          <span className="list-count" aria-live="polite">{countText}</span>
           {breeds.length > 1 && (
             <label className="tool-select">
               <select className="select" value={breed} onChange={e => { setBreed(e.target.value); setPicked(null); }} aria-label={t.breed}>
                 <option value="">{t.breed}: {t.allBreeds}</option>
-                {breeds.map(b => <option key={b} value={b}>{b}</option>)}
+                {breeds.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
               </select>
             </label>
           )}
@@ -70,39 +72,32 @@ export function MembersExplorer({ farms, lang, t, profileHref, sizeText, badgeTe
           </button>
         </div>
       </div>
-      <div className="split">
+      <div className="split members-split">
         <div className="main">
           <MembersMap farms={shown} selected={picked} onSelect={setPicked} note={t.pinNote} height={560} />
         </div>
         <div className="side stack" style={{ gap: 12 }}>
-          <span className="list-count" aria-live="polite">{countText}</span>
           {shown.length === 0 && <p className="empty">{t.noMatch}</p>}
           <ul className="stack farm-list" style={{ gap: 12, listStyle: 'none', margin: 0, padding: 0 }}>
-            {shown.map(f => {
-              const on = picked === f.slug;
-              return (
-                <li key={f.slug}>
-                  <Link
-                    href={profileHref[f.slug]}
-                    onMouseEnter={() => setPicked(f.slug)}
-                    onFocus={() => setPicked(f.slug)}
-                    className="card lift"
-                    style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 14, textDecoration: 'none', color: 'var(--ink)', boxShadow: on ? '0 0 0 3px var(--green), 0 10px 24px rgba(10,68,36,.14)' : undefined }}
-                  >
-                    <div style={{ width: 96, flex: 'none' }}><Photo id={f.photoIds[0]} alt="" height={96} size="small" /></div>
-                    <div className="stack" style={{ gap: 2, minWidth: 0 }}>
-                      <b style={{ fontSize: 18 }}>{f.publicName}</b>
-                      <span style={{ color: 'var(--ink-2)', fontSize: 15 }}>{lang === 'km' ? f.provinceKm : f.province} · {f.district}</span>
-                      <span className="small muted">{[f.breeds.join(', '), sizeText[f.sizeRange] ?? f.sizeRange, f.memberSince ? t.memberSince.replace('{year}', String(f.memberSince)) : ''].filter(Boolean).join(' · ')}</span>
-                      <span className="row" style={{ gap: 6 }}>
-                        {f.hasCattleAvailable && <span className="pill pill-now">{t.cattleAvailable}</span>}
-                        {f.badges.map(b => <span key={b} className="pill pill-badge">✓ {badgeText[b] ?? b}</span>)}
-                      </span>
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
+            {shown.map(f => (
+              <li key={f.slug}>
+                <Link
+                  href={profileHref[f.slug]}
+                  onMouseEnter={() => setPicked(f.slug)}
+                  onFocus={() => setPicked(f.slug)}
+                  className={`mf-card${picked === f.slug ? ' on' : ''}`}
+                >
+                  <span className="mf-card-photo"><Photo id={f.photoIds[0]} alt="" height={84} size="small" /></span>
+                  <span className="mf-card-text">
+                    <b>{f.publicName}</b>
+                    <span className="mf-card-place">{f.district} · {lang === 'km' ? f.provinceKm : f.province}</span>
+                    <span className="mf-card-facts">{[sizeText[f.sizeRange] ?? f.sizeRange, f.memberSince ? t.memberSince.replace('{year}', String(f.memberSince)) : ''].filter(Boolean).join(' · ')}</span>
+                    {f.hasCattleAvailable && <span className="mf-card-now"><span className="win-dot win-now" aria-hidden="true" />{t.cattleAvailable}</span>}
+                  </span>
+                  <span className="mf-card-arrow" aria-hidden="true">→</span>
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
       </div>

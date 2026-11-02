@@ -22,6 +22,7 @@
     "create-admin": "npx tsx src/db/migrations/create-admin.ts",
     "reset-password": "npx tsx src/db/migrations/reset-password.ts",
     "db:check": "npx tsx src/db/migrations/check-data.ts",
+    "prod:check": "tsx src/db/check-production.ts",
     "login-fix": "npx tsx src/db/migrations/login-fix.ts",
     "set-pin": "npx tsx src/db/migrations/set-pin.ts",
     "website:forms-user": "tsx src/db/create-website-forms-user.ts",
@@ -30,7 +31,11 @@
     "website:build": "npm --prefix website run build",
     "website:start": "npm --prefix website run start",
     "website:test": "npm --prefix website test",
-    "website:typecheck": "npm --prefix website run typecheck"
+    "website:typecheck": "npm --prefix website run typecheck",
+    "demo:remove": "tsx src/db/demo/remove-demo.ts",
+    "practice:seed": "tsx src/db/practice/seed-practice.ts",
+    "practice:remove": "tsx src/db/practice/remove-practice.ts",
+    "website:watch": "tsx scripts/website-watch.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -47,7 +52,7 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.17.0",
-    "next": "16.2.7",
+    "next": "16.4.2",
     "pg": "^8.22.0",
     "pm2": "^7.0.4",
     "qrcode.react": "^4.2.0",
@@ -57,8 +62,8 @@
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.6.0",
     "tsx": "^4.23.1",
-    "xlsx": "^0.18.5",
-    "zod": "^4.4.3"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -66,14 +71,14 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^20",
+    "@types/node": "^24.19.2",
     "@types/pg": "^8.11.10",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.7",
+    "eslint-config-next": "16.4.2",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^3.2.7"
+    "vitest": "^5.0.5"
   }
 }

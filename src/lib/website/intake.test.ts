@@ -41,6 +41,9 @@ describe('inquiry', () => {
     expect(checkInquiryIn(inq({ name: '' }))).toEqual({ ok: false, field: 'name' });
     expect(checkInquiryIn(inq({ phone: 'abc' }))).toEqual({ ok: false, field: 'phone' });
     expect(checkInquiryIn(inq({ buyerType: 'wizard' }))).toEqual({ ok: false, field: 'buyerType' });
+    expect(checkInquiryIn(inq({ buyerType: 'question', message: '' }))).toEqual({ ok: false, field: 'message' });
+    expect(checkInquiryIn(inq({ buyerType: 'question', message: 'Hi' }))).toEqual({ ok: false, field: 'message' });
+    expect(checkInquiryIn(inq({ buyerType: 'question', message: 'Do you deliver?', quantity: '', weightClass: '', listingId: '' }))).toMatchObject({ ok: true, value: { buyerType: 'question' } });
     expect(checkInquiryIn(inq({ quantity: 99999 }))).toEqual({ ok: false, field: 'quantity' });
     expect(checkInquiryIn(inq({ weightClass: '1 ton' }))).toEqual({ ok: false, field: 'weightClass' });
     expect(checkInquiryIn(inq({ listingId: 'bad id' }))).toEqual({ ok: false, field: 'listingId' });
@@ -88,7 +91,7 @@ describe('contact', () => {
 
 describe('same rules as the website', () => {
   const apps = [app(), app({ name: '' }), app({ phone: 'x' }), app({ province: 'Nope' }), app({ landM2: 'abc' }), app({ cattleNow: -5 }), app({ consent: false }), app({ language: 'fr' }), app({ hasPens: false }), app({ district: '' }), app({ name: ' a  b ' })];
-  const inqs = [inq(), inq({ kind: 'notify' }), inq({ name: 'x' }), inq({ phone: '1' }), inq({ buyerType: 'zzz' }), inq({ buyerType: '' }), inq({ quantity: 'ten' }), inq({ weightClass: 'zzz' }), inq({ listingId: 'nope' }), inq({ message: 5 })];
+  const inqs = [inq(), inq({ kind: 'notify' }), inq({ name: 'x' }), inq({ phone: '1' }), inq({ buyerType: 'zzz' }), inq({ buyerType: '' }), inq({ buyerType: 'question', message: '' }), inq({ buyerType: 'question', message: 'Do you deliver?' }), inq({ quantity: 'ten' }), inq({ weightClass: 'zzz' }), inq({ listingId: 'nope' }), inq({ message: 5 })];
   it('gives the same answer to the same application', () => {
     for (const a of apps) expect(checkApplicationIn(a)).toEqual(checkApplication(a));
   });

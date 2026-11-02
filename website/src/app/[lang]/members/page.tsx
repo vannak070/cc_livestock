@@ -46,7 +46,6 @@ export default async function MembersPage({ params }: { params: Promise<{ lang: 
               t={t.members}
               profileHref={Object.fromEntries(s.farms.map(f => [f.slug, href(lang, `/members/${f.slug}`)]))}
               sizeText={t.values.size}
-              badgeText={t.values.badge}
             />
           )}
           {s.farms.length > 0 && (

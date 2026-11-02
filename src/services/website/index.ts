@@ -5,6 +5,7 @@ export { websiteBatchListingService } from './batch-listing.service';
 export { websiteRequestService } from './request.service';
 export { websiteNewsService } from './news.service';
 export { websitePhotoService, type PhotoUpload } from './photo.service';
+export { websiteSiteImageService } from './site-image.service';
 export { loadWebsiteData } from './website-data';
 export { snapshotPublisherService, snapshotDir, type PublishResult } from './snapshot-publisher.service';
 export { websiteRequestNotifyService } from './request-notify.service';

@@ -2,6 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "dev-attach",
+      "url": "http://localhost:3000"
+    },
+    {
       "name": "dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
@@ -17,7 +21,7 @@
         "run",
         "server"
       ],
-      "port": 3002
+      "port": 3003
     },
     {
       "name": "camcow-website",

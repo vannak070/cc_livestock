@@ -167,6 +167,7 @@ export default function AlertsPanel({ settings, onSettings }: AlertsPanelProps) 
           <li>{tx('sent2')}</li>
           <li>{tx('sent3', { n: saleWindowDays(settings) })}</li>
           <li>{tx('sent4', { months: longStayMonths(settings) })}</li>
+          <li>{tx('sent5')}</li>
         </ul>
         <p className="text-base text-ink-muted">{tx('changeDays')}</p>
         {last?.lastSentAt && <p className="text-base text-ink">{tx('lastAlert', { time: last.lastSentAt.slice(0, 16).replace('T', ' '), what: txn(last.lastSentCount ?? 0, 'messageOne', 'messageMany') })}</p>}

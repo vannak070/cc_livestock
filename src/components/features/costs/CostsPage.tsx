@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { Receipt, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
@@ -77,21 +78,13 @@ export default function CostsPage({ costs, currentUser, farms = [], onRecordCost
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">{text('title')}</h2>
           <p className="text-base text-ink-muted">{text('intro')}</p>
         </div>
         {canRecord && <Button size="lg" onClick={onRecordCost}><Receipt /> {text('record')}</Button>}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div role="tablist" aria-label={text('period')} className="flex rounded-xl bg-slate-100 p-1">
-          {PERIODS.map(p => (
-            <button key={p.key} role="tab" type="button" aria-selected={period === p.key} onClick={() => { setPeriod(p.key); setVisible(PAGE); }}
-              className={`min-h-11 whitespace-nowrap rounded-lg px-3 text-base font-medium sm:px-5 ${period === p.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-              {text(p.label)}
-            </button>
-          ))}
-        </div>
+        <PageTabs label={text('period')} active={period} onChange={id => { setPeriod(id as typeof period); setVisible(PAGE); }} tabs={PERIODS.map(p => ({ id: p.key, label: text(p.label) }))} />
         {showFarmFilter && (
           <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={f => { setFarm(f); setVisible(PAGE); }} label={text('farm')} allLabel={text('allFarms')} size="compact" />
         )}

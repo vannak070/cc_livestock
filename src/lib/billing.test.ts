@@ -60,6 +60,13 @@ describe('monthStatement', () => {
     expect(s).toMatchObject({ billed: false, cattle: 0, amount: 0 });
   });
 
+  it('still counts what was registered in a month that is not billed (no price yet, or before billing starts)', () => {
+    const noPrice = monthStatement('2026-10', regs, undefined);
+    expect(noPrice).toMatchObject({ billed: false, cattle: 0, amount: 0, registered: 3 });
+    expect(noPrice.registeredFarms).toEqual([{ farm: 'SNR Farm', cattle: 2 }, { farm: 'Sokchea', cattle: 1 }]);
+    expect(monthStatement('2026-09', regs, prices)).toMatchObject({ billed: false, registered: 1 });
+  });
+
   it('does not bill a removed-by-mistake registration', () => {
     const only = [reg('X1', 'SNR Farm', '2026-10', { removedAt: '2026-10-11T00:00:00Z' })];
     expect(monthStatement('2026-10', only, prices)).toMatchObject({ cattle: 0, amount: 0, removed: 1 });

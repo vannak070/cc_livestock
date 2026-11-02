@@ -63,30 +63,61 @@ describe('simulateLoan', () => {
   });
 
   it('with "cattle, feed and interest" the one payout covers the first cattle, a year of feed and the year\'s interest', () => {
-    const all = simulateLoan({ ...terms, loanCovers: 'all' }, { ...a, buyPlan: 'rounds' });
-    expect(defaultTerms().loanCovers).toBe('all');
-    // 100 cattle before the first sale (300M) + a year of feed for 100 head (100 × 360 × 5,000 = 180M) = 480M,
+    const all = simulateLoan({ ...terms, loanCovers: 'all' }, a);
+    // New plans cover the cattle plus the feed and interest of the months before the first sale ("start").
+    expect(defaultTerms().loanCovers).toBe('start');
+    // 100 cattle are stocked over the first 4 months, before the first sale (300M), plus a year of feed,
     // plus the interest on the loan itself: 1% a month on what is owed, 10.9 months' worth with 20/30/50%.
-    const payout = 480_000_000 / (1 - 0.01 * 10.9);
+    const payout = (300_000_000 + all.years[0].feedKhr) / (1 - 0.01 * 10.9);
     expect(all.months[0].drawKhr).toBe(Math.round(payout));
-    expect(Math.abs(all.years[0].interestKhr - (payout - 480_000_000))).toBeLessThan(20);
-    expect(all.years[0]).toMatchObject({ startCattleKhr: 300_000_000, feedKhr: 180_000_000 });
+    expect(Math.abs(all.years[0].interestKhr - (payout - 300_000_000 - all.years[0].feedKhr))).toBeLessThan(20);
+    expect(all.years[0]).toMatchObject({ startCattleKhr: 300_000_000 });
+    expect(all.years[0].loanParts).toMatchObject({ cattleKhr: 300_000_000, interestMonths: 12 });
     // Feed and interest are paid from the fund until the first sale: the farm needs no money of its own.
     expect(all.months.slice(0, 4).every(x => x.cashKhr >= 0)).toBe(true);
-    expect(simulateLoan(terms, { ...a, buyPlan: 'rounds' }).months[0].drawKhr).toBe(300_000_000); // cattle only
+    expect(simulateLoan(terms, a).months[0].drawKhr).toBe(300_000_000); // cattle only
+  });
+
+  it('with "start" the loan covers the cattle plus the feed and interest of the months before the first sale (no trade income yet)', () => {
+    const start = simulateLoan({ ...terms, loanCovers: 'start' }, a);
+    // 120 days = 4 months: the first cattle are sold at the end of month 4. Herd on the farm: 25, 50, 75, 100 head.
+    const feedFirst4 = (25 + 50 + 75 + 100) * 30 * 5000;
+    // Nothing is repaid before month 8, so the whole payout is owed for those 4 months: P = base / (1 − 4 × 1%).
+    const payout = (300_000_000 + feedFirst4) / (1 - 0.01 * 4);
+    expect(start.months[0].drawKhr).toBe(Math.round(payout));
+    expect(start.years[0].noTradeMonths).toBe(4);
+    expect(start.years[0].loanParts).toEqual({ cattleKhr: 300_000_000, feedKhr: feedFirst4, interestKhr: Math.round(payout - 300_000_000 - feedFirst4), interestMonths: 4 });
+    // The interest of those 4 months is exactly what the fund holds for it.
+    const firstFour = start.months.slice(0, 4).reduce((s, x) => s + x.interestKhr, 0);
+    expect(Math.abs(firstFour - start.years[0].loanParts!.interestKhr)).toBeLessThan(5);
+    // The farm needs no money of its own in those months; later feed and interest come from the monthly sales.
+    expect(start.months.slice(0, 4).every(x => x.cashKhr >= 0)).toBe(true);
+    // It is more than cattle only, and less than covering a whole year.
+    const cattleOnly = simulateLoan(terms, a).months[0].drawKhr;
+    const all = simulateLoan({ ...terms, loanCovers: 'all' }, a).months[0].drawKhr;
+    expect(start.months[0].drawKhr).toBeGreaterThan(cattleOnly);
+    expect(start.months[0].drawKhr).toBeLessThan(all);
   });
 
   it('checks what the loan covers', () => {
     expect(parseLoanTerms({ ...terms, loanCovers: 'all' })).toMatchObject({ loanCovers: 'all' });
+    expect(parseLoanTerms({ ...terms, loanCovers: 'start' })).toMatchObject({ loanCovers: 'start' });
     expect(parseLoanTerms({ ...terms, loanCovers: 'cattle' })).not.toHaveProperty('loanCovers');
     expect(parseLoanTerms({ ...terms, loanCovers: 'cows' })).toMatch(/what the loan covers/);
   });
 
   it('starts again in year 2 (refinance) and repays it by month 24', () => {
-    // The herd is already on the farm, so year 2 only lends for the first replacement before a sale.
-    expect(m(13)).toMatchObject({ headBought: 25, drawKhr: 75_000_000 });
+    // The old loan is repaid on renewal day, so the new one carries the 75 head still standing (225M) plus the first replacement before a sale (75M).
+    expect(m(13)).toMatchObject({ headBought: 25, drawKhr: 300_000_000 });
     expect(m(24).balanceKhr).toBe(0);
     expect(plan.endBalanceKhr).toBe(0);
+  });
+
+  it('does not run the farm out of cash after renewal: year 2 carries the cattle already standing', () => {
+    const start = simulateLoan({ ...terms, loanCovers: 'start', repayments: [{ pct: 100, month: 12 }] }, a);
+    const oneYear = simulateLoan({ ...terms, loanCovers: 'start', repayments: [{ pct: 100, month: 12 }], autoRenew: false }, a);
+    expect(start.months[12].drawKhr).toBeGreaterThan(oneYear.months[0].drawKhr * 0.9); // about as big as the first year's loan, not a tenth of it
+    expect(start.shortMonths.filter(x => x > '2027-01')).toEqual([]);
   });
 
   it('shows how much own money the farm needs, and none once it has that much', () => {
@@ -120,7 +151,7 @@ describe('parse', () => {
     expect(parseLoanTerms({ ...terms, repayments: [{ month: 8, pct: 60 }, { month: 12, pct: 50 }] })).toMatch(/more than 100/);
     expect(parseLoanTerms({ ...terms, repayments: [{ month: 8, pct: 20 }, { month: 8, pct: 20 }] })).toMatch(/twice/);
     expect(parseLoanTerms({ ...terms, annualRatePct: -1 })).toMatch(/interest/);
-    expect(parseLoanAssumptions(a)).toEqual(a);
+    expect(parseLoanAssumptions(a)).toEqual({ ...a, buyPlan: 'monthly' });
     expect(parseLoanAssumptions({ ...a, herdTarget: 0 })).toMatch(/how many cattle/);
     expect(parseLoanAssumptions({ ...a, lastBuyMonth: 13 })).toMatch(/last month/);
   });
@@ -177,53 +208,44 @@ describe('feed by kind in a loan plan', () => {
   });
 });
 
-describe('how the cattle are bought', () => {
+describe('how the cattle are bought: only the monthly trade', () => {
   const head = (p: ReturnType<typeof simulateLoan>) => p.months.slice(0, 12).map(x => x.headDays / 30);
-  it('once: the whole herd in month 1, kept and sold to CC Livestock in month 12', () => {
-    const p = simulateLoan(terms, { ...a, buyPlan: 'once' });
-    expect(p.months[0].headBought).toBe(100);
-    expect(head(p)).toEqual(Array(12).fill(100));
-    expect(p.months[11]).toMatchObject({ headSold: 100, buybackKhr: 100 * (300 + 1 * 360) * 12000 });
-    expect(p.months[0].drawKhr).toBe(300_000_000); // one payout for the 100 cattle
-  });
-  it('rounds: swapped with CC Livestock each time fattening ends, so the herd stays full', () => {
-    const p = simulateLoan(terms, { ...a, buyPlan: 'rounds' });
-    expect(head(p)).toEqual(Array(12).fill(100));
-    // 120 days = 4 months: three rounds, bought in months 1, 5, 9 and sold in months 4, 8, 12.
-    expect(p.months.slice(0, 12).map(x => x.headBought)).toEqual([100, 0, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0]);
-    expect(p.months.slice(0, 12).map(x => x.headSold)).toEqual([0, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0, 100]);
-    expect(p.months[3].salesKhr).toBe(100 * (300 + 120) * 12000);
-    expect(p.months[11].salesKhr).toBe(100 * (300 + 120) * 12000);
-    expect(p.months[0].drawKhr).toBe(300_000_000); // the first herd; the next ones are paid from the sales
-  });
-  it('rounds: a short leftover makes the last round longer, a long one makes one more round', () => {
-    const lengths = (days: number) => herdPlan({ ...a, buyPlan: 'rounds', fatteningDays: days }, 1).map(c => c.sellAt - c.bought + 1);
-    expect(lengths(150)).toEqual([5, 7]); // 2 months left over: the second round runs to month 12
-    expect(lengths(210)).toEqual([7, 5]); // 5 months left over: one more, shorter round
-    expect(lengths(180)).toEqual([6, 6]);
-    expect(lengths(400)).toEqual([12]);
+  it('stocks up a share a month, then sells the finished cattle and replaces them the same day, so the herd stays full', () => {
+    const p = simulateLoan(terms, a);
+    // 120 days = 4 months: 25 head a month for 4 months, then 25 sold and 25 bought every month.
+    expect(head(p)).toEqual([25, 50, 75, 100, 100, 100, 100, 100, 100, 100, 100, 100]);
+    expect(p.months.slice(0, 6).map(x => x.headBought)).toEqual([25, 25, 25, 25, 25, 25]);
+    expect(p.months.slice(0, 6).map(x => x.headSold)).toEqual([0, 0, 0, 25, 25, 25]);
+    expect(p.months[3].salesKhr).toBe(25 * (300 + 120) * 12000);
   });
   it('every sale goes to CC Livestock, which pays the farm in full; the farm buys new cattle and feed from it', () => {
-    const p = simulateLoan(terms, { ...a, buyPlan: 'rounds' });
+    const p = simulateLoan(terms, a);
     const t = ccTrades(p);
-    // Every month has feed. Months 4, 8 and 12 are swaps: sold, and the new herd taken the same day (shown on the sale month;
-    // month 12's new herd is the one for the renewed year).
-    expect(t.rows.slice(0, 12).map(r => r.swap)).toEqual([false, false, false, true, false, false, false, true, false, false, false, true]);
-    expect(t.rows.slice(0, 13).map(r => r.headBought)).toEqual([100, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0, 100, 0]);
-    const m8 = t.rows.find(r => r.year === 1 && r.monthInYear === 8)!;
-    expect(m8).toMatchObject({ headSold: 100, saleKhr: 504_000_000, headBought: 100, purchaseKhr: 300_000_000, feedKhr: 100 * 30 * 5000 });
-    expect(t.years[0]).toMatchObject({ headSold: 300, headBought: 400, purchaseKhr: 1_200_000_000, feedKhr: 180_000_000 });
+    expect(p.months.every(x => x.buybackKhr === x.salesKhr)).toBe(true);
+    // From month 4 the sale and the replacement happen on the same day.
+    expect(t.rows.slice(0, 12).map(r => r.swap)).toEqual([false, false, false, true, true, true, true, true, true, true, true, true]);
+    expect(t.rows.find(r => r.year === 1 && r.monthInYear === 8)).toMatchObject({ headSold: 25, headBought: 25, feedKhr: 100 * 30 * 5000 });
   });
-  it('two purchases: part in month 1, the rest later, all kept to month 12', () => {
-    const p = simulateLoan(terms, { ...a, buyPlan: 'split', firstBuyPct: 50, secondBuyMonth: 4 });
-    expect(head(p)).toEqual([50, 50, 50, 100, 100, 100, 100, 100, 100, 100, 100, 100]);
-    expect(p.months[11].headSold).toBe(100);
-    expect(herdPlan({ ...a, buyPlan: 'split', firstBuyPct: 50, secondBuyMonth: 4 }, 1).map(c => c.days)).toEqual([360, 270]);
+  it('adds up the year totals of the trades the same way as the loan table, so the two tabs agree', () => {
+    const p = simulateLoan(terms, a);
+    const t = ccTrades(p);
+    for (const y of t.years) {
+      const ms = p.months.filter(x => x.year === y.year);
+      expect(y.headBought).toBe(ms.reduce((s, x) => s + x.headBought, 0));
+      expect(y.purchaseKhr).toBe(ms.reduce((s, x) => s + x.purchaseKhr, 0));
+      expect(y.saleKhr).toBe(ms.reduce((s, x) => s + x.buybackKhr, 0));
+    }
+    // The restock on the last day of year 1 is shown on the month-12 row (sameDayHead) but the year total follows the loan table.
+    expect(t.rows.find(r => r.year === 1 && r.monthInYear === 12)!.sameDayHead).toBe(25);
+    expect(t.years[0].headBought).toBe(300);
   });
-  it('checks the buying plan', () => {
-    expect(parseLoanAssumptions({ ...a, buyPlan: 'weekly' })).toMatch(/how the cattle are bought/);
-    expect(parseLoanAssumptions({ ...a, buyPlan: 'split', firstBuyPct: 50, secondBuyMonth: 1 })).toMatch(/second purchase/);
-    expect(parseLoanAssumptions({ ...a, buyPlan: 'split', firstBuyPct: 60, secondBuyMonth: 3 })).toMatchObject({ buyPlan: 'split', firstBuyPct: 60, secondBuyMonth: 3 });
+  it('reads any other choice a saved plan may hold (once, rounds, split) as the monthly trade', () => {
+    const monthly = herdPlan(a, 1);
+    for (const old of ['once', 'rounds', 'split'] as const) {
+      expect(herdPlan({ ...a, buyPlan: old } as unknown as FarmLoanAssumptions, 1)).toEqual(monthly);
+    }
+    expect(parseLoanAssumptions({ ...a, buyPlan: 'rounds' })).toMatchObject({ buyPlan: 'monthly' });
+    expect(parseLoanAssumptions({ ...a })).toMatchObject({ buyPlan: 'monthly' });
   });
 });
 

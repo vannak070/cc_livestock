@@ -6,6 +6,7 @@ import { stockRepository } from '../../repositories/stock.repository';
 import { weightRepository } from '../../repositories/weight.repository';
 import {
   websiteBatchListingRepository, websiteConsentRepository, websiteFarmProfileRepository, websiteNewsRepository,
+  websiteSiteImageRepository,
 } from '../../repositories/website';
 import { farmToday } from '../../lib/daily-feed';
 import { saleWindowDays } from '../../lib/sale-review';
@@ -16,7 +17,7 @@ import type { SnapshotInput } from '../../lib/website';
  * the Preview and (step 2) the sync job all work from the same records.
  */
 export async function loadWebsiteData(now: Date = new Date()): Promise<SnapshotInput> {
-  const [settings, profiles, consents, listings, news, stock, weights, batches, feedTransactions, healthLogs] = await Promise.all([
+  const [settings, profiles, consents, listings, news, stock, weights, batches, feedTransactions, healthLogs, siteImages] = await Promise.all([
     settingsRepository.getSettings(),
     websiteFarmProfileRepository.findAll(),
     websiteConsentRepository.findAll(),
@@ -27,6 +28,7 @@ export async function loadWebsiteData(now: Date = new Date()): Promise<SnapshotI
     batchRepository.findAll(),
     feedRepository.getTransactions(),
     healthRepository.findAll(),
+    websiteSiteImageRepository.all(),
   ]);
   return {
     farms: (settings.farms ?? []).map(f => ({ id: f.id, name: f.name })),
@@ -34,5 +36,6 @@ export async function loadWebsiteData(now: Date = new Date()): Promise<SnapshotI
     saleWindow: saleWindowDays(settings),
     today: farmToday(now),
     builtAt: now.toISOString(),
+    siteImages,
   };
 }

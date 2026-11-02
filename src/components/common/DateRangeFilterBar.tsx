@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Calendar, X, Clock } from 'lucide-react';
+import { Calendar, X } from 'lucide-react';
 import { Button } from '../ui/button';
 
 export interface DateRangeFilterBarProps {

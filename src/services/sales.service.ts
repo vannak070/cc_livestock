@@ -5,6 +5,9 @@ import { withTransaction } from '../config/database';
 import { SalesRecord } from '../lib/xlsx-parser';
 import type { FarmScope } from '../lib/farm-scope';
 
+/** How a sale is labelled in sales_tracking: priced by weight = 'Scale', one price per animal = 'Lumpsum'. */
+const saleTypeLabel = (saleType: 'Weight' | 'Lumpsum') => (saleType === 'Weight' ? 'Scale' : 'Lumpsum');
+
 export class SalesService {
   async getAllSales(scope?: FarmScope): Promise<SalesRecord[]> {
     return salesRepository.findAll(scope);
@@ -23,6 +26,10 @@ export class SalesService {
       if (!cow) {
         throw new Error(`Cow with ID ${cowId} not found`);
       }
+      // Nothing in the database stops a second sale row, so a double click must not count the money twice.
+      if ((cow.status || '').toLowerCase() === 'sold') {
+        throw new Error(`${cowId} is already sold.`);
+      }
 
       await stockRepository.update(cowId, { status: 'Sold' }, client);
 
@@ -37,7 +44,7 @@ export class SalesService {
         totalPrice,
         status: 'Sold',
         salesDate: salesDate || new Date().toISOString(),
-        saleType: saleType === 'Weight' ? 'Scale' : 'Lumpsum',
+        saleType: saleTypeLabel(saleType),
         buyer: buyer || 'Local Market'
       };
 
@@ -48,7 +55,7 @@ export class SalesService {
   /**
    * Record batch sale: sell all active cows in batch, update batch status to Closed inside a single SQL transaction
    */
-  async recordBatchSale(batchId: string, unitPrice: number, saleType: 'Weight' | 'Lumpsum', salesDate?: string): Promise<SalesRecord[]> {
+  async recordBatchSale(batchId: string, unitPrice: number, saleType: 'Weight' | 'Lumpsum', salesDate?: string, buyer?: string): Promise<SalesRecord[]> {
     return withTransaction(async (client) => {
       const batch = await batchRepository.findById(batchId);
       if (!batch) {
@@ -72,7 +79,9 @@ export class SalesService {
           unitPrice,
           totalPrice,
           status: 'Sold',
-          salesDate: salesDate || new Date().toISOString()
+          salesDate: salesDate || new Date().toISOString(),
+          saleType: saleTypeLabel(saleType),
+          buyer: buyer || 'Local Market'
         };
 
         const created = await salesRepository.create(saleRecord, client);

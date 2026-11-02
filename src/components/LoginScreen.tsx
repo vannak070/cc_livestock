@@ -1,12 +1,25 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Eye, EyeOff, Info } from 'lucide-react';
 import { loginAction } from '@/app/actions';
 import InstallAppButton from './InstallAppButton';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useLanguage } from '@/context/LanguageContext';
+import { SIGNED_OUT_KEY } from './providers/IdleSignOut';
+
+// Why this tab was signed out (src/components/providers/IdleSignOut.tsx): 'idle:<minutes>' or 'longest'. Kept in this
+// tab only, read like any outside store so the server render and hydration agree.
+const noop = () => () => {};
+function readSignedOut(): string {
+  try {
+    return window.sessionStorage.getItem(SIGNED_OUT_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
 
 // Rendered by src/app/page.tsx whenever there is no valid session. It never
 // receives any farm data: the page only loads data once the server has
@@ -19,6 +32,10 @@ export default function LoginScreen() {
   const [loginError, setLoginError] = React.useState<{ title: string; detail?: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const { t } = useLanguage();
+  const signedOut = React.useSyncExternalStore(noop, readSignedOut, () => '');
+  const signedOutText = signedOut === 'longest'
+    ? t('session.signedOutLongest')
+    : signedOut.startsWith('idle:') ? t('session.signedOutIdle').replace('{n}', signedOut.slice(5)) : '';
 
   // The server's wording for a wrong email or password is terse; say it in
   // plain words and tell the person what to do. Any other message (inactive
@@ -42,6 +59,7 @@ export default function LoginScreen() {
       }
       // The session cookie is set; re-render the page on the server so it
       // loads this user's data.
+      try { window.sessionStorage.removeItem(SIGNED_OUT_KEY); } catch { /* nothing to forget */ }
       router.refresh();
     } catch {
       setLoginError({ title: t('login.offlineTitle'), detail: t('login.offlineDetail') });
@@ -59,7 +77,7 @@ export default function LoginScreen() {
           <div className="self-end -mt-4 -mr-2">
             <LanguageSwitcher />
           </div>
-          <img src="/logo.png" alt="CC Livestock logo" className="h-28 w-28 object-contain" />
+          <Image src="/logo-2026.png" alt="CC Livestock logo" width={112} height={112} preload className="h-28 w-28 object-contain" />
           <div>
             <h1 className="text-3xl font-bold leading-tight text-brand">CC Livestock</h1>
             <p className="text-base text-ink-muted mt-1">{t('login.tagline')}</p>
@@ -68,6 +86,13 @@ export default function LoginScreen() {
 
         <div className="px-5 sm:px-8 pt-7 pb-8">
           <h2 className="text-2xl font-bold text-ink mb-5">{t('login.title')}</h2>
+
+          {signedOutText && !loginError && (
+            <div role="status" className="mb-5 flex gap-3 items-start p-4 rounded-xl bg-amber-50 text-amber-900">
+              <Info className="h-5 w-5 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <p className="text-base">{signedOutText}</p>
+            </div>
+          )}
 
           {loginError && (
             <div role="alert" className="mb-5 flex gap-3 items-start p-4 rounded-xl bg-rose-50 text-rose-800">

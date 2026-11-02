@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'fs/promises';
 import path from 'path';
 import type { Actor } from '../../lib/authz';
+import { latestRun } from '../../lib/latest-run';
 import { afterFailure, afterSuccess, buildPublicSnapshot, fieldsOutsideAllowList, type PublicSnapshot } from '../../lib/website';
 import { settingsRepository } from '../../repositories/settings.repository';
 import { websitePhotoRepository } from '../../repositories/website';
@@ -29,7 +30,7 @@ const extOf = (mime: string) => (mime === 'image/jpeg' ? 'jpg' : 'webp');
 
 /** Every photo id the snapshot shows. */
 export function photosIn(s: PublicSnapshot): string[] {
-  return [...new Set([...s.farms.flatMap(f => f.photoIds), ...s.news.map(n => n.photoId)].filter((x): x is string => !!x))];
+  return [...new Set([...s.farms.flatMap(f => f.photoIds), ...s.news.map(n => n.photoId), ...Object.values(s.siteImages ?? {})].filter((x): x is string => !!x))];
 }
 
 async function writeAtomic(file: string, data: string | Uint8Array): Promise<void> {
@@ -47,12 +48,15 @@ export interface PublishResult {
 }
 
 export class SnapshotPublisherService {
-  private running: Promise<PublishResult> | null = null;
+  /**
+   * Builds and writes the snapshot. A call that arrives while a build runs must not just join it: that build may have
+   * read the data before this change was saved. So one follow-up build is queued (all callers in the meantime share
+   * it), and the website always ends on the latest state.
+   */
+  private readonly run = latestRun(() => this.recorded());
 
-  /** Builds and writes the snapshot. Calls that arrive while one runs share its result. */
   async publish(): Promise<PublishResult> {
-    if (!this.running) this.running = this.recorded().finally(() => { this.running = null; });
-    return this.running;
+    return this.run();
   }
 
   /** Publishes and records how it went in settings.websiteStatus (shown on the Website page, alerted by the scheduler). */

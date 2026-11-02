@@ -1,3 +1,4 @@
+import { CONTACT, contactMapLink } from './contact';
 /**
  * The About us page (/about). Fill in what is empty, then set `ready: true`:
  * the page then shows in the menu, the footer and the sitemap, and the
@@ -18,10 +19,22 @@ export const ABOUT = {
   /** e.g. "2025". */
   foundedYear: '',
   /** Street, district, city, as it should be shown. */
-  address: 'GIA Tower, 23rd Floor, Sopheakmongkul Street, Diamond Island, Bassac, Chamkarmorn, Phnom Penh',
+  address: CONTACT.address.en,
   /** e.g. "Monday to Saturday, 8:00–17:00". */
   hours: '',
   /** A Google Maps link to the office. */
-  mapLink: 'https://www.google.com/maps/search/?api=1&query=GIA+Tower+Diamond+Island+Phnom+Penh',
+  mapLink: contactMapLink,
   team: [] as TeamMember[],
 };
+
+/**
+ * The leaders shown with the "Message from our management" on the About page, first one largest. Photos are in
+ * website/public/team/ (cut from CamCow's printed stand). Fill in names and titles: until then the message is signed
+ * "The management of CAM COW CO., LTD" and the photos show without captions.
+ */
+/** `photo` is the picture slot (replaceable in the office: Website -> Pictures). */
+export const LEADERS: { photo: 'leader-1' | 'leader-2'; name: { en: string; km: string }; title: { en: string; km: string } }[] = [
+  { photo: 'leader-1', name: { en: '', km: '' }, title: { en: '', km: '' } },
+  { photo: 'leader-2', name: { en: '', km: '' }, title: { en: '', km: '' } },
+];
+

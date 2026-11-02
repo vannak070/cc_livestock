@@ -1,8 +1,9 @@
-import * as xlsx from 'xlsx';
+import { loadXlsx } from './load-xlsx';
 import type { MonthStatement } from './billing';
 
 /** The statement for CC Livestock: a summary sheet and the list of animals. English headers, like the other Excel files. */
-export function exportBillingStatement(statement: MonthStatement) {
+export async function exportBillingStatement(statement: MonthStatement) {
+  const xlsx = await loadXlsx();
   const summary: (string | number)[][] = [
     ['CC Livestock: cattle registration bill', ''],
     ['Month', statement.month],

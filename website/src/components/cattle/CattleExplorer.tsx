@@ -1,59 +1,58 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { groupByFarm, weightRangeText } from '@/lib/cattle';
+import { groupByFarm } from '@/lib/cattle';
 import { href, type Dict } from '@/lib/i18n';
 import type { PublicFarm, PublicListing } from '@/lib/snapshot/types';
 import { FarmSaleCard } from './FarmSaleCard';
-import { InquiryForm } from './InquiryForm';
+import { SalesCard } from './SalesCard';
 
 /**
  * Cattle for sale, by farm: which member farms have cattle ready, and when
  * ("now" or "soon", from the farms' selling schedules), with a rounded count
- * and a weight range. No breed, sex or individual animal. The price form sits beside.
+ * and a weight range. No breed, sex or individual animal. A filter bar like the Members page (when as chips with
+ * counts, province as a list). The sales card sits beside: buyers call or message the sales team for prices (there
+ * is no price form). Each farm row links to its own page (no per-card Ask button).
  */
-export function CattleExplorer({ cattle, farms, t, lang, initialAbout }: {
+export function CattleExplorer({ cattle, farms, t, lang, stale = false }: {
   cattle: PublicListing[];
   farms: PublicFarm[];
-  t: Pick<Dict, 'cattle' | 'inquiry' | 'common' | 'values'>;
+  t: Pick<Dict, 'cattle' | 'contact' | 'common' | 'values'>;
   lang: 'km' | 'en';
-  initialAbout: string;
+  /** The data is too old to say which cattle are available (see lib/snapshot/stale.ts). */
+  stale?: boolean;
 }) {
   const groups = useMemo(() => groupByFarm(cattle, farms), [cattle, farms]);
-  const [f, setF] = useState({ province: '', when: '' });
-  // With one farm for sale the form is about that farm from the start; with several, the link's farm (or "any").
-  const [about, setAbout] = useState(groups.some(g => g.listingId === initialAbout) ? initialAbout : groups.length === 1 ? groups[0].listingId : '');
-  const shown = useMemo(() => groups.filter(g =>
-    (!f.province || g.farm.province === f.province) && (!f.when || g.windows.some(w => w.availability === f.when))
-  ), [groups, f]);
+  const [province, setProvince] = useState('');
+  const [when, setWhen] = useState('');
+  const inProvince = useMemo(() => groups.filter(g => !province || g.farm.province === province), [groups, province]);
+  const countWhen = (w: string) => inProvince.filter(g => !w || g.windows.some(x => x.availability === w)).length;
+  const shown = inProvince.filter(g => !when || g.windows.some(w => w.availability === when));
   const provinces = [...new Map(groups.map(g => [g.farm.province, lang === 'km' ? g.farm.provinceKm : g.farm.province])).entries()];
-  const pick = (k: keyof typeof f) => (e: { target: { value: string } }) => setF(v => ({ ...v, [k]: e.target.value }));
-  const filter = (k: keyof typeof f, name: string, values: [string, string][]) => (
-    <label className="field">{name}
-      <select className="select" value={f[k]} onChange={pick(k)}>
-        <option value="">{t.cattle.all}</option>
-        {values.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </select>
-    </label>
-  );
-  // What the price form's "About" list shows for each farm.
-  const options = groups.map(g => ({
-    id: g.listingId,
-    label: [g.farm.publicName, g.windows.map(w => (w.availability === 'now' ? t.common.availNow : t.common.availSoon)).join(' + '), weightRangeText(g.windows[0].weightFrom, g.windows[g.windows.length - 1].weightTo, t.values.range, lang)].join(' · '),
-  }));
-
+  const whens: [string, string][] = [['', t.cattle.all], ['now', t.common.availNow], ['soon', t.common.availSoon]];
   return (
     <div className="split">
       <div className="main stack" style={{ gap: 20 }}>
         {groups.length > 0 && (
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-            {filter('province', t.cattle.province, provinces)}
-            {filter('when', t.cattle.when, [['now', t.common.availNow], ['soon', t.common.availSoon]])}
+          <div className="toolbar">
+            <div className="chips chips-wrap" role="group" aria-label={t.cattle.when}>
+              {whens.map(([v, label]) => (
+                <button key={v || 'all'} type="button" className="chip" aria-pressed={when === v} onClick={() => setWhen(v)}>{label} <span className="chip-n">{countWhen(v)}</span></button>
+              ))}
+            </div>
+            {provinces.length > 1 && (
+              <label className="tool-select">
+                <select className="select" value={province} onChange={e => setProvince(e.target.value)} aria-label={t.cattle.province}>
+                  <option value="">{t.cattle.province}: {t.cattle.all}</option>
+                  {provinces.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </label>
+            )}
           </div>
         )}
         {groups.length === 0 && (
           <div className="stack" style={{ gap: 18 }}>
-            <p className="empty" style={{ fontSize: 18 }}>{t.cattle.none}</p>
+            <p className="empty" style={{ fontSize: 18 }}>{stale ? t.cattle.stale : t.cattle.none}</p>
             <h2 style={{ fontSize: 24 }}>{t.cattle.expectTitle}</h2>
             <ul className="grid" style={{ listStyle: 'none', margin: 0, padding: 0, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
               {t.cattle.expect.map(e => (
@@ -67,7 +66,7 @@ export function CattleExplorer({ cattle, farms, t, lang, initialAbout }: {
           </div>
         )}
         {groups.length > 0 && shown.length === 0 && <p className="empty">{t.cattle.noMatch}</p>}
-        <div className="sale-grid" data-count={shown.length}>
+        <div className="sale-list">
           {shown.map((g, idx) => (
             <FarmSaleCard
               key={g.farm.slug}
@@ -75,22 +74,15 @@ export function CattleExplorer({ cattle, farms, t, lang, initialAbout }: {
               group={g}
               t={t}
               lang={lang}
+              layout="list"
               nameHref={href(lang, `/members/${g.farm.slug}`)}
-              selected={about === g.listingId}
-              action={<a href="#inquiry" className="btn btn-green" onClick={() => setAbout(g.listingId)}>{t.cattle.askFarm}</a>}
             />
           ))}
         </div>
         {groups.length > 0 && <p className="small muted">{t.cattle.roundedNote}</p>}
       </div>
-      <aside className="side" id="inquiry">
-        <div className="form-card jn-form">
-          <span className="head-rule" aria-hidden="true" />
-          <h2 className="display h3">{groups.length ? t.inquiry.title : t.inquiry.notifyTitle}</h2>
-          {groups.length > 0 && <p className="ask-chip"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6" /></svg>{t.common.priceNote}</p>}
-          {groups.length === 0 && <p style={{ color: 'var(--ink-2)', margin: 0 }}>{t.inquiry.notifyIntro}</p>}
-          <InquiryForm t={t} lang={lang} kind={groups.length ? 'price' : 'notify'} listings={options} about={about} onAboutChange={setAbout} />
-        </div>
+      <aside className="side cc-side" id="inquiry">
+        <SalesCard t={t} />
       </aside>
     </div>
   );

@@ -1,0 +1,29 @@
+# PHASE 2 (after `dig +short` of camcow.com.kh, www.camcow.com.kh and digital.camcow.com.kh all print 157.245.148.58):
+# Caddy gets and renews the HTTPS certificates itself and sends http:// to https://. Switched on with `cc https on`.
+#   www.camcow.com.kh      the CamCow public website (main address)
+#   camcow.com.kh          forwards to www
+#   digital.camcow.com.kh  the CC Livestock system app
+{
+	admin off
+}
+
+(common) {
+	encode zstd gzip
+	header -Server
+	# Only if the app did not already send one (both apps send their own security headers).
+	header ?Strict-Transport-Security "max-age=31536000; includeSubDomains"
+}
+
+www.camcow.com.kh {
+	import common
+	reverse_proxy website:3200
+}
+
+camcow.com.kh {
+	redir https://www.camcow.com.kh{uri} permanent
+}
+
+digital.camcow.com.kh {
+	import common
+	reverse_proxy app:3000
+}

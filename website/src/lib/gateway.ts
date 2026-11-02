@@ -29,6 +29,11 @@ interface CallOptions {
   body?: unknown;
   headers?: Record<string, string>;
   timeoutMs?: number;
+  /**
+   * Seconds Next may reuse the answer. Pages built ahead of time (and refreshed every minute) must read the snapshot
+   * this way: a no-store fetch makes Next refuse to build them, and they would show an empty site.
+   */
+  revalidate?: number;
 }
 
 /** Calls the gateway with the key. Errors never contain the key. */
@@ -45,7 +50,7 @@ export async function callGateway(path: string, options: CallOptions = {}): Prom
         ...options.headers,
       },
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-      cache: 'no-store',
+      ...(options.revalidate !== undefined ? { next: { revalidate: options.revalidate } } : { cache: 'no-store' as const }),
       signal: controller.signal,
     });
   } catch (err) {

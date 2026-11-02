@@ -73,6 +73,15 @@ export function isFarmOwner(actor: Pick<UserRoleItem, 'role'>): boolean {
  * managed from their farm on the Farms page. A farm person whose farm is
  * missing or gone also stays in Settings, so nobody is lost.
  */
+/**
+ * The farm saved for a person: only farm roles have one. Office roles work on every farm, so any farm sent with them is
+ * dropped (the form used to fill in the only farm on its own, which tied a new Admin to it). Your own farm never changes.
+ */
+export function personFarm(role: string, farmLocation: string, editing: Pick<UserRoleItem, 'id' | 'farmLocation'> | null, actorId: string): string {
+  if (editing && editing.id === actorId) return editing.farmLocation ?? '';
+  return FARM_ROLES.includes(role) ? farmLocation : '';
+}
+
 export function isOfficePerson(u: Pick<UserRoleItem, 'role' | 'farmLocation'>, farmNames: string[]): boolean {
   return !FARM_ROLES.includes(u.role) || !u.farmLocation || !farmNames.includes(u.farmLocation);
 }

@@ -1,5 +1,8 @@
 import { feedNeeds, parseFeedLines, planFeedLines } from './feed-lines';
 import { parsePlanLoan } from './plan-loan';
+import { planDays, planMonths } from './plan-months';
+
+export { planDays, planMonths };
 import type { ProposalPlanParams } from '@/types';
 
 /**
@@ -56,10 +59,11 @@ export interface BatchPlan {
 
 export function calculatePlan(p: ProposalPlanParams) {
   const totalCattle = p.targetStockLevel || 400;
-  const fatteningMonths = Math.max(1, Math.round(p.fatteningPeriodDays / 30));
+  const fatteningMonths = planMonths(p);
+  const days = planDays(p);
   const monthlyBatchQty = Math.max(1, Math.round(totalCattle / fatteningMonths));
 
-  const weightGainKgPerHead = p.dailyWeightGainKg * p.fatteningPeriodDays;
+  const weightGainKgPerHead = p.dailyWeightGainKg * days;
   const finalWeightKgPerHead = p.initialWeightKg + weightGainKgPerHead;
   const purchasePricePerHeadKhr = p.initialWeightKg * p.purchasePricePerKgKhr;
   const sellingPricePerHeadKhr = finalWeightKgPerHead * p.sellingPricePerKgKhr;
@@ -70,7 +74,7 @@ export function calculatePlan(p: ProposalPlanParams) {
   const monthlyTotalFeedCostKhr = totalCattle * 30 * dailyFeedPerHeadKhr;
 
   // One animal over its whole fattening period.
-  const perHeadFeedCostKhr = dailyFeedPerHeadKhr * p.fatteningPeriodDays;
+  const perHeadFeedCostKhr = dailyFeedPerHeadKhr * days;
 
   const initialCattlePurchaseKhr = totalCattle * purchasePricePerHeadKhr;
   const monthlyInterestRate = p.bankInterestRateAnnual / 100 / 12;
@@ -89,7 +93,7 @@ export function calculatePlan(p: ProposalPlanParams) {
     name: l.name,
     kgPerHeadDay: l.kgPerHeadDay,
     pricePerKgKhr: l.pricePerKgKhr,
-    perHeadKhr: l.kgPerHeadDay * l.pricePerKgKhr * p.fatteningPeriodDays,
+    perHeadKhr: l.kgPerHeadDay * l.pricePerKgKhr * days,
     annualKg: feedNeeds(lines, totalCattle * 360)[i].kg,
     annualKhr: l.kgPerHeadDay * l.pricePerKgKhr * totalCattle * 360,
   }));
@@ -133,8 +137,8 @@ export function calculatePlan(p: ProposalPlanParams) {
     no: i + 1,
     cattleCount: p.cattlePerBatch,
     purchaseMonth: i + 1,
-    saleMonth: i + 1 + fatteningMonths,
-    feedKg: feedNeeds(lines, p.fatteningPeriodDays * p.cattlePerBatch).map(f => ({ name: f.name, kg: f.kg })),
+    saleMonth: i + fatteningMonths,
+    feedKg: feedNeeds(lines, days * p.cattlePerBatch).map(f => ({ name: f.name, kg: f.kg })),
     cattleCostKhr: p.cattlePerBatch * purchasePricePerHeadKhr,
     feedCostKhr: perHeadFeedCostKhr * p.cattlePerBatch,
     bankInterestCostKhr: p.cattlePerBatch * interestPerHeadKhr,

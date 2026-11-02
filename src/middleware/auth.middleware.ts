@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyAuthToken, AuthTokenPayload } from '../lib/jwt';
-import { Actor, loadActor, can } from '../lib/authz';
+import { AuthTokenPayload } from '../lib/jwt';
+import { Actor, can } from '../lib/authz';
+import { sessionService } from '../services/session.service';
 import { PermissionKey } from '../lib/types';
 import { canUsePlanning } from '../lib/utils';
 
@@ -13,7 +14,7 @@ export interface AuthedRequest extends Request {
 // POST /api/v1/auth/login (or /auth/pin). The token only says who the caller
 // is; their account is re-read on every request, so deactivating a user or
 // changing their role takes effect immediately rather than when the token
-// expires.
+// expires. A token with no activity for the idle time has run out.
 export function requireAuth(req: AuthedRequest, res: Response, next: NextFunction): void {
   const header = req.headers.authorization || '';
   const [scheme, token] = header.split(' ');
@@ -23,22 +24,21 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
     return;
   }
 
-  let payload: AuthTokenPayload;
-  try {
-    payload = verifyAuthToken(token);
-  } catch {
-    res.status(401).json({ success: false, message: 'Invalid or expired session. Please log in again.', data: null });
-    return;
-  }
-
-  loadActor(payload.sub)
-    .then(actor => {
-      if (!actor) {
-        res.status(401).json({ success: false, message: 'This account no longer exists or is inactive.', data: null });
+  // The token runs out after the sign-in time limit (src/lib/session-policy.ts). Each request counts as activity:
+  // a token more than a minute old is renewed and the new one sent back in the X-Session-Token header, which the
+  // client should keep in place of the old one.
+  sessionService.check(token)
+    .then(async checked => {
+      if (!checked) {
+        res.status(401).json({ success: false, message: 'Invalid or expired session. Please log in again.', data: null });
         return;
       }
-      req.authUser = payload;
-      req.actor = actor;
+      if (sessionService.dueForRenewal(checked.payload)) {
+        const renewed = await sessionService.issue(checked.actor, checked.payload.signedInAt);
+        res.setHeader('X-Session-Token', renewed.token);
+      }
+      req.authUser = checked.payload;
+      req.actor = checked.actor;
       next();
     })
     .catch(next);

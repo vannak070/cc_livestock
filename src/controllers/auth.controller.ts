@@ -17,7 +17,9 @@ export class AuthController {
     const { pin } = req.body || {};
     // Lockout is keyed on the caller so one device cannot grind through the
     // PIN space, and cannot lock everyone else out either.
-    const clientKey = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || 'unknown';
+    // req.ip is the proxy-verified address (see 'trust proxy' in src/server/app.ts); the X-Forwarded-For header itself
+    // can be written by the caller, so reading it directly would let a script dodge the lockout by changing it.
+    const clientKey = req.ip || 'unknown';
     const { token, user } = await authService.loginWithPin(pin, clientKey);
     res.status(200).json({ success: true, message: 'Logged in successfully', data: { token, user } });
   }

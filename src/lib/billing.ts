@@ -77,6 +77,10 @@ export interface MonthStatement {
   farms: FarmBill[];
   cattle: number;
   amount: number;
+  /** Animals registered in the month (not removed), whether or not the month is billed yet. */
+  registered: number;
+  /** The same by farm, so a month with no price yet still shows what was registered where. */
+  registeredFarms: { farm: string; cattle: number }[];
   /** Registrations an admin removed as mistakes in this month (shown, not billed). */
   removed: number;
   /** Every billable registration of the month, newest first. */
@@ -92,20 +96,24 @@ export function monthStatement(month: string, registrations: CattleRegistration[
   const live = inMonth.filter(isBillable);
   const removed = inMonth.length - live.length;
   const animals = [...live].sort((a, b) => b.registeredAt.localeCompare(a.registeredAt) || a.cowId.localeCompare(b.cowId));
-  if (price === undefined) {
-    return { month, billed: false, farms: [], cattle: 0, amount: 0, removed, animals };
-  }
   const byFarm = new Map<string, number>();
   for (const r of live) byFarm.set(r.farm || '—', (byFarm.get(r.farm || '—') ?? 0) + 1);
+  const registeredFarms = [...byFarm.entries()].map(([farm, cattle]) => ({ farm, cattle })).sort((a, b) => b.cattle - a.cattle || a.farm.localeCompare(b.farm));
+  if (price === undefined) {
+    return { month, billed: false, farms: [], cattle: 0, amount: 0, registered: live.length, registeredFarms, removed, animals };
+  }
   const farms = [...byFarm.entries()]
     .map(([farm, cattle]) => ({ farm, cattle, amount: cattle * price }))
     .sort((a, b) => b.cattle - a.cattle || a.farm.localeCompare(b.farm));
-  return { month, billed: true, price, farms, cattle: live.length, amount: live.length * price, removed, animals };
+  return { month, billed: true, price, farms, cattle: live.length, amount: live.length * price, registered: live.length, registeredFarms, removed, animals };
 }
 
 export interface MonthTotal {
   month: string;
+  /** Animals billed (0 when the month is not billed). */
   cattle: number;
+  /** Animals registered in the month, billed or not. */
+  registered: number;
   amount: number;
   billed: boolean;
 }
@@ -117,7 +125,7 @@ export function recentMonths(endMonth: string, count: number, registrations: Cat
   for (let i = 0; i < count; i++) {
     const month = `${y}-${String(m).padStart(2, '0')}`;
     const s = monthStatement(month, registrations, settings);
-    out.push({ month, cattle: s.cattle, amount: s.amount, billed: s.billed });
+    out.push({ month, cattle: s.cattle, registered: s.registered, amount: s.amount, billed: s.billed });
     m -= 1;
     if (m === 0) { m = 12; y -= 1; }
   }

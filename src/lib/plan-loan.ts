@@ -1,6 +1,7 @@
 import type { FarmLoanAssumptions, FarmLoanTerms, PlanLoan, ProposalPlanParams } from './types';
 import { DEFAULT_ASSUMPTIONS, defaultTerms, parseLoanAssumptions, parseLoanTerms } from './farm-loan';
 import { planFeedLines } from './feed-lines';
+import { planDays } from './plan-months';
 
 /**
  * A fattening plan's bank loan: the plan's cattle numbers and its loan terms
@@ -8,7 +9,7 @@ import { planFeedLines } from './feed-lines';
  * payments to the bank and trades with CC Livestock as a farm's loan.
  */
 
-/** The loan a plan uses when it has none saved: standard terms (cattle, feed and interest), trading with CC Livestock every month. */
+/** The loan a plan uses when it has none saved: standard terms (cattle, plus feed and interest for the months before the first sale), trading with CC Livestock every month. */
 export function defaultPlanLoan(startMonth?: string): PlanLoan {
   const { annualRatePct: _rate, ...terms } = defaultTerms(startMonth);
   void _rate;
@@ -34,15 +35,15 @@ export function planLoanInputs(p: ProposalPlanParams): { terms: FarmLoanTerms; a
     herdTarget: p.targetStockLevel,
     initialWeightKg: p.initialWeightKg,
     dailyGainKg: p.dailyWeightGainKg,
-    fatteningDays: p.fatteningPeriodDays,
+    fatteningDays: planDays(p),
     buyPricePerKgKhr: p.purchasePricePerKgKhr,
     sellPricePerKgKhr: p.sellingPricePerKgKhr,
     feedCostPerHeadDayKhr: lines.reduce((s, l) => s + l.kgPerHeadDay * l.pricePerKgKhr, 0),
     feedLines: lines,
     lastBuyMonth: loan.lastBuyMonth,
     openingCashKhr: loan.openingCashKhr,
-    ...(loan.buyPlan ? { buyPlan: loan.buyPlan } : {}),
-    ...(loan.buyPlan === 'split' ? { firstBuyPct: loan.firstBuyPct, secondBuyMonth: loan.secondBuyMonth } : {}),
+    // Cattle are only bought by the monthly trade (older plans may hold another choice).
+    buyPlan: 'monthly',
   };
   return { terms, assumptions, loan };
 }
@@ -56,7 +57,7 @@ export function parsePlanLoan(raw: unknown, annualRatePct: number): PlanLoan | s
   // The buying plan, last buy month and own money are checked by the farm loan rules, on standard cattle numbers.
   const buying = parseLoanAssumptions({
     ...DEFAULT_ASSUMPTIONS,
-    buyPlan: r.buyPlan, firstBuyPct: r.firstBuyPct, secondBuyMonth: r.secondBuyMonth, lastBuyMonth: r.lastBuyMonth, openingCashKhr: r.openingCashKhr,
+    lastBuyMonth: r.lastBuyMonth, openingCashKhr: r.openingCashKhr,
   });
   if (typeof buying === 'string') return buying;
   const { annualRatePct: _rate, ...rest } = terms;
@@ -65,7 +66,6 @@ export function parsePlanLoan(raw: unknown, annualRatePct: number): PlanLoan | s
     ...rest,
     lastBuyMonth: buying.lastBuyMonth,
     openingCashKhr: buying.openingCashKhr,
-    ...(buying.buyPlan ? { buyPlan: buying.buyPlan } : {}),
-    ...(buying.buyPlan === 'split' ? { firstBuyPct: buying.firstBuyPct, secondBuyMonth: buying.secondBuyMonth } : {}),
+    buyPlan: 'monthly',
   };
 }

@@ -10,14 +10,23 @@ import { km as feedPageKm } from './sections/feedPage';
 import { km as feedFlowsKm } from './sections/feedFlows';
 import { km as summaryPageKm } from './sections/summaryPage';
 import { km as farmLimitsKm } from './sections/farmLimits';
+import { km as myAccountKm } from './sections/myAccount';
 import { km as longStayKm } from './sections/longStay';
 import { km as billingKm } from './sections/billing';
+import { km as actionPlansKm } from './sections/actionPlans';
+import { km as receiptImportKm } from './sections/receiptImport';
+import { km as buybackFlowKm } from './sections/buybackFlow';
+import { km as opsTasksKm } from './sections/opsTasks';
+import { km as controlDashboardKm } from './sections/controlDashboard';
+import { km as reportPdfKm } from './sections/reportPdf';
+import { km as camcowStockKm } from './sections/camcowStock';
 import { km as websitePageKm } from './sections/websitePage';
 import { km as addCattleKm } from './sections/addCattle';
 import { km as batchesPageKm } from './sections/batchesPage';
 import { km as planningKm } from './sections/planning';
 import { km as permissionsKm } from './sections/permissions';
 import { km as settingsPageKm } from './sections/settingsPage';
+import { km as sessionKm } from './sections/session';
 import { km as farmsPageKm } from './sections/farmsPage';
 import { km as reportsPageKm } from './sections/reportsPage';
 import { km as salesPageKm } from './sections/salesPage';
@@ -29,6 +38,7 @@ export const km: PartialTranslations = {
     // Short page names (2026-10-06): the long ones were cut off on phones. Drafted by Claude; need a native speaker's review.
     today: 'ថ្ងៃនេះ',
     billing: 'វិក្កយបត្រ',
+    actionPlans: 'ផែនការសកម្មភាព',
     website: 'គេហទំព័រ',
     summary: 'សង្ខេប',
     weights: 'ទម្ងន់',
@@ -368,14 +378,23 @@ export const km: PartialTranslations = {
   feedFlows: feedFlowsKm,
   summaryPage: summaryPageKm,
   farmLimits: farmLimitsKm,
+  myAccount: myAccountKm,
   longStay: longStayKm,
   billing: billingKm,
+  actionPlans: actionPlansKm,
+  receiptImport: receiptImportKm,
+  buybackFlow: buybackFlowKm,
+  opsTasks: opsTasksKm,
+  controlDashboard: controlDashboardKm,
+  reportPdf: reportPdfKm,
+  camcowStock: camcowStockKm,
   websitePage: websitePageKm,
   addCattle: addCattleKm,
   batchesPage: batchesPageKm,
   planning: planningKm,
   permissions: permissionsKm,
   settingsPage: settingsPageKm,
+  session: sessionKm,
   farmsPage: farmsPageKm,
   reportsPage: reportsPageKm,
   salesPage: salesPageKm,

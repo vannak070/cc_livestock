@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { ABOUT } from '@/lib/about';
 import { ENABLED_LANGS, href, type Dict, type Lang } from '@/lib/i18n';
 
-/** Site header: logo with ខេម ខោវ first, menu, Khmer / English switch. */
+/** Site header: logo with ខេម ខោវ first, menu, Khmer / English switch (no phone number: removed 10-27 at the user's request). */
 export function Header({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boolean }) {
   const pathname = usePathname() || `/${lang}`;
   const [open, setOpen] = useState(false);
@@ -22,9 +22,9 @@ export function Header({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boo
   const links: [string, string][] = [
     ['/members', t.nav.members],
     ['/cattle', t.nav.cattle],
-    ['/#how', t.nav.how],
     ...(hasNews ? [['/news', t.nav.news] as [string, string]] : []),
     ...(ABOUT.ready ? [['/about', t.nav.about] as [string, string]] : []),
+    ['/for-farmers', t.nav.forFarmers],
     ['/contact', t.nav.contact],
     // Last, shown as a button.
     ['/join', t.nav.join],
@@ -35,7 +35,7 @@ export function Header({ lang, t, hasNews }: { lang: Lang; t: Dict; hasNews: boo
     <header className={`header${scrolled ? ' scrolled' : ''}`}>
       <div className="wrap header-in">
         <Link href={href(lang)} className="brand" aria-label={`${t.brand.km} ${t.brand.en}`}>
-          <Image src="/logo.png" alt="" width={52} height={52} preload />
+          <Image src="/logo-2026.png" alt="" width={100} height={100} preload className="header-logo" />
           <span>
             <span className="brand-km" lang="km">{t.brand.km}</span>
             <span className="brand-en">{t.brand.en}</span>

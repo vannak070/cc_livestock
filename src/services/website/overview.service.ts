@@ -2,7 +2,7 @@ import { canManageUsers, type Actor } from '../../lib/authz';
 import type { BatchItem, WebsiteBatchListing, WebsiteConsent, WebsiteFarmProfile, WebsiteNewsPost, WebsiteVisitors } from '../../lib/types';
 import {
   batchOffered, buildPublicSnapshot, canHandleWebsiteRequests, canPublishWebsite, currentConsent, listingFacts, listingIdOf, listingProblem,
-  publishHealth, publishProblem, type ListingFacts, type PublishHealth, type PublicSnapshot,
+  cleanSiteImages, publishHealth, publishProblem, type ListingFacts, type PublishHealth, type PublicSnapshot, type SiteImages,
 } from '../../lib/website';
 import { settingsRepository } from '../../repositories/settings.repository';
 import { farmMatcher } from '../../lib/farm-scope';
@@ -49,6 +49,8 @@ export interface WebsiteOverview {
   canCreateFarms: boolean;
   /** Every farm's id and name, for linking applications (request handlers get this too). */
   farmNames: { farmId: string; farmName: string }[];
+  /** Built-in website pictures replaced so far (slot -> photo id; admins only). */
+  siteImages: SiteImages;
 }
 
 export class WebsiteOverviewService {
@@ -59,7 +61,7 @@ export class WebsiteOverviewService {
     const canCreateFarms = canManageUsers(actor);
     const farmNames = ((await settingsRepository.getSettings()).farms ?? []).map(f => ({ farmId: f.id, farmName: f.name }));
     const newRequests = canHandleRequests ? await websiteRequestRepository.countNew() : { applications: 0, inquiries: 0 };
-    if (!canPublish) return { canPublish, canHandleRequests, farms: [], batches: [], news: [], newRequests, lastPublishedAt: null, publishHealth: null, canCreateFarms, farmNames };
+    if (!canPublish) return { canPublish, canHandleRequests, farms: [], batches: [], news: [], newRequests, lastPublishedAt: null, publishHealth: null, canCreateFarms, farmNames, siteImages: {} };
 
     const data = await loadWebsiteData();
     const farms: FarmRow[] = data.farms.map(f => {
@@ -84,7 +86,7 @@ export class WebsiteOverviewService {
       .sort((a, b) => (a.batch.farmLocation ?? '').localeCompare(b.batch.farmLocation ?? '') || a.batch.name.localeCompare(b.batch.name));
 
     const health = publishHealth((await settingsRepository.getSettings()).websiteStatus, new Date());
-    return { canPublish, canHandleRequests, farms, batches, news: data.news, newRequests, lastPublishedAt: await snapshotPublisherService.lastBuiltAt(), publishHealth: health, canCreateFarms, farmNames };
+    return { canPublish, canHandleRequests, farms, batches, news: data.news, newRequests, lastPublishedAt: await snapshotPublisherService.lastBuiltAt(), publishHealth: health, canCreateFarms, farmNames, siteImages: cleanSiteImages(data.siteImages) };
   }
 
   /** Page views and button presses over the last `days` days. Super Admin and Admin only. */

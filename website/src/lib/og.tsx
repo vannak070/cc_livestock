@@ -12,7 +12,7 @@ export const OG_SIZE = { width: 1200, height: 630 };
 
 let logo: string | null = null;
 async function logoData(): Promise<string> {
-  logo ??= `data:image/png;base64,${(await readFile(path.join(process.cwd(), 'public', 'logo.png'))).toString('base64')}`;
+  logo ??= `data:image/png;base64,${(await readFile(path.join(process.cwd(), 'public', 'logo-2026.png'))).toString('base64')}`;
   return logo;
 }
 

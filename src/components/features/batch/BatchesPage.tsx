@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { BatchItem, ERPLivestockData, FarmItem, UserRoleItem } from '@/lib/types';
@@ -128,21 +129,13 @@ export default function BatchesPage({ data, onCreateBatch, onAssignCows, onRemov
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
           <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
         {canCreate && <Button size="lg" onClick={() => setFlow({ kind: 'start' })}><Plus /> {tx('startBatch')}</Button>}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label={tx('show')} className="flex rounded-xl bg-slate-100 p-1">
-          {(['Active', 'Closed', 'All', 'Review'] as Show[]).map(s => (
-            <button key={s} role="tab" type="button" aria-selected={show === s} onClick={() => setShow(s)}
-              className={`min-h-11 rounded-lg px-4 text-base font-medium ${show === s ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-              {tx(`show${s}`)} ({counts[s]})
-            </button>
-          ))}
-        </div>
+        <PageTabs label={tx('show')} active={show} onChange={id => setShow(id as Show)} tabs={(['Active', 'Closed', 'All', 'Review'] as Show[]).map(s => ({ id: s, label: `${tx(`show${s}`)} (${counts[s]})` }))} />
         {showFarmFilter && (
           <FarmSelect farms={farms.map(f => f.name)} value={farm} onChange={setFarm} size="compact" align="right" className="ml-auto" />
         )}

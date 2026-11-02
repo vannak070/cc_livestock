@@ -8,9 +8,9 @@ import { Input } from '@/components/ui/input';
 import type { FeedProductItem, ProposalPlanParams } from '@/types';
 import { DEFAULT_PLAN, calculatePlan, parsePlanParams } from '@/lib/proposal-plan';
 import { planFeedLines } from '@/lib/feed-lines';
-import { DEFAULT_ASSUMPTIONS, parseLoanAssumptions, simulateLoan } from '@/lib/farm-loan';
+import { simulateLoan } from '@/lib/farm-loan';
 import { defaultPlanLoan, parsePlanLoan, planLoanInputs } from '@/lib/plan-loan';
-import { BuyPlanPicker, NumberField, RepaymentPicker, fatteningHint, fromBuyDraft, fromRepayDraft, toBuyDraft, toRepayDraft, LoanAmountPicker, type LendKind } from './LoanParts';
+import { MonthlyTradeNote, NumberField, RepaymentPicker, fromRepayDraft, toRepayDraft, LoanAmountPicker, type LendKind } from './LoanParts';
 import FeedLinesEditor, { feedDraftProblem, fromDrafts, toDrafts, type FeedLineDraft } from './FeedLinesEditor';
 import { Choice, FlowFooter, FlowShell, NUM, Question } from '../flow/FlowShell';
 import { useText } from '@/hooks/useText';
@@ -80,14 +80,13 @@ function PlanBody({ onClose, slot, name: n0, params: p0, products, onSave }: Pla
   const loan0 = p0.loan ?? defaultPlanLoan();
   const [bank, setBank] = useState(loan0.bank);
   const [startMonth, setStartMonth] = useState(loan0.startMonth);
-  const [lend, setLend] = useState<LendKind>(loan0.loanAmountKhr ? 'fixed' : loan0.loanCovers === 'all' ? 'all' : 'cattle');
+  const [lend, setLend] = useState<LendKind>(loan0.loanAmountKhr ? 'fixed' : loan0.loanCovers === 'all' ? 'all' : loan0.loanCovers === 'start' ? 'start' : 'cattle');
   const fixedAmount = lend === 'fixed';
   const [amount, setAmount] = useState(loan0.loanAmountKhr ? String(loan0.loanAmountKhr) : '');
   const [financed, setFinanced] = useState(String(loan0.financedPct));
   const [limit, setLimit] = useState(String(loan0.creditLimitKhr));
   const [autoRenew, setAutoRenew] = useState(loan0.autoRenew);
   const [openingCash, setOpeningCash] = useState(String(loan0.openingCashKhr));
-  const [buy, setBuy] = useState(() => toBuyDraft(loan0));
   const [repay, setRepay] = useState(() => toRepayDraft(loan0.repayments));
 
   const set = (k: Key) => (v: string) => {
@@ -111,12 +110,14 @@ function PlanBody({ onClose, slot, name: n0, params: p0, products, onSave }: Pla
     startMonth,
     financedPct: fixedAmount ? Number(financed) || 100 : financed.trim() === '' ? NaN : Number(financed),
     loanAmountKhr: fixedAmount ? (amount.trim() === '' ? NaN : Number(amount)) : 0,
-    loanCovers: lend === 'all' ? 'all' : 'cattle',
+    loanCovers: lend === 'all' ? 'all' : lend === 'start' ? 'start' : 'cattle',
     creditLimitKhr: Number(limit || 0),
     autoRenew,
     repayments: fromRepayDraft(repay),
     openingCashKhr: openingCash.trim() === '' ? NaN : Number(openingCash),
-    ...fromBuyDraft(buy),
+    // Cattle are only bought by the monthly trade; the last buy month is kept for older plans.
+    buyPlan: 'monthly',
+    lastBuyMonth: loan0.lastBuyMonth,
   });
   const feedProblem = feedDraftProblem(feedRows, tx);
   const params = parsePlanParams({ ...Object.fromEntries(Object.entries(f).map(([k, v]) => [k, v.trim() === '' ? NaN : Number(v)])), feedLines: fromDrafts(feedRows), loan: rawLoan() });
@@ -129,10 +130,6 @@ function PlanBody({ onClose, slot, name: n0, params: p0, products, onSave }: Pla
     if (s === 'name') return name.trim() ? null : tx('eName');
     if (s === 'check') return params ? null : tx('eMissing');
     if (s === 'feed') return feedProblem;
-    if (s === 'herd') {
-      const b = parseLoanAssumptions({ ...DEFAULT_ASSUMPTIONS, ...fromBuyDraft(buy) });
-      if (typeof b === 'string') return b;
-    }
     if (s === 'bank' && fixedAmount && !(Number(amount) > 0)) return tx('eAgreed');
     if (s === 'bank' && (openingCash.trim() === '' || !(Number(openingCash) >= 0))) return tx('eOwnMoney');
     if (s === 'repay') { const l = parsePlanLoan(rawLoan(), Number(f.bankInterestRateAnnual) || 0); return typeof l === 'string' ? l : null; }
@@ -165,6 +162,12 @@ function PlanBody({ onClose, slot, name: n0, params: p0, products, onSave }: Pla
   };
   const back = () => { setError(''); setStep(STEPS[at - 1]); };
 
+  // Trades are monthly, so a period that is not a whole number of months is counted as the nearest month in the yearly figures.
+  const periodHint = (base: string, days: number) => {
+    if (!Number.isFinite(days) || days <= 0 || days % 30 === 0) return base;
+    const months = Math.max(1, Math.round(days / 30));
+    return `${base} ${tx('periodHint', { months, full: months * 30 })}`;
+  };
   const mismatch = num('numberOfBatches') * num('cattlePerBatch') !== num('targetStockLevel');
   const heading: Record<Step, { title: string; sub: string }> = {
     name: { title: tx('dTitleName'), sub: tx('dSubName') },
@@ -210,8 +213,8 @@ function PlanBody({ onClose, slot, name: n0, params: p0, products, onSave }: Pla
       )}
 
       {step === 'herd' && FIELDS.herd.slice(0, 1).map(field => numberField(field))}
-      {step === 'herd' && <BuyPlanPicker value={buy} onChange={touch(setBuy)} />}
-      {step === 'herd' && FIELDS.herd.slice(1).map(field => numberField(field, field.key === 'fatteningPeriodDays' ? fatteningHint(buy.plan, tx) : undefined))}
+      {step === 'herd' && <MonthlyTradeNote />}
+      {step === 'herd' && FIELDS.herd.slice(1).map(field => numberField(field, field.key === 'fatteningPeriodDays' ? periodHint(tx('hintMonthly'), num('fatteningPeriodDays')) : undefined))}
       {step === 'animal' && FIELDS.animal.map(field => numberField(field))}
 
       {step === 'herd' && mismatch && Number.isFinite(num('targetStockLevel')) && (
@@ -226,7 +229,7 @@ function PlanBody({ onClose, slot, name: n0, params: p0, products, onSave }: Pla
       {step === 'feed' && (
         <>
           <FeedLinesEditor rows={feedRows} onChange={x => { setFeedRows(x); setError(''); }} products={products} />
-          {r && <p className="rounded-xl bg-slate-50 p-3 text-base text-ink">{tx('dFeedWhole', { days: f.fatteningPeriodDays, amount: riel(r.perHeadFeedCostKhr) })}</p>}
+          {r && <p className="rounded-xl bg-slate-50 p-3 text-base text-ink">{tx('dFeedWhole', { days: r.fatteningMonths * 30, amount: riel(r.perHeadFeedCostKhr) })}</p>}
         </>
       )}
 
@@ -257,6 +260,9 @@ function PlanBody({ onClose, slot, name: n0, params: p0, products, onSave }: Pla
           <li className="rounded-xl bg-slate-50 p-4">{tx('cReturn', { pct: Math.round(r.annualRoiPercent * 10) / 10 })}</li>
           {loanPlan && loanPlan.years[0] && (
             <>
+              {loanPlan.years[0].loanParts && (lend === 'start' || lend === 'all') && (
+                <li className="rounded-xl bg-emerald-50 p-4 text-emerald-900">{tx(lend === 'all' ? 'loanMadeAll' : 'loanMade', { cattle: riel(loanPlan.years[0].loanParts.cattleKhr), feed: riel(loanPlan.years[0].loanParts.feedKhr), interest: riel(loanPlan.years[0].loanParts.interestKhr), months: loanPlan.years[0].loanParts.interestMonths })}</li>
+              )}
               <li className="rounded-xl bg-slate-50 p-4">{tx('cPayout', { amount: riel(loanPlan.years[0].drawnKhr), paid: riel(loanPlan.years[0].interestKhr + loanPlan.years[0].principalKhr), interest: riel(loanPlan.years[0].interestKhr) })}</li>
               <li className={`rounded-xl p-4 ${loanPlan.moneyNeededKhr > 0 ? 'bg-rose-50 text-rose-900' : 'bg-emerald-50 text-emerald-900'}`}>{loanPlan.moneyNeededKhr > 0 ? tx('cNeeds', { amount: riel(loanPlan.moneyNeededKhr) }) : tx('cCanPay')}</li>
             </>

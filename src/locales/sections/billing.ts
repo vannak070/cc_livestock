@@ -41,6 +41,7 @@ export const en = {
   colMonth: 'Month',
   openMonth: 'Open {month}',
   notBilled: 'not billed',
+  registeredUnbilled: '{n} animals registered this month, not billed yet',
   // Excel
   download: 'Download Excel',
   sheetStatement: 'Statement',
@@ -103,6 +104,7 @@ export const km: Partial<typeof en> = {
   colMonth: 'ខែ',
   openMonth: 'បើក {month}',
   notBilled: 'មិនគិតថ្លៃ',
+  registeredUnbilled: 'គោ {n} ក្បាលបានចុះបញ្ជីក្នុងខែនេះ មិនទាន់គិតថ្លៃ',
   download: 'ទាញយក Excel',
   sheetStatement: 'របាយការណ៍',
   sheetAnimals: 'គោ',

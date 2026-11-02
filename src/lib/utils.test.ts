@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canUsePlanning, hasPermission } from './utils';
+import { canOpenReports, canUsePlanning, hasPermission } from './utils';
 
 describe('hasPermission', () => {
   it('denies everything without a user', () => {
@@ -38,5 +38,26 @@ describe('canUsePlanning', () => {
       expect(canUsePlanning({ role })).toBe(false);
     }
     expect(canUsePlanning(null)).toBe(false);
+  });
+});
+
+describe('canOpenReports', () => {
+  it.each([
+    ['Super Admin', true], ['Admin', true], ['Management', true], ['Company', true], ['Farm Owner', true],
+    ['Farm Staff', false], ['Veterinarian', false],
+  ])('%s: %s', (role, expected) => {
+    expect(canOpenReports({ role })).toBe(expected);
+  });
+
+  it('opens for the old Summary audience (dashboard + sales) even without the analytics view', () => {
+    expect(canOpenReports({ role: 'Custom', permissions: ['dashboard_view', 'sales_view'] })).toBe(true);
+    expect(canOpenReports({ role: 'Custom', permissions: ['sales_view'] })).toBe(false);
+    expect(canOpenReports({ role: 'Custom', permissions: ['dashboard_view'] })).toBe(false);
+    expect(canOpenReports({ role: 'Custom', permissions: ['analytics_view'] })).toBe(true);
+  });
+
+  it('is closed to nobody-in-particular', () => {
+    expect(canOpenReports(null)).toBe(false);
+    expect(canOpenReports(undefined)).toBe(false);
   });
 });

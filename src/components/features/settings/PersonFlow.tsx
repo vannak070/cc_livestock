@@ -6,7 +6,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ALL_PERMISSIONS, type MasterSetup, type PermissionKey, type UserRoleItem } from '@/types/settings.types';
-import { SYSTEM_ROLES, usesStandardDescription, FARM_ROLES, MIN_PASSWORD_LENGTH, assignableRoles, effectivePermissions, grantable, isFarmOwner, rolesOf, validatePerson, type PersonErrors, type PersonInput, knownPermissionCount } from '@/lib/user-admin';
+import { SYSTEM_ROLES, usesStandardDescription, FARM_ROLES, MIN_PASSWORD_LENGTH, assignableRoles, effectivePermissions, grantable, isFarmOwner, personFarm, rolesOf, validatePerson, type PersonErrors, type PersonInput, knownPermissionCount } from '@/lib/user-admin';
 import { FlowFooter, FlowShell, PickList, Question, RowButton } from '../flow/FlowShell';
 import PermissionPicker from './PermissionPicker';
 import { useText } from '@/hooks/useText';
@@ -86,7 +86,7 @@ function PersonBody({ onClose, person, settings, actor, onSave, presetFarm, only
   const last = steps[steps.length - 1];
 
   // There is no PIN on the web (it was for the removed mobile app); an existing PIN is left as it is.
-  const input = (): PersonInput => ({ name, email, role, farmLocation: lockedFarm || farm, password, pin: '', clearPin: false, permissions });
+  const input = (): PersonInput => ({ name, email, role, farmLocation: personFarm(role, lockedFarm || farm, person ?? null, actor.id), password, pin: '', clearPin: false, permissions });
   const stepFields: Record<Step, (keyof PersonErrors)[]> = { who: ['name', 'email'], role: ['role'], farm: ['farmLocation'], signin: ['password'], access: ['permissions'], done: [] };
   const problem = (s: Step): string | null => {
     if (s === 'role' && !role) return tx('pChooseRole');

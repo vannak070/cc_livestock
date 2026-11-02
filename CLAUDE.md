@@ -14,7 +14,7 @@ CC Livestock: a cattle-fattening operations app (stock intake, batches, weights,
 
 ```bash
 npm run dev            # Next.js web app, port 3000
-npm run server         # standalone Express API (tsx src/server/index.ts), port from PORT (3001 default, 3002 in .env/PM2)
+npm run server         # standalone Express API (tsx src/server/index.ts), port from PORT (3001 default, 3003 in local .env, 3002 in PM2/production)
 npm run build && npm start
 npm run lint           # eslint (flat config)
 npm run typecheck      # tsc --noEmit
@@ -50,7 +50,7 @@ Do not run `npm install`/`npm ci` from a sandboxed/remote shell that isn't the u
 
 **Public website (CamCow):** the office side lives in `website` folders (`src/lib/website`, `src/repositories/website`, `src/services/website`, `src/components/features/website`, `src/app/website-actions.ts`, migration 021); the public site itself is a separate Next.js app in `website/` (own package.json, port 3200, excluded from the root tsconfig/eslint; `npm run website:*`, `npm run dev:all`); start with `docs/website/README.md`. The public site may only ever see the allow-listed snapshot (`src/lib/website/snapshot.ts`); never send it anything else.
 
-**Frontend:** `DashboardContainer` is the top-level auth + tab shell; tabs are `*Tab.tsx` components in `src/components/`, with larger domains in `components/features/{batch,feed,finance}`. Types live in `src/types/` (one file per domain) and `src/lib/types.ts`. Path alias `@/*` -> `src/*`. Styling is Tailwind v4 with Radix UI primitives, `react-hook-form` + `zod`, `recharts`, `xlsx` for import/export.
+**Frontend:** `DashboardContainer` is the top-level auth + tab shell; tabs are `*Tab.tsx` components in `src/components/`, with larger domains in `components/features/{batch,feed,finance}`. Types live in `src/types/` (one file per domain) and `src/lib/types.ts`. Path alias `@/*` -> `src/*`. Styling is Tailwind v4 with Radix UI primitives, `react-hook-form`, `recharts`, `xlsx` for import/export.
 
 ## Gotchas
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { alertFarms, buildMorningMessages, type DigestData } from './farm-alerts';
+import { alertFarms, buildMorningMessages, camcowHeldMessages, lateTaskMessages, type DigestData } from './farm-alerts';
 
 const NOW = new Date('2026-10-06T02:00:00Z'); // 09:00 on the farm, 2026-10-06
 const cow = (id: string, farm: string, extra: Record<string, unknown> = {}) => ({ id, status: 'Active', location: farm, sex: 'M', healthStatus: 'healthy', purchaseDate: '2026-09-01', ...extra });
@@ -86,5 +86,50 @@ describe('long time on the farm, per farm', () => {
 
   it('sends nothing when no animal has stayed that long', () => {
     expect(byKind(buildMorningMessages(data(), NOW), 'longstay')).toEqual([]);
+  });
+});
+
+describe('late farm tasks', () => {
+  const task = (id: string, kind: string, due: string, extra: Record<string, unknown> = {}) => ({ id, programId: 'P1', kind, cycleKey: id, product: '', dueDate: due, originalDueDate: due, plannedHead: 20, reason: '', owner: '', notes: '', updatedBy: '', updatedAt: '', ...extra });
+  const ops = (tasks: unknown[], status = 'Active', sales: unknown[] = []) => data({ ops: { programs: [{ id: 'P1', farm: 'Farm A', status }], tasks, sales } });
+
+  it('sends one message per farm listing its late tasks, the latest first', () => {
+    const d = ops([task('t1', 'sell_to_farm', '2026-10-04'), task('t2', 'buy_back', '2026-10-01', { batchId: 'B1' }), task('t3', 'sell_to_farm', '2026-10-20')]);
+    const msgs = lateTaskMessages({ ...d, batches: [{ id: 'B1', name: 'Batch One', status: 'Active', farmLocation: 'Farm A', cowIds: [] }] } as never, '2026-10-06');
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({ farm: 'Farm A', kind: 'tasks' });
+    expect(msgs[0].message).toContain('Late farm tasks · Farm A');
+    expect(msgs[0].message).toContain('2 tasks are late:');
+    expect(msgs[0].message.indexOf('Collect 20 finished cattle (Batch One): 5 days late')).toBeLessThan(msgs[0].message.indexOf('Sell 20 new cattle to the farm: 2 days late'));
+    expect(msgs[0].message).not.toContain('10 Oct'); // the future task is not mentioned
+  });
+
+  it('says nothing when no task is late, or the program is paused, or there is no program data', () => {
+    expect(lateTaskMessages(ops([task('t1', 'sell_to_farm', '2026-10-20')]), '2026-10-06')).toEqual([]);
+    expect(lateTaskMessages(ops([task('t1', 'sell_to_farm', '2026-10-01')], 'Paused'), '2026-10-06')).toEqual([]);
+    expect(lateTaskMessages(data(), '2026-10-06')).toEqual([]);
+  });
+
+  it('is part of the morning messages', () => {
+    expect(byKind(buildMorningMessages(ops([task('t1', 'sell_to_farm', '2026-10-01')]), NOW), 'tasks')).toHaveLength(1);
+  });
+});
+
+describe('CamCow stock held too long', () => {
+  const held = (cowId: string, farm: string, collectedOn: string) => ({ cowId, sourceFarm: farm, collectedOn, collectionWeight: 400, collectionTotal: 5_000_000, status: 'Held' as const, note: '' });
+  it('sends one message listing the lots held longer than 30 days, oldest first', () => {
+    const msgs = camcowHeldMessages([held('1', 'Farm A', '2026-08-20'), held('2', 'Farm A', '2026-08-20'), held('3', 'Farm B', '2026-09-01'), held('4', 'Farm B', '2026-10-05')], '2026-10-06');
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({ farm: 'CamCow stock', kind: 'camcow' });
+    expect(msgs[0].message).toContain('3 animals have been in CamCow stock for more than 30 days');
+    expect(msgs[0].message).toContain('Farm A: 2 animals, 47 days');
+    expect(msgs[0].message).toContain('Farm B: 1 animal, 35 days');
+  });
+  it('says nothing when nothing is held too long, and ignores sold cattle', () => {
+    expect(camcowHeldMessages([held('1', 'Farm A', '2026-10-01')], '2026-10-06')).toEqual([]);
+    expect(camcowHeldMessages([{ ...held('2', 'Farm A', '2026-08-01'), status: 'Sold' as const }], '2026-10-06')).toEqual([]);
+  });
+  it('is part of the morning messages', () => {
+    expect(byKind(buildMorningMessages({ ...data(), camcow: [held('1', 'Farm A', '2026-08-01')] }, NOW), 'camcow')).toHaveLength(1);
   });
 });

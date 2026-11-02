@@ -19,7 +19,7 @@ async function run() {
   const hashed = await hashPassword(newPassword);
 
   const res = await pool.query(
-    'UPDATE users SET password = $1 WHERE LOWER(email) = LOWER($2) RETURNING id, email, role',
+    'UPDATE users SET password = $1, sessions_valid_after = now() WHERE LOWER(email) = LOWER($2) RETURNING id, email, role',
     [hashed, email]
   );
 

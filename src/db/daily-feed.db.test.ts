@@ -70,6 +70,9 @@ describe.skipIf(!enabled)('daily feed records', () => {
     await pool.query("INSERT INTO batch_cows (batch_id, cow_id) VALUES ('BULLS', 'B3')");
     await expect(batchMoveService.moveToFarm(farmStaff, 'BULLS', 'Other Farm', true)).rejects.toThrow(/own farm/);
     await expect(batchMoveService.moveToFarm(office, 'BULLS', 'Nowhere', true)).rejects.toThrow(/from the list/);
+    // The farm cattle limit rule (migrations 014-017): a farm without a limit takes no cattle, even from the office.
+    await expect(batchMoveService.moveToFarm(office, 'BULLS', 'Other Farm', true)).rejects.toThrow(/no cattle limit yet/);
+    await settingsRepository.patchBlob({ farms: [{ id: 'F1', name: 'SNR Farm', capacity: 100 }, { id: 'F2', name: 'Other Farm', capacity: 100 }] });
     expect(await batchMoveService.moveToFarm(office, 'BULLS', 'Other Farm', true)).toEqual({ cattleMoved: 2 });
     const where = Object.fromEntries((await pool.query('SELECT id, location FROM stock')).rows.map(r => [r.id, r.location]));
     expect(where).toEqual({ B1: 'Other Farm', B2: 'Other Farm', B3: 'SNR Farm' }); // the sold one stays where it was sold

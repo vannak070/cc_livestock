@@ -5,6 +5,8 @@
  * Before the site goes live: the owner confirms that each partner agrees to have its name and logo shown
  * (a logo can look like an endorsement). Never add money, prices or loan details here, only the role.
  */
+import type { SiteImageSlot, SiteImages } from './site-images';
+
 export interface Partner {
   key: 'techo' | 'camcow' | 'ardb';
   show: boolean;
@@ -12,8 +14,10 @@ export interface Partner {
   /** A short label above the name, e.g. "Agricultural bank". */
   tag: { en: string; km: string };
   role: { en: string; km: string };
-  /** A file in website/public/partners/ (or /logo.png). */
+  /** A file in website/public/partners/ (or /logo-2026.png). */
   logo: string;
+  /** The picture slot the office can replace the logo in (Website -> Pictures); none for CamCow's own logo. */
+  slot?: SiteImageSlot;
   /** The partner's own page; empty = no link. */
   link: string;
 }
@@ -26,6 +30,7 @@ export const PARTNERS: Partner[] = [
     tag: { en: 'Farmers\' network', km: 'បណ្តាញកសិករ' },
     role: { en: 'A network of Cambodian farmers who learn and grow together.', km: 'បណ្តាញកសិករកម្ពុជាដែលរៀនសូត្រ និងរីកចម្រើនជាមួយគ្នា។' },
     logo: '/partners/techo.jpg',
+    slot: 'partner-techo',
     link: 'https://www.facebook.com/profile.php?id=61578858306768',
   },
   {
@@ -34,7 +39,7 @@ export const PARTNERS: Partner[] = [
     name: { en: 'CamCow', km: 'ខេម ខោវ' },
     tag: { en: 'Our company', km: 'ក្រុមហ៊ុនរបស់យើង' },
     role: { en: 'Supplies cattle and feed, supports member farms and buys the cattle back.', km: 'ផ្គត់ផ្គង់គោ និងចំណី គាំទ្រកសិដ្ឋានសមាជិក ហើយទិញគោត្រឡប់មកវិញ។' },
-    logo: '/logo.png',
+    logo: '/logo-2026.png',
     link: '',
   },
   {
@@ -44,8 +49,12 @@ export const PARTNERS: Partner[] = [
     tag: { en: 'Agricultural bank', km: 'ធនាគារកសិកម្ម' },
     role: { en: 'Cambodia\'s agricultural bank, supporting farmers across the country.', km: 'ធនាគារកសិកម្មរបស់កម្ពុជា ដែលគាំទ្រកសិករទូទាំងប្រទេស។' },
     logo: '/partners/ardb.jpg',
+    slot: 'partner-ardb',
     link: 'https://www.facebook.com/ardbcambodia',
   },
 ];
 
 export const shownPartners = () => PARTNERS.filter(p => p.show);
+
+/** The partner's logo: the one chosen in the office, else its file. */
+export const partnerLogo = (p: Partner, img: SiteImages) => (p.slot ? img[p.slot] : p.logo);

@@ -1,7 +1,6 @@
 'use client';
 
-import 'leaflet/dist/leaflet.css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Map as LeafletMap, Marker } from 'leaflet';
 
 export interface MapFarm {
@@ -26,19 +25,40 @@ const CAMBODIA_CENTRE: [number, number] = [12.5, 104.9];
 /**
  * The Farmer Members map: OpenStreetMap tiles, one red pin per member farm,
  * placed at district level (the snapshot already blurred the position).
- * Leaflet is loaded in the browser only.
+ * Leaflet (script and style) is loaded in the browser only, and only once the map is about to scroll into view,
+ * so it does not slow down the first paint of the page.
  */
 export function MembersMap({ farms, selected, onSelect, note, height = 440 }: Props) {
+  const wrap = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  const [near, setNear] = useState(false);
+  /** True once the map exists, so the pins are drawn only after that (the script loads late). */
+  const [ready, setReady] = useState(false);
   const map = useRef<LeafletMap | null>(null);
   const markers = useRef<Marker[]>([]);
   const onSelectRef = useRef(onSelect);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
 
+  // Wait until the map is close to the screen.
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === 'undefined') { const t = window.setTimeout(() => setNear(true), 0); return () => window.clearTimeout(t); }
+    const io = new IntersectionObserver(entries => { if (entries.some(e => e.isIntersecting)) { setNear(true); io.disconnect(); } }, { rootMargin: '150px' });
+    io.observe(el);
+    // Some browsers (in-app browsers, a tab opened in the background) never report it: start anyway when it is on screen.
+    const t = window.setTimeout(() => {
+      const r = el.getBoundingClientRect();
+      if (r.top < window.innerHeight + 150 && r.bottom > -150) { setNear(true); io.disconnect(); }
+    }, 1200);
+    return () => { io.disconnect(); window.clearTimeout(t); };
+  }, []);
+
   // Create the map once.
   useEffect(() => {
+    if (!near) return;
     let cancelled = false;
-    void import('leaflet').then(L => {
+    void Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]).then(([L]) => {
       if (cancelled || !box.current || map.current) return;
       map.current = L.map(box.current, { scrollWheelZoom: false, zoomControl: true, attributionControl: true }).setView(CAMBODIA_CENTRE, 7);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -46,16 +66,19 @@ export function MembersMap({ farms, selected, onSelect, note, height = 440 }: Pr
         minZoom: 6,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(map.current);
+      setReady(true);
     });
     return () => {
       cancelled = true;
       map.current?.remove();
       map.current = null;
+      setReady(false);
     };
-  }, []);
+  }, [near]);
 
   // Draw the pins whenever the farms or the selection change.
   useEffect(() => {
+    if (!ready) return;
     let cancelled = false;
     void import('leaflet').then(L => {
       const m = map.current;
@@ -76,10 +99,10 @@ export function MembersMap({ farms, selected, onSelect, note, height = 440 }: Pr
       }
     });
     return () => { cancelled = true; };
-  }, [farms, selected]);
+  }, [farms, selected, ready]);
 
   return (
-    <div className="map-box" style={{ height }}>
+    <div ref={wrap} className="map-box" style={{ height }}>
       <div ref={box} style={{ height: '100%', width: '100%' }} />
       <span className="map-note">{note}</span>
     </div>

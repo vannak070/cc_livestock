@@ -3,6 +3,11 @@ import { StockItem } from '../lib/xlsx-parser';
 import { PoolClient, QueryResultRow } from 'pg';
 import { FarmScope, farmMatchSql } from '../lib/farm-scope';
 
+// Every column except the photo, which can be large: lists carry only whether there is one (has_photo).
+const COLUMNS = `id, no, breed, sex, age, weight, owner_name, location, phone, buy_type, unit_price, total_price,
+  health_status, status, purchase_date, remark, purchase_type, payment_method, created_at, updated_at,
+  (image_url IS NOT NULL AND image_url <> '') AS has_photo`;
+
 export class StockRepository {
   private async executeQuery(sql: string, params?: unknown[], client?: PoolClient) {
     if (client) {
@@ -31,29 +36,36 @@ export class StockRepository {
       remark: String(row.remark || ''),
       purchaseType: String(row.purchase_type || ''),
       paymentMethod: String(row.payment_method || ''),
-      imageUrl: row.image_url ? String(row.image_url) : undefined
+      hasPhoto: row.has_photo !== undefined ? !!row.has_photo : !!row.image_url
     };
   }
 
   /** With a scope, only that farm's cattle; without one, everything. */
   async findAll(scope?: FarmScope): Promise<StockItem[]> {
     const match = scope && farmMatchSql('location', scope.farmLocation, 1);
-    const res = await query(`SELECT * FROM stock ${match ? `WHERE ${match.sql}` : ''} ORDER BY created_at ASC`, match?.params);
+    const res = await query(`SELECT ${COLUMNS} FROM stock ${match ? `WHERE ${match.sql}` : ''} ORDER BY created_at ASC`, match?.params);
     return res.rows.map(row => this.mapRowToStock(row));
   }
 
   async findById(id: string): Promise<StockItem | null> {
-    const res = await query('SELECT * FROM stock WHERE id = $1', [id]);
+    const res = await query(`SELECT ${COLUMNS} FROM stock WHERE id = $1`, [id]);
     if (res.rows.length === 0) return null;
     return this.mapRowToStock(res.rows[0]);
+  }
+
+  /** The picture of one animal (a data URL), or null. Read on demand, never as part of a list. */
+  async findPhoto(id: string): Promise<string | null> {
+    const res = await query('SELECT image_url FROM stock WHERE id = $1', [id]);
+    const url = res.rows[0]?.image_url;
+    return url ? String(url) : null;
   }
 
   /** Several animals in one query; ones that do not exist are simply missing from the result. */
   async findByIds(ids: string[], client?: PoolClient): Promise<StockItem[]> {
     if (ids.length === 0) return [];
     const res = client
-      ? await client.query('SELECT * FROM stock WHERE id = ANY($1)', [ids])
-      : await query('SELECT * FROM stock WHERE id = ANY($1)', [ids]);
+      ? await client.query(`SELECT ${COLUMNS} FROM stock WHERE id = ANY($1)`, [ids])
+      : await query(`SELECT ${COLUMNS} FROM stock WHERE id = ANY($1)`, [ids]);
     return res.rows.map(row => this.mapRowToStock(row));
   }
 

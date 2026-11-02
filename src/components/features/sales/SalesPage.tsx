@@ -11,7 +11,7 @@ import type { SalesRecord } from '@/lib/xlsx-parser';
 import { format2DecimalsWithCommas, getErrorMessage, hasPermission } from '@/lib/utils';
 import { money as cattleMoney } from '@/lib/cattle-stats';
 import { feedShares } from '@/lib/farm-costs';
-import { exportToExcel } from '@/lib/excel-export';
+import { exportToExcel, periodText } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { Choice, NUM } from '../flow/FlowShell';
 import { FarmSelect } from '@/components/ui/listbox-select';
@@ -110,6 +110,9 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
   const exportSales = () => exportToExcel({
     filename: `CC_Livestock_Sales_${new Date().toISOString().split('T')[0]}.xlsx`,
     sheetName: 'Sales',
+    title: 'Sales',
+    farm: farm,
+    period: periodText(startDate, endDate),
     data: sales,
     columns: [
       { header: 'Cattle ID', key: 'cowId' },
@@ -170,7 +173,6 @@ export default function SalesPage({ data, onDeleteSalesRecord, onUpdateSalesReco
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
           <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
         {canSell && <Button size="lg" onClick={onRecordSaleClick}><DollarSign /> {tx('sell')}</Button>}

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Clock, Crown, MapPin, Pencil, Plus, Trash2, UserPlus, Users, Wheat } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Clock, Crown, MapPin, Pencil, Plus, Trash2, UserPlus, Users, Wheat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import { createUserAction, deleteFarmAction, saveFarmAction, setFarmOwnerAction } from '@/app/actions';
@@ -63,6 +63,9 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
   // The farm whose people page is open; looked up by id so a rename shows straight away.
   const [peopleOfId, setPeopleOfId] = useState<string | null>(null);
   const [add, setAdd] = useState<Add | null>(null);
+  // Farm cards show the essentials; "Details" opens the rest. Many farms on a phone made the page thousands of pixels long.
+  const [openFarms, setOpenFarms] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setOpenFarms(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger' | 'info' | 'warning'; confirmText: string; onConfirm?: () => void }>(null);
 
   const farms = settings.farms || [];
@@ -157,7 +160,6 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
       <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
           <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
         <Button size="lg" onClick={() => setFlow({ farm: null })}><Plus /> {tx('addFarm')}</Button>
@@ -207,18 +209,19 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
                     : { bar: 'bg-emerald-600', text: lim.tx('leftN', { n: ls.left }), tone: 'text-ink-muted' };
             const waiting = pendingFor(farm.name);
             const last = lastChangeFor(farm.name);
+            const open = openFarms.has(farm.id);
             return (
               <li key={farm.id} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="break-words text-2xl font-semibold text-ink">{farm.name}</h3>
                     {farm.companyRun && <span className="mt-1 inline-block rounded-full bg-sky-100 px-3 py-0.5 text-sm font-medium text-sky-900">{tx('companyRun')}</span>}
-                    {farm.address && <p className="mt-1 flex items-start gap-1.5 text-base text-ink-muted"><MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> <span className="break-words">{farm.address}</span></p>}
+                    <p className="mt-1 text-base text-ink-muted">
+                      {tx('owner')}: {owners.length === 0 ? (farm.companyRun ? tx('companyRun') : <span className="font-medium text-amber-800">{tx('noOwnerYet')}</span>) : <span className="font-medium text-ink">{owners[0].name}{owners.length > 1 ? ` +${owners.length - 1}` : ''}</span>}
+                      {' · '}{tx('people')} {people.length} · {tx('batches')} {farmBatches}
+                    </p>
                   </div>
-                  <div className="flex shrink-0">
-                    <Button variant="ghost" size="icon" aria-label={tx('editAria', { name: farm.name })} onClick={() => setFlow({ farm })}><Pencil /></Button>
-                    <Button variant="ghost" size="icon" aria-label={tx('deleteAria', { name: farm.name })} onClick={() => askDelete(farm)}><Trash2 className="text-rose-700" /></Button>
-                  </div>
+                  <Button variant="ghost" size="icon" className="shrink-0" aria-label={tx('editAria', { name: farm.name })} onClick={() => setFlow({ farm })}><Pencil /></Button>
                 </div>
 
                 <div className="space-y-2">
@@ -238,14 +241,10 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
                       </div>
                     </>
                   )}
-                  <p className="text-sm text-ink-muted">{lim.tx('onFarmNow', { n: cows.length })}</p>
                   {waiting && (
                     <p className="flex items-start gap-2 rounded-xl bg-sky-50 px-3 py-2 text-base text-sky-900">
                       <Clock className="mt-0.5 h-5 w-5 shrink-0" aria-hidden /> {lim.tx('waiting', { n: waiting.extra })}
                     </p>
-                  )}
-                  {last && (
-                    <p className="text-sm text-ink-muted">{lim.tx('lastChange', { from: last.oldLimit, to: last.newLimit, who: last.changedBy, day: shownDay(last.changedAt, language) })}</p>
                   )}
                   <div className="flex flex-wrap gap-2">
                     {isLimitAdmin && waiting && <Button size="sm" onClick={() => setDeciding(waiting)}>{lim.tx('answer')}</Button>}
@@ -254,31 +253,38 @@ export default function FarmsPage({ settings, currentUser, stock, batches, onRec
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <Stat label={tx('people')} value={people.length} />
-                  <Stat label={tx('batches')} value={farmBatches} />
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setPeopleOfId(farm.id)}><Users /> {tx('peopleN', { n: people.length })}</Button>
+                  {onRecordFeed && farmBatches > 0 && <Button variant="outline" size="sm" onClick={() => onRecordFeed(farm.name)}><Wheat /> {tx('recordFeed')}</Button>}
+                  {owners.length === 0 && !farm.companyRun && <Button size="sm" onClick={() => setAdd({ farm, kind: 'owner' })}><UserPlus /> {tx('addTheOwner')}</Button>}
+                  <Button variant="ghost" size="sm" className="ml-auto" aria-expanded={open} aria-controls={`farm-more-${farm.id}`} onClick={() => toggle(farm.id)}>
+                    {open ? tx('hideDetails') : tx('showDetails')} <ChevronDown className={`transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
+                  </Button>
                 </div>
 
-                <div className="border-t border-slate-100 pt-3 text-base">
-                  <p className="text-ink-muted">{tx('owner')}</p>
-                  {owners.length === 0 ? (
-                    farm.companyRun
-                      ? <p className="font-semibold text-ink">{tx('companyRun')}</p>
-                      : <p className="font-semibold text-amber-800">{tx('noOwnerYet')}</p>
-                  ) : (
-                    <>
-                      <p className="font-semibold text-ink">{owners[0].name}</p>
-                      <p className="break-all text-ink-muted">{owners[0].email}</p>
-                      {owners.length > 1 && <p className="mt-1 text-amber-800">{tx('manyOwners', { n: owners.length })}</p>}
-                    </>
-                  )}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setPeopleOfId(farm.id)}><Users /> {tx('peopleN', { n: people.length })}</Button>
-                    {onRecordFeed && farmBatches > 0 && <Button variant="outline" size="sm" onClick={() => onRecordFeed(farm.name)}><Wheat /> {tx('recordFeed')}</Button>}
-                    {owners.length === 0 && !farm.companyRun && <Button size="sm" onClick={() => setAdd({ farm, kind: 'owner' })}><UserPlus /> {tx('addTheOwner')}</Button>}
+                {open && (
+                  <div id={`farm-more-${farm.id}`} className="space-y-3 border-t border-slate-100 pt-3 text-base">
+                    {farm.address && <p className="flex items-start gap-1.5 text-ink-muted"><MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> <span className="break-words">{farm.address}</span></p>}
+                    <p className="text-sm text-ink-muted">{lim.tx('onFarmNow', { n: cows.length })}</p>
+                    {last && (
+                      <p className="text-sm text-ink-muted">{lim.tx('lastChange', { from: last.oldLimit, to: last.newLimit, who: last.changedBy, day: shownDay(last.changedAt, language) })}</p>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Stat label={tx('people')} value={people.length} />
+                      <Stat label={tx('batches')} value={farmBatches} />
+                    </div>
+                    {owners.length > 0 && (
+                      <div>
+                        <p className="text-ink-muted">{tx('owner')}</p>
+                        <p className="font-semibold text-ink">{owners[0].name}</p>
+                        <p className="break-all text-ink-muted">{owners[0].email}</p>
+                        {owners.length > 1 && <p className="mt-1 text-amber-800">{tx('manyOwners', { n: owners.length })}</p>}
+                      </div>
+                    )}
+                    {farm.notes && <p className="rounded-xl bg-slate-50 p-3 text-base text-ink">{farm.notes}</p>}
+                    <Button variant="outline" size="sm" className="border-rose-200 text-rose-700 hover:bg-rose-50" aria-label={tx('deleteAria', { name: farm.name })} onClick={() => askDelete(farm)}><Trash2 /> {tx('deleteFarm')}</Button>
                   </div>
-                </div>
-                {farm.notes && <p className="rounded-xl bg-slate-50 p-3 text-base text-ink">{farm.notes}</p>}
+                )}
               </li>
             );
           })}

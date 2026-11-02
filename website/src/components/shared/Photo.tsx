@@ -14,7 +14,7 @@ export function Photo({ id, alt, height, size = 'large', label, priority = false
     <div className="photo" style={{ height, position: 'relative' }}>
       {id
         ? <Image src={photoUrl(id, size)} alt={alt} fill sizes={size === 'small' ? '200px' : sizes} preload={priority} loading={priority ? 'eager' : 'lazy'} style={{ objectFit: 'cover' }} />
-        : <Image src="/logo.png" alt="" aria-hidden="true" width={88} height={88} style={{ objectFit: 'contain', opacity: 0.22 }} title={label} />}
+        : <Image src="/logo-2026.png" alt="" aria-hidden="true" width={88} height={88} style={{ objectFit: 'contain', opacity: 0.22 }} title={label} />}
     </div>
   );
 }

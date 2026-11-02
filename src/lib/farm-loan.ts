@@ -12,15 +12,18 @@ import { feedPerHeadDay, parseFeedLines } from './feed-lines';
  *   fund the farm keeps as cash: the amount agreed (`loanAmountKhr`), or else
  *   `financedPct` % of what it must cover (`loanCovers`): the cattle the farm
  *   buys until its first sale to CC Livestock (later cattle are paid from the
- *   sales), and with 'all' also the year's feed and interest. Capped by the
- *   credit limit.
+ *   sales); with 'start' also the feed and the interest of those first months,
+ *   when the farm has no trade income yet; with 'all' the year's feed and
+ *   interest. Capped by the credit limit.
  * - CC Livestock is the guarantee company and the farm's only trading partner:
  *   the farm buys its cattle and its feed from CC Livestock, and sells every
  *   finished animal back to CC Livestock. When a group is sold the farm takes
  *   new cattle from CC Livestock, to keep its herd. Sale and purchase are
  *   separate payments.
- * - How the cattle are bought follows the farm's buying plan (`buyPlan`); with
- *   the monthly trade the herd carries on from one loan year to the next.
+ * - The farm trades every month (the only way cattle are bought): it stocks up
+ *   until the herd is full, then each month the finished cattle are sold to CC
+ *   Livestock and replaced the same day, so the herd carries on from one loan
+ *   year to the next.
  * - Interest is paid every month on what is owed.
  * - Feed is paid every month for every animal on the farm (30 days a month).
  * - An animal is sold at the end of the month its fattening ends.
@@ -28,8 +31,7 @@ import { feedPerHeadDay, parseFeedLines } from './feed-lines';
  *   share (added up) of everything drawn that year so far.
  * - Only the farm pays the bank (interest and principal). CC Livestock does
  *   not repay the bank.
- * - With the other buying plans, CC Livestock buys every animal still on the
- *   farm in month 12. At the end of the plan everything left is sold.
+ * - At the end of the plan everything left on the farm is sold.
  * - With `autoRenew`, the loan renews: the new payout reaches the farm on
  *   renewal day (the end of month 12, with the last repayment) and is owed
  *   from month 1 of the next year.
@@ -43,7 +45,7 @@ export const DEFAULT_REPAYMENTS: LoanRepayment[] = [
 ];
 
 export function defaultTerms(startMonth: string = farmToday().slice(0, 7)): FarmLoanTerms {
-  return { bank: '', creditLimitKhr: 0, annualRatePct: 8, financedPct: 100, loanCovers: 'all', startMonth, repayments: DEFAULT_REPAYMENTS.map(r => ({ ...r })), autoRenew: true };
+  return { bank: '', creditLimitKhr: 0, annualRatePct: 8, financedPct: 100, loanCovers: 'start', startMonth, repayments: DEFAULT_REPAYMENTS.map(r => ({ ...r })), autoRenew: true };
 }
 
 /** The standard planning numbers, for a farm with no records to start from. */
@@ -104,6 +106,10 @@ export interface LoanYearTotals {
   headDays: number;
   /** Cattle bought until the first sale to CC Livestock: what a worked-out loan must pay for. */
   startCattleKhr: number;
+  /** Months of the loan year before the first cattle are sold: no trade income yet. */
+  noTradeMonths: number;
+  /** What a worked-out payout is made of (missing for an agreed amount or one cut by the credit limit). */
+  loanParts?: { cattleKhr: number; feedKhr: number; interestKhr: number; interestMonths: number };
 }
 
 export interface LoanPlan {
@@ -144,60 +150,25 @@ export function fatteningMonthsFor(days: number): number {
 export interface Cohort { head: number; bought: number; sellAt: number; days: number }
 
 /**
- * Every group of cattle the plan buys, following the farm's buying plan.
- *
- * Monthly trade (the default): the farm stocks up a share a month until the
- * herd is full; from then on, each month the cattle that have finished their
- * fattening are sold to CC Livestock and replaced from CC Livestock the same
- * day, so the herd stays full across loan years. Only at the end of the plan
- * is everything left sold.
- *
- * The other plans run one loan year at a time, and everything still on the
- * farm is sold to CC Livestock at the end of month 12.
+ * Every group of cattle the plan buys. The farm trades every month (the only way cattle are bought): it stocks
+ * up a share a month until the herd is full; from then on, each month the cattle that have finished their
+ * fattening are sold to CC Livestock and replaced from CC Livestock the same day, so the herd stays full across
+ * loan years. Only at the end of the plan is everything left sold.
  */
 export function herdPlan(a: FarmLoanAssumptions, years: number): Cohort[] {
   const fatMonths = fatteningMonthsFor(a.fatteningDays);
   const herd = Math.max(0, Math.round(a.herdTarget));
   const out: Cohort[] = [];
-  if ((a.buyPlan ?? 'monthly') === 'monthly') {
-    const end = years * 12 - 1;
-    const perMonth = Math.max(0, Math.ceil(herd / fatMonths));
-    for (let t = 0; t <= end; t++) {
-      // On the farm at the start of the month: everything bought before and not yet sold.
-      const onFarm = out.filter(c => c.bought < t && c.sellAt >= t).reduce((s, c) => s + c.head, 0);
-      // Cattle sold at the end of last month are replaced now (the same day).
-      const head = Math.max(0, Math.min(perMonth, herd - onFarm));
-      if (head > 0) {
-        const sellAt = Math.min(t + fatMonths - 1, end);
-        out.push({ head, bought: t, sellAt, days: Math.min(a.fatteningDays, (sellAt - t + 1) * 30) });
-      }
-    }
-    return out;
-  }
-  const keepToEnd = (head: number, bought: number, o: number) => { if (head > 0) out.push({ head, bought, sellAt: o + 11, days: (o + 11 - bought + 1) * 30 }); };
-  for (let y = 0; y < years; y++) {
-    const o = y * 12;
-    const plan = a.buyPlan ?? 'monthly';
-    if (plan === 'once') {
-      keepToEnd(herd, o, o);
-    } else if (plan === 'rounds') {
-      // Swap with CC Livestock each time fattening ends: sell the herd, take a new one the same day.
-      // As many full rounds as fit in the year; what is left over makes one more round when it is
-      // at least half a fattening, else the last round runs longer. The last herd is sold in month 12.
-      const lengths: number[] = Array(Math.max(1, Math.floor(12 / fatMonths))).fill(fatMonths);
-      const leftover = 12 - lengths.length * fatMonths;
-      if (leftover > 0 && leftover >= fatMonths / 2) lengths.push(leftover);
-      let start = 0;
-      lengths.forEach((len, i) => {
-        if (i === lengths.length - 1) keepToEnd(herd, o + start, o);
-        else out.push({ head: herd, bought: o + start, sellAt: o + start + len - 1, days: a.fatteningDays });
-        start += len;
-      });
-    } else if (plan === 'split') {
-      const first = Math.round(herd * Math.min(100, Math.max(0, a.firstBuyPct ?? 50)) / 100);
-      const second = Math.min(12, Math.max(1, Math.round(a.secondBuyMonth ?? 4)));
-      keepToEnd(first, o, o);
-      keepToEnd(herd - first, o + second - 1, o);
+  const end = years * 12 - 1;
+  const perMonth = Math.max(0, Math.ceil(herd / fatMonths));
+  for (let t = 0; t <= end; t++) {
+    // On the farm at the start of the month: everything bought before and not yet sold.
+    const onFarm = out.filter(c => c.bought < t && c.sellAt >= t).reduce((s, c) => s + c.head, 0);
+    // Cattle sold at the end of last month are replaced now (the same day).
+    const head = Math.max(0, Math.min(perMonth, herd - onFarm));
+    if (head > 0) {
+      const sellAt = Math.min(t + fatMonths - 1, end);
+      out.push({ head, bought: t, sellAt, days: Math.min(a.fatteningDays, (sellAt - t + 1) * 30) });
     }
   }
   return out;
@@ -216,24 +187,49 @@ export function simulateLoan(terms: FarmLoanTerms, a: FarmLoanAssumptions): Loan
   const cohorts = herdPlan(a, yearsToRun);
   const plannedBuys = Array.from({ length: yearsToRun * 12 }, (_, t) => cohorts.filter(c => c.bought === t).reduce((s, c) => s + c.head, 0));
   // The loan pays for the cattle bought until the first sale to CC Livestock; after that, new cattle are paid from the sales.
+  // From the second loan year on it also pays for the cattle already standing on the farm: the old loan is repaid on renewal day,
+  // so the new one has to carry that herd again (otherwise the farm is short of cash for months).
   const yearPurchases = (year: number) => {
     const o = (year - 1) * 12;
     const firstSale = Math.min(o + 11, ...cohorts.filter(c => c.sellAt >= o && c.sellAt <= o + 11).map(c => c.sellAt));
-    return cohorts.filter(c => c.bought >= o && c.bought <= firstSale).reduce((s, c) => s + c.head * buyPerHead, 0);
+    const standing = year > 1 ? cohorts.filter(c => c.bought < o && c.sellAt >= o).reduce((s, c) => s + c.head * buyPerHead, 0) : 0;
+    return standing + cohorts.filter(c => c.bought >= o && c.bought <= firstSale).reduce((s, c) => s + c.head * buyPerHead, 0);
   };
   // Head on the farm in a month (bought at its start, or there from before and not sold before it).
   const headIn = (t: number) => cohorts.filter(c => c.bought <= t && c.sellAt >= t).reduce((s, c) => s + c.head, 0);
   const yearFeed = (year: number) => Array.from({ length: 12 }, (_, m) => headIn((year - 1) * 12 + m)).reduce((s, h) => s + h * 30 * a.feedCostPerHeadDayKhr, 0);
+  // The share of a payout still owed in each month of a loan year (1 until the first repayment month).
+  const owedAt = (m: number) => Math.max(0, 1 - schedule.filter(r => r.month < m + 1).reduce((s, r) => s + r.pct, 0) / 100);
   // The year's interest on a payout P is P × rate × (what is still owed each month, as a share of P, added up).
-  const owedShares = Array.from({ length: 12 }, (_, m) => Math.max(0, 1 - schedule.filter(r => r.month < m + 1).reduce((s, r) => s + r.pct, 0) / 100)).reduce((s, x) => s + x, 0);
+  const owedShares = Array.from({ length: 12 }, (_, m) => owedAt(m)).reduce((s, x) => s + x, 0);
+  // Months of a loan year before CC Livestock pays for the first cattle sold: the farm has no trade income yet.
+  const noTradeMonths = (year: number) => {
+    const o = (year - 1) * 12;
+    const firstSale = Math.min(o + 11, ...cohorts.filter(c => c.sellAt >= o && c.sellAt <= o + 11).map(c => c.sellAt));
+    return firstSale - o + 1;
+  };
+  const feedFirstMonths = (year: number) => Array.from({ length: noTradeMonths(year) }, (_, m) => headIn((year - 1) * 12 + m)).reduce((s, h) => s + h * 30 * a.feedCostPerHeadDayKhr, 0);
+  const owedFirstMonths = (year: number) => Array.from({ length: noTradeMonths(year) }, (_, m) => owedAt(m)).reduce((s, x) => s + x, 0);
+  /** What a worked-out payout is made of, and the payout itself (before the agreed amount and the credit limit). */
+  const workedLoan = (year: number) => {
+    const share = terms.financedPct / 100;
+    const cattle = share * yearPurchases(year);
+    if (terms.loanCovers === 'all') {
+      const base = cattle + share * yearFeed(year);
+      const total = base / Math.max(0.01, 1 - rate * owedShares);
+      return { total, cattle, feed: share * yearFeed(year), interest: total - base, interestMonths: 12 };
+    }
+    if (terms.loanCovers === 'start') {
+      // Cattle, plus feed and interest for the months with no trade income; later months are paid from the sales.
+      const feed = share * feedFirstMonths(year);
+      const total = (cattle + feed) / Math.max(0.01, 1 - rate * owedFirstMonths(year));
+      return { total, cattle, feed, interest: total - cattle - feed, interestMonths: noTradeMonths(year) };
+    }
+    return { total: cattle, cattle, feed: 0, interest: 0, interestMonths: 0 };
+  };
   /** The one payout of a loan year. */
   const loanFor = (year: number) => {
-    const share = terms.financedPct / 100;
-    // Cattle and feed, and the interest on the loan itself: P = base + P × rate × owedShares.
-    const worked = terms.loanCovers === 'all'
-      ? (share * (yearPurchases(year) + yearFeed(year))) / Math.max(0.01, 1 - rate * owedShares)
-      : share * yearPurchases(year);
-    const wanted = terms.loanAmountKhr && terms.loanAmountKhr > 0 ? terms.loanAmountKhr : worked;
+    const wanted = terms.loanAmountKhr && terms.loanAmountKhr > 0 ? terms.loanAmountKhr : workedLoan(year).total;
     return terms.creditLimitKhr > 0 ? Math.min(wanted, terms.creditLimitKhr) : wanted;
   };
 
@@ -310,7 +306,12 @@ export function simulateLoan(terms: FarmLoanTerms, a: FarmLoanAssumptions): Loan
   for (let y = 1; y <= yearsToRun; y++) {
     const ms = months.filter(m => m.year === y);
     const sum = (k: keyof LoanMonth) => ms.reduce((s, m) => s + (m[k] as number), 0);
-    const t = { year: y, drawnKhr: sum('drawKhr'), interestKhr: sum('interestKhr'), principalKhr: sum('principalKhr'), purchasesKhr: sum('purchaseKhr'), feedKhr: sum('feedKhr'), salesKhr: sum('salesKhr'), profitKhr: 0, headDays: sum('headDays'), startCattleKhr: r0(yearPurchases(y)) };
+    const worked = !(terms.loanAmountKhr && terms.loanAmountKhr > 0) && (terms.creditLimitKhr <= 0 || workedLoan(y).total <= terms.creditLimitKhr) ? workedLoan(y) : null;
+    const t: LoanYearTotals = {
+      year: y, drawnKhr: sum('drawKhr'), interestKhr: sum('interestKhr'), principalKhr: sum('principalKhr'), purchasesKhr: sum('purchaseKhr'), feedKhr: sum('feedKhr'), salesKhr: sum('salesKhr'), profitKhr: 0, headDays: sum('headDays'), startCattleKhr: r0(yearPurchases(y)),
+      noTradeMonths: noTradeMonths(y),
+      ...(worked ? { loanParts: { cattleKhr: r0(worked.cattle), feedKhr: r0(worked.feed), interestKhr: r0(worked.interest), interestMonths: worked.interestMonths } } : {}),
+    };
     // Cattle count when they are sold, so a herd still on the farm at the year end is not a loss.
     t.profitKhr = t.salesKhr - ms.reduce((s, m) => s + m.headSold, 0) * buyPerHead - t.feedKhr - t.interestKhr;
     years.push(t);
@@ -369,8 +370,8 @@ export function parseLoanTerms(raw: unknown): FarmLoanTerms | string {
   }
   repayments.sort((x, y) => x.month - y.month);
   if (repayments.reduce((s, p) => s + p.pct, 0) > 100.0001) return 'The repayments add up to more than 100%.';
-  if (r.loanCovers !== undefined && r.loanCovers !== null && r.loanCovers !== 'cattle' && r.loanCovers !== 'all') return 'Choose what the loan covers.';
-  const loanCovers = r.loanCovers === 'all' ? 'all' as const : undefined;
+  if (r.loanCovers !== undefined && r.loanCovers !== null && r.loanCovers !== 'cattle' && r.loanCovers !== 'start' && r.loanCovers !== 'all') return 'Choose what the loan covers.';
+  const loanCovers = r.loanCovers === 'all' || r.loanCovers === 'start' ? r.loanCovers : undefined;
   return { bank, creditLimitKhr, annualRatePct, financedPct, ...(loanAmountKhr > 0 ? { loanAmountKhr } : {}), ...(loanCovers ? { loanCovers } : {}), startMonth, repayments, autoRenew: r.autoRenew !== false };
 }
 
@@ -378,7 +379,7 @@ export function parseLoanTerms(raw: unknown): FarmLoanTerms | string {
 export function parseLoanAssumptions(raw: unknown): FarmLoanAssumptions | string {
   if (!raw || typeof raw !== 'object') return 'The plan is not valid.';
   const r = raw as Record<string, unknown>;
-  const checks: [Exclude<keyof FarmLoanAssumptions, 'feedLines' | 'buyPlan' | 'firstBuyPct' | 'secondBuyMonth'>, number, number, string][] = [
+  const checks: [Exclude<keyof FarmLoanAssumptions, 'feedLines' | 'buyPlan'>, number, number, string][] = [
     ['herdTarget', 1, 100_000, 'Type how many cattle the farm keeps.'],
     ['initialWeightKg', 1, 2000, 'Type the weight when bought.'],
     ['dailyGainKg', 0, 5, 'Type the gain each day (0 to 5 kg).'],
@@ -395,20 +396,8 @@ export function parseLoanAssumptions(raw: unknown): FarmLoanAssumptions | string
     if (v === null) return message;
     out[key] = key === 'herdTarget' || key === 'lastBuyMonth' ? Math.round(v) : v;
   }
-  // How cattle are bought (older plans: every month).
-  const plans = ['monthly', 'once', 'rounds', 'split'] as const;
-  if (r.buyPlan !== undefined && r.buyPlan !== null) {
-    if (!plans.includes(r.buyPlan as (typeof plans)[number])) return 'Choose how the cattle are bought.';
-    out.buyPlan = r.buyPlan as FarmLoanAssumptions['buyPlan'];
-  }
-  if (out.buyPlan === 'split') {
-    const pct = num(r.firstBuyPct, 1, 99);
-    if (pct === null) return 'Type the share of the herd bought first (1 to 99%).';
-    const month = num(r.secondBuyMonth, 2, 12);
-    if (month === null || !Number.isInteger(month)) return 'Choose the month of the second purchase (2 to 12).';
-    out.firstBuyPct = pct;
-    out.secondBuyMonth = month;
-  }
+  // Cattle are only bought by the monthly trade. Older plans may carry another choice; it is read as the monthly trade.
+  out.buyPlan = 'monthly';
   // Feed by kind: when given, the feed cost a day is their sum.
   const feedLines = parseFeedLines(r.feedLines);
   if (typeof feedLines === 'string') return feedLines;
@@ -521,10 +510,12 @@ export function ccTrades(plan: LoanPlan): { rows: CcTradeRow[]; years: (Omit<CcT
       feedKhr: m.feedKhr, swap: sameDayHead > 0,
     });
   });
+  // The year totals follow the loan table (the Bank loan tab), so a restock taken on the last day of a year to replace the cattle sold
+  // that day is counted in the NEXT year, although its row shows it on the month of the sale.
   const years = [...new Set(ms.map(m => m.year))].map(year => {
-    const ys = rows.filter(r => r.year === year);
-    const sum = (k: keyof CcTradeRow) => ys.reduce((s, r) => s + (r[k] as number), 0);
-    return { year, headSold: sum('headSold'), saleKhr: sum('saleKhr'), headBought: sum('headBought'), purchaseKhr: sum('purchaseKhr'), feedKhr: sum('feedKhr') };
+    const ys = ms.filter(m => m.year === year);
+    const sum = (k: 'headSold' | 'buybackKhr' | 'headBought' | 'purchaseKhr' | 'feedKhr') => ys.reduce((s, m) => s + m[k], 0);
+    return { year, headSold: sum('headSold'), saleKhr: sum('buybackKhr'), headBought: sum('headBought'), purchaseKhr: sum('purchaseKhr'), feedKhr: sum('feedKhr') };
   });
   return { rows, years };
 }

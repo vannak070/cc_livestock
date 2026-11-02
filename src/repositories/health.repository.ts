@@ -89,6 +89,26 @@ export class HealthRepository {
     return this.mapRowToHealthLog(res.rows[0]);
   }
 
+  /** The date of the animal's newest Disease or Treatment record, leaving out `exceptId`; null when it has none. */
+  async latestStatusLogDate(cowId: string, exceptId: string, client?: PoolClient): Promise<Date | null> {
+    const res = await this.executeQuery(
+      "SELECT MAX(date) AS latest FROM health_logs WHERE cow_id = $1 AND type IN ('Disease', 'Treatment') AND id <> $2",
+      [cowId, exceptId],
+      client
+    );
+    return res.rows[0]?.latest ? new Date(res.rows[0].latest) : null;
+  }
+
+  /** The animal's newest Disease or Treatment record (newest date; the later entry wins a tie), or null when it has none. */
+  async latestStatusLog(cowId: string, client?: PoolClient): Promise<{ type: string; date: Date } | null> {
+    const res = await this.executeQuery(
+      "SELECT type, date FROM health_logs WHERE cow_id = $1 AND type IN ('Disease', 'Treatment') ORDER BY date DESC, id DESC LIMIT 1",
+      [cowId],
+      client
+    );
+    return res.rows[0] ? { type: String(res.rows[0].type), date: new Date(res.rows[0].date) } : null;
+  }
+
   async delete(id: string, client?: PoolClient): Promise<boolean> {
     const res = await this.executeQuery('DELETE FROM health_logs WHERE id = $1 RETURNING id', [id], client);
     return res.rows.length > 0;

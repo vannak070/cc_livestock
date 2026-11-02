@@ -9,14 +9,23 @@ import { en as feedPageEn } from './sections/feedPage';
 import { en as feedFlowsEn } from './sections/feedFlows';
 import { en as summaryPageEn } from './sections/summaryPage';
 import { en as farmLimitsEn } from './sections/farmLimits';
+import { en as myAccountEn } from './sections/myAccount';
 import { en as longStayEn } from './sections/longStay';
 import { en as billingEn } from './sections/billing';
+import { en as actionPlansEn } from './sections/actionPlans';
+import { en as receiptImportEn } from './sections/receiptImport';
+import { en as buybackFlowEn } from './sections/buybackFlow';
+import { en as opsTasksEn } from './sections/opsTasks';
+import { en as controlDashboardEn } from './sections/controlDashboard';
+import { en as reportPdfEn } from './sections/reportPdf';
+import { en as camcowStockEn } from './sections/camcowStock';
 import { en as websitePageEn } from './sections/websitePage';
 import { en as addCattleEn } from './sections/addCattle';
 import { en as batchesPageEn } from './sections/batchesPage';
 import { en as planningEn } from './sections/planning';
 import { en as permissionsEn } from './sections/permissions';
 import { en as settingsPageEn } from './sections/settingsPage';
+import { en as sessionEn } from './sections/session';
 import { en as farmsPageEn } from './sections/farmsPage';
 import { en as reportsPageEn } from './sections/reportsPage';
 import { en as salesPageEn } from './sections/salesPage';
@@ -26,6 +35,7 @@ export const en = {
     dashboard: 'Summary',
     today: 'Today',
     billing: 'Billing',
+    actionPlans: 'Action plans',
     website: 'Website',
     summary: 'Summary',
     weights: 'Weights',
@@ -368,14 +378,23 @@ export const en = {
   feedFlows: feedFlowsEn,
   summaryPage: summaryPageEn,
   farmLimits: farmLimitsEn,
+  myAccount: myAccountEn,
   longStay: longStayEn,
   billing: billingEn,
+  actionPlans: actionPlansEn,
+  receiptImport: receiptImportEn,
+  buybackFlow: buybackFlowEn,
+  opsTasks: opsTasksEn,
+  controlDashboard: controlDashboardEn,
+  reportPdf: reportPdfEn,
+  camcowStock: camcowStockEn,
   websitePage: websitePageEn,
   addCattle: addCattleEn,
   batchesPage: batchesPageEn,
   planning: planningEn,
   permissions: permissionsEn,
   settingsPage: settingsPageEn,
+  session: sessionEn,
   farmsPage: farmsPageEn,
   reportsPage: reportsPageEn,
   salesPage: salesPageEn,

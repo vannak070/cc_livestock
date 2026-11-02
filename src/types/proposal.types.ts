@@ -22,7 +22,7 @@ export interface PlanFeedLine {
  * `bankInterestRateAnnual`; the cattle come from the plan's own numbers.
  */
 export type PlanLoan = Omit<FarmLoanTerms, 'annualRatePct'> &
-  Pick<FarmLoanAssumptions, 'buyPlan' | 'firstBuyPct' | 'secondBuyMonth' | 'lastBuyMonth' | 'openingCashKhr'>;
+  Pick<FarmLoanAssumptions, 'buyPlan' | 'lastBuyMonth' | 'openingCashKhr'>;
 
 export interface ProposalPlanParams {
   targetStockLevel: number;

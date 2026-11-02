@@ -1,8 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
+import { useStoredValue } from '../hooks/useStoredValue';
 import { en, PartialTranslations } from '../locales/en';
 import { km } from '../locales/km';
+import { LANG_COOKIE } from '../lib/server-messages';
 
 export type Language = 'en' | 'km';
 
@@ -18,19 +20,15 @@ const dictionaries: Record<Language, PartialTranslations> = { en, km };
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>('km');
+  // Khmer until this browser remembers another choice.
+  const [stored, setLanguage] = useStoredValue('livestock_lang', 'km');
+  const language: Language = stored === 'en' ? 'en' : 'km';
 
+  // Server actions answer common messages in this language (src/lib/server-messages.ts), so tell the server.
   useEffect(() => {
-    const savedLang = localStorage.getItem('livestock_lang') as Language;
-    if (savedLang === 'en' || savedLang === 'km') {
-      setLanguageState(savedLang);
-    }
-  }, []);
-
-  const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
-    localStorage.setItem('livestock_lang', lang);
-  };
+    const secure = window.location.protocol === 'https:' ? '; secure' : '';
+    document.cookie = `${LANG_COOKIE}=${language}; path=/; max-age=31536000; samesite=lax${secure}`;
+  }, [language]);
 
   const t = (path: string, fallback?: string): string => {
     const keys = path.split('.');

@@ -2,10 +2,13 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { KmWords } from '@/components/shared/KmWords';
-import { PageHead } from '@/components/shared/PageHead';
-import { Reveal } from '@/components/shared/Reveal';
 import { ABOUT } from '@/lib/about';
-import { CONTACT } from '@/lib/contact';
+import { CONTACT, contactAddress, contactMapLink } from '@/lib/contact';
+import { ContactCard } from '@/components/shared/ContactCard';
+import { ManagementMessage } from '@/components/stand/ManagementMessage';
+import { PageHead } from '@/components/shared/PageHead';
+import { SectionHead } from '@/components/shared/SectionHead';
+import { LoanTeaser, PartnerStrip, ValueCards, ValueChain, VisionMission, WhyPanel } from '@/components/stand/StandParts';
 import { href } from '@/lib/i18n';
 import { showLiveNumbers } from '@/lib/launch';
 import { pageLang } from '@/lib/page';
@@ -33,8 +36,6 @@ const ICON = {
   facebook: 'M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z',
   send: 'M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z',
 };
-const WHAT_ICONS = [ICON.cattle, ICON.vet, ICON.record, ICON.buyer];
-const VALUE_ICONS = [ICON.honest, ICON.fair, ICON.healthy];
 
 function Icon({ d, size = 26 }: { d: string; size?: number }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
@@ -43,16 +44,14 @@ function Icon({ d, size = 26 }: { d: string; size?: number }) {
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
 /**
- * About us: a plain statement of who CamCow is beside a company card
- * (office, phone, the network once there are enough farms), then what it
- * does, how it works with farms, its values, the team and the office. Kept
- * different from the home page on purpose (no photo hero, no numbers strip). Content: src/lib/about.ts
- * and the about texts; facts only from the public snapshot.
+ * About us: the shared page top (PageHead) with the company card beside it, a sticky row of section links, then
+ * Leadership (message), Who we are, Vision & mission, Values, How we produce, Our beef and Contact. Each section opens
+ * with SectionHead, like Home and For farmers. Content: src/lib/about.ts and the about/stand texts; facts only from the
+ * public snapshot.
  */
 export default async function AboutPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang, t } = await pageLang(params);
   const a = t.about;
-  const km = lang === 'km';
   const draft = !ABOUT.ready;
   const todo = (what: string) => (draft ? <p className="todo"><b>{a.todo}:</b> {what}</p> : null);
   const s = await getSnapshot();
@@ -60,6 +59,10 @@ export default async function AboutPage({ params }: { params: Promise<{ lang: st
   const network = showLiveNumbers(s.farms.length)
     ? a.cardNetworkValue.replace('{farms}', s.summary.memberFarms).replace('{provinces}', String(s.summary.provinces))
     : '';
+  const sections: [string, string][] = [
+    ['message', a.navMessage], ['who', a.navWho], ['vision', a.navVision], ['values', a.navValues],
+    ['chain', a.navChain], ['beef', a.navBeef], ['contact', a.navContact],
+  ];
 
   return (
     <>
@@ -69,91 +72,88 @@ export default async function AboutPage({ params }: { params: Promise<{ lang: st
         eyebrow={a.title}
         title={a.statement}
         sub={a.sub}
-        aside={(
-          <div className="ph-card ab-idcard" aria-label={a.company}>
-            <div className="ab-idcard-top">
-              <Image src="/logo.png" alt="" width={64} height={64} />
+        aside={
+          <div className="ab2-card" aria-label={a.company}>
+            <div className="ab2-card-top">
+              <Image src="/logo-2026.png" alt="" width={84} height={84} priority />
               <div>
                 <b lang="km">ខេម ខោវ</b>
                 <span>CAM COW CO., LTD</span>
               </div>
             </div>
+            <p className="ab2-slogan"><KmWords text={t.stand.slogan} /></p>
             <dl>
-              <div><dt><Icon d={ICON.pin} size={18} />{a.cardOffice}</dt><dd>{ABOUT.address || t.contact.officeText}</dd></div>
+              <div><dt><Icon d={ICON.pin} size={18} />{a.cardOffice}</dt><dd lang={lang}>{contactAddress(lang)}</dd></div>
               <div><dt><Icon d={ICON.phone} size={18} />{a.cardPhone}</dt><dd><a href={`tel:${CONTACT.phoneTel}`}>{CONTACT.phone}</a></dd></div>
               {network && <div><dt><Icon d={ICON.fair} size={18} />{a.cardNetwork}</dt><dd>{network}</dd></div>}
               {ABOUT.hours && <div><dt><Icon d={ICON.clock} size={18} />{a.hours}</dt><dd>{ABOUT.hours}</dd></div>}
             </dl>
-            <Link className="btn btn-red" href={href(lang, '/join')}>{a.ctaJoin}</Link>
           </div>
-        )}
+        }
       >
-        {ABOUT.foundedYear ? <span className="ab-founded rise d3">{a.founded.replace('{year}', ABOUT.foundedYear)}</span> : todo(a.todoFounded)}
+        <div className="row" style={{ gap: 10 }}>
+          <Link className="btn btn-red" href={href(lang, '/join')}>{a.ctaJoin} <span aria-hidden="true">→</span></Link>
+          <a className="btn btn-line" href="#contact">{a.navContact}</a>
+        </div>
+        {ABOUT.foundedYear ? <span className="ab-founded">{a.founded.replace('{year}', ABOUT.foundedYear)}</span> : todo(a.todoFounded)}
       </PageHead>
 
-      <section className="section">
-        <div className="wrap ab-story">
-          <div className="stack" style={{ gap: 16, minWidth: 0 }}>
-            <h2 className="display h2"><KmWords text={a.storyTitle} /></h2>
-            {a.story.map(p => <p key={p.slice(0, 24)} className="lead" style={{ maxWidth: '62ch' }}>{p}</p>)}
+      <nav className="ab2-nav" aria-label={a.title}>
+        <div className="wrap ab2-nav-in">
+          {sections.map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}
+        </div>
+      </nav>
+
+      <section className="section anchor" id="message">
+        <div className="wrap">
+          <ManagementMessage t={t} lang={lang} />
+        </div>
+      </section>
+
+      <section className="section section-paper anchor" id="who">
+        <div className="wrap ab2-who">
+          <SectionHead eyebrow={a.navWho} title={a.whoTitle} />
+          <div className="stack" style={{ gap: 14, minWidth: 0 }}>
+            <p className="lead" style={{ margin: 0, color: 'var(--ink)' }}>{t.stand.aboutBody}</p>
+            {a.story.slice(1).map(p => <p key={p.slice(0, 24)} style={{ margin: 0, color: 'var(--ink-2)' }}>{p}</p>)}
           </div>
-          <blockquote className="ab-promise">
-            <span>{a.missionLabel}</span>
-            <p><KmWords text={t.home.title1} /><br /><KmWords text={t.home.title2} /></p>
-            <Image src="/logo.png" alt="" width={56} height={56} />
-          </blockquote>
         </div>
       </section>
 
-      <section className="section section-mint">
+      <section className="section anchor" id="vision">
         <div className="wrap stack" style={{ gap: 28 }}>
-          <h2 className="display h2"><KmWords text={a.whatTitle} /></h2>
-          <Reveal className="grid">
-            {a.what.map((w, i) => (
-              <div key={w.title} className="card lift stack" style={{ gap: 10 }}>
-                <span className="ab-icon"><Icon d={WHAT_ICONS[i % WHAT_ICONS.length]} /></span>
-                <h3 style={{ fontSize: 19 }}>{w.title}</h3>
-                <p style={{ color: 'var(--ink-2)' }}>{w.body}</p>
-              </div>
-            ))}
-          </Reveal>
+          <SectionHead eyebrow={a.navVision} title={a.visionMissionTitle} />
+          <VisionMission t={t} lang={lang} />
         </div>
       </section>
 
-      <section className="section">
+      <section className="section section-paper anchor" id="values">
         <div className="wrap stack" style={{ gap: 28 }}>
-          <h2 className="display h2"><KmWords text={a.stepsTitle} /></h2>
-          <ol className="ab-steps">
-            {t.home.steps.map((st, i) => (
-              <li key={st.title}>
-                <span className="ab-step-no">{km ? '១២៣៤'[i] : i + 1}</span>
-                <b>{st.title}</b>
-                <span>{st.body}</span>
-              </li>
-            ))}
-          </ol>
+          <SectionHead eyebrow={a.navValues} title={t.stand.valuesTitle} intro={a.valuesIntro} />
+          <ValueCards t={t} />
         </div>
       </section>
 
-      <section className="section section-white" style={{ borderTop: '1px solid var(--line)' }}>
-        <div className="wrap stack" style={{ gap: 28 }}>
-          <h2 className="display h2"><KmWords text={a.valuesTitle} /></h2>
-          <div className="grid">
-            {a.values.map((v, i) => (
-              <div key={v.title} className="ab-value">
-                <span className="ab-icon ab-icon-red"><Icon d={VALUE_ICONS[i % VALUE_ICONS.length]} /></span>
-                <h3 style={{ fontSize: 20 }}>{v.title}</h3>
-                <p style={{ color: 'var(--ink-2)' }}>{v.body}</p>
-              </div>
-            ))}
-          </div>
+      <section className="section anchor" id="chain">
+        <div className="wrap stack" style={{ gap: 32 }}>
+          <SectionHead eyebrow={a.navChain} title={t.stand.chainTitle} intro={a.chainIntro} center />
+          <ValueChain t={t} />
+        </div>
+      </section>
+
+      <section className="section section-paper anchor" id="beef">
+        <div className="wrap stack" style={{ gap: 32 }}>
+          <SectionHead eyebrow={a.navBeef} title={t.stand.supplyTitle} intro={t.stand.supplySub} />
+          <WhyPanel t={t} />
+          <PartnerStrip t={t} lang={lang} />
+          <LoanTeaser t={t} to={href(lang, '/for-farmers#loans')} />
         </div>
       </section>
 
       {(ABOUT.team.length > 0 || draft) && (
-        <section className="section section-white" style={{ borderTop: '1px solid var(--line)' }}>
+        <section className="section">
           <div className="wrap stack" style={{ gap: 28 }}>
-            <h2 className="display h2"><KmWords text={a.teamTitle} /></h2>
+            <SectionHead eyebrow={a.navMessage} title={a.teamTitle} />
             {ABOUT.team.length === 0 ? todo(a.todoTeam) : (
               <ul className="grid" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                 {ABOUT.team.map(m => (
@@ -171,45 +171,13 @@ export default async function AboutPage({ params }: { params: Promise<{ lang: st
         </section>
       )}
 
-      <section className="section section-white ab-visit-section">
-        <div className="wrap stack" style={{ gap: 28 }}>
-          <div className="stack" style={{ gap: 6 }}>
-            <h2 className="display h2"><KmWords text={a.officeTitle} /></h2>
-            <p className="lead" style={{ margin: 0 }}>{a.officeSub}</p>
-          </div>
-          <div className="ab-visit">
-            <div className="ab-visit-office">
-              <span className="ab-icon ab-icon-red"><Icon d={ICON.pin} /></span>
-              <h3>{a.cardOffice}</h3>
-              <p>{ABOUT.address || t.contact.officeText}</p>
-              {!ABOUT.address && todo(a.todoAddress)}
-              {ABOUT.hours ? <p className="ab-visit-hours"><Icon d={ICON.clock} size={18} />{ABOUT.hours}</p> : todo(a.todoHours)}
-              <div className="row" style={{ gap: 10, marginTop: 'auto', paddingTop: 8 }}>
-                {ABOUT.mapLink ? <a className="btn btn-line" href={ABOUT.mapLink} target="_blank" rel="noopener noreferrer">{t.contact.directions}</a> : todo(a.todoMap)}
-                <a className="btn btn-green" href={`tel:${CONTACT.phoneTel}`}><Icon d={ICON.phone} size={18} />{t.common.callUs}</a>
-              </div>
-            </div>
-            <div className="ab-reach">
-              <h3>{a.reachTitle}</h3>
-              <a className="ab-reach-row" href={`tel:${CONTACT.phoneTel}`}>
-                <span className="ab-icon"><Icon d={ICON.phone} size={20} /></span>
-                <span><small>{a.cardPhone}</small><b>{CONTACT.phone}</b></span>
-              </a>
-              {CONTACT.telegram && (
-                <a className="ab-reach-row" href={CONTACT.telegram} target="_blank" rel="noopener noreferrer">
-                  <span className="ab-icon"><Icon d={ICON.send} size={20} /></span>
-                  <span><small>Telegram</small><b>{CONTACT.telegram.replace(/^https?:\/\//, '')}</b></span>
-                </a>
-              )}
-              <a className="ab-reach-row" href={CONTACT.facebook} target="_blank" rel="noopener noreferrer">
-                <span className="ab-icon"><Icon d={ICON.facebook} size={20} /></span>
-                <span><small>{t.common.facebook}</small><b><span lang="km">ខេម ខោវ</span> Cam Cow</b></span>
-              </a>
-              <div className="ab-reach-row ab-reach-static">
-                <span className="ab-icon"><Icon d={ICON.building} size={20} /></span>
-                <span><small>{a.company}</small><b>CAM COW CO., LTD</b></span>
-              </div>
-            </div>
+      <section className="section anchor" id="contact">
+        <div className="wrap stack" style={{ gap: 24 }}>
+          <SectionHead eyebrow={a.navContact} title={a.contactTitle} intro={a.officeSub} />
+          <ContactCard lang={lang} t={t} />
+          <div className="row" style={{ gap: 10 }}>
+            <a className="btn btn-line" href={contactMapLink} target="_blank" rel="noopener noreferrer"><Icon d={ICON.pin} size={18} />{t.contact.directions}</a>
+            <span className="small muted"><Icon d={ICON.building} size={16} /> {a.company}: CAM COW CO., LTD</span>
           </div>
         </div>
       </section>

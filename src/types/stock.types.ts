@@ -18,6 +18,8 @@ export interface StockItem {
   purchaseType?: string;
   paymentMethod?: string;
   imageUrl?: string;
+  /** The animal has a photo. The picture itself is not in the cattle list; it is fetched when a cattle page opens. */
+  hasPhoto?: boolean;
 }
 
 export interface WeightRecord {

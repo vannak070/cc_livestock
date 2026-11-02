@@ -61,10 +61,14 @@ export interface PublicNews {
 }
 
 export interface PublicSnapshot {
+  /** Set by this site (never by CC Livestock) when the snapshot is too old to show cattle availability. */
+  stale?: boolean;
   version: 1;
   builtAt: string;
   summary: PublicSummary;
   farms: PublicFarm[];
   cattle: PublicListing[];
   news: PublicNews[];
+  /** Built-in pictures replaced from the office (slot -> photo id; lib/site-images.ts). Missing in older snapshots. */
+  siteImages?: Partial<Record<string, string>>;
 }

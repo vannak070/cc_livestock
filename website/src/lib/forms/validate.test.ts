@@ -23,6 +23,9 @@ describe('public form checks', () => {
   it('checks inquiries, including the listing code shape', () => {
     expect(checkInquiry({ name: 'Dara', phone: '098765432', buyerType: 'trader', quantity: '20', weightClass: '350–400 kg', listingId: 'l-abc123', message: 'Hi' }).ok).toBe(true);
     expect(checkInquiry({ name: 'Dara', phone: '098765432', listingId: 'BATCH-1' })).toEqual({ ok: false, field: 'listingId' });
+    // a question from the Contact page needs its message
+    expect(checkInquiry({ name: 'Dara', phone: '098765432', buyerType: 'question', message: '' })).toEqual({ ok: false, field: 'message' });
+    expect(checkInquiry({ name: 'Dara', phone: '098765432', buyerType: 'question', message: 'Do you deliver?' }).ok).toBe(true);
     const price = checkInquiry({ name: 'Dara', phone: '098765432', listingId: 'l-abc123' });
     expect(price.ok && price.value.kind).toBe('price');
     const notify = checkInquiry({ name: 'Dara', phone: '098765432', kind: 'notify', listingId: 'l-abc123' });

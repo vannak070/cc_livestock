@@ -3,6 +3,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { getErrorMessage } from '@/lib/utils';
 
 /** Small building blocks shared by the Website page's tabs. */
 
@@ -12,7 +13,7 @@ export async function ok<T>(res: { success: true; data: T } | { success: false; 
   return res.data;
 }
 
-export const errorText = (err: unknown, fallback: string) => (err instanceof Error && err.message ? err.message : fallback);
+export const errorText = (err: unknown, fallback: string) => getErrorMessage(err, fallback);
 
 /** A photo stored on the Website page (served to signed-in office users only). */
 export function PhotoThumb({ id, alt, className = 'h-16 w-16' }: { id: string; alt: string; className?: string }) {

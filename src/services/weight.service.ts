@@ -83,8 +83,10 @@ export class WeightService {
     return withTransaction(async (client) => {
       const updated = await weightRepository.update(cowId, trackingDate, currentWeight, healthStatus, client);
       
-      const history = await weightRepository.findByCowId(cowId);
-      if (history.length > 0 && history[0].trackingDate === trackingDate) {
+      // Read inside the transaction; the history is oldest first, so the latest is the last item.
+      const latest = (await weightRepository.findByCowId(cowId, client)).at(-1);
+      // Compared as moments, the way the repository matches tracking_date.
+      if (latest?.trackingDate && new Date(latest.trackingDate).getTime() === new Date(trackingDate).getTime()) {
         await stockRepository.update(cowId, { weight: currentWeight, healthStatus }, client);
       }
 
@@ -99,11 +101,12 @@ export class WeightService {
     return withTransaction(async (client) => {
       const deleted = await weightRepository.delete(cowId, trackingDate, client);
       if (deleted) {
-        const remaining = await weightRepository.findByCowId(cowId);
-        if (remaining.length > 0) {
+        // Read inside the transaction (so the deleted weighing is gone); oldest first, so the latest is the last item.
+        const latest = (await weightRepository.findByCowId(cowId, client)).at(-1);
+        if (latest) {
           await stockRepository.update(cowId, {
-            weight: remaining[0].currentWeight,
-            healthStatus: remaining[0].healthStatus
+            weight: latest.currentWeight,
+            healthStatus: latest.healthStatus
           }, client);
         }
       }

@@ -1,7 +1,9 @@
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import { Actor } from './authz';
 import { requireSessionActor } from './session';
 import { PermissionKey } from './types';
+import { LANG_COOKIE, localizeServerMessage } from './server-messages';
 
 /** What every server action returns: the client checks `success`, then reads `data` or `error`. */
 export type ActionResult<T> =
@@ -15,6 +17,15 @@ export type ActionResult<T> =
  * the HTTP-style `status` (401/403) when the failure was an authorization one.
  * Successful writes revalidate the page unless `revalidate: false`.
  */
+/** Common sign-in and access messages in the language the browser chose (server-messages.ts). */
+async function inChosenLanguage(message: string): Promise<string> {
+  try {
+    return localizeServerMessage(message, (await cookies()).get(LANG_COOKIE)?.value);
+  } catch {
+    return message; // outside a request (tests, scripts)
+  }
+}
+
 export async function runAction<T>(
   fallbackError: string,
   permissions: PermissionKey[],
@@ -32,7 +43,7 @@ export async function runAction<T>(
       : undefined;
     return {
       success: false,
-      error: err instanceof Error && err.message ? err.message : fallbackError,
+      error: await inChosenLanguage(err instanceof Error && err.message ? err.message : fallbackError),
       ...(status !== undefined ? { status } : {})
     };
   }

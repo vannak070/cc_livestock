@@ -2,9 +2,12 @@
 
 import React, { useRef, useState } from 'react';
 import { Check, Copy, Download, Share2 } from 'lucide-react';
-import { QRCodeCanvas } from 'qrcode.react';
+import dynamic from 'next/dynamic';
 import { useLanguage } from '@/context/LanguageContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+// The QR code library is loaded only when the Share dialog opens.
+const QRCodeCanvas = dynamic(() => import('qrcode.react').then(m => m.QRCodeCanvas), { ssr: false, loading: () => null });
 
 // "Share app" row for the side menu. Opens a dialog with a QR code of the app's
 // address (drawn in the browser, so the link never goes to a QR service), the

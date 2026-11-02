@@ -9,6 +9,9 @@ import { followUpRepository } from '../repositories/follow-up.repository';
 import { settingsRepository } from '../repositories/settings.repository';
 import { stockRepository } from '../repositories/stock.repository';
 import { weightRepository } from '../repositories/weight.repository';
+import { opsProgramRepository } from '../repositories/ops-program.repository';
+import { salesRepository } from '../repositories/sales.repository';
+import { camcowHoldingRepository } from '../repositories/camcow-holding.repository';
 import { telegramService } from './telegram.service';
 
 export interface DailyAlertRun {
@@ -45,11 +48,15 @@ export class DailyAlertService {
     const hour = farmHour(now);
     if (!options.force && hour < cfg.sendHour) return { sent: 0, skipped: 'not-due' };
 
-    const [stock, weightTracking, batches, feedProducts, feedTransactions, cattleFollowUps] = await Promise.all([
+    const [stock, weightTracking, batches, feedProducts, feedTransactions, cattleFollowUps, programs, tasks, sales, camcow] = await Promise.all([
       stockRepository.findAll(), weightRepository.findAll(), batchRepository.findAll(),
       feedRepository.getProducts(), feedRepository.getTransactions(), followUpRepository.findAll().catch(() => []),
+      // Empty until migration 027 has created the tables.
+      opsProgramRepository.programs().catch(() => []), opsProgramRepository.tasks().catch(() => []), salesRepository.findAll().catch(() => []),
+      // Empty until migration 029 has created the table.
+      camcowHoldingRepository.all().catch(() => []),
     ]);
-    const data = { stock, weightTracking, batches, settings, feedProducts, feedTransactions, cattleFollowUps };
+    const data = { stock, weightTracking, batches, settings, feedProducts, feedTransactions, cattleFollowUps, camcow, ops: { programs, tasks, sales } };
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, '') || undefined;
     const day = farmToday(now);
 

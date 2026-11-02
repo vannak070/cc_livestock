@@ -4,6 +4,8 @@ const log = vi.hoisted(() => ({ cleanup: vi.fn(), claim: vi.fn(), confirm: vi.fn
 const settings = vi.hoisted(() => ({ getSettings: vi.fn(), patchBlob: vi.fn() }));
 const repo = vi.hoisted(() => ({ findAll: vi.fn(), getProducts: vi.fn(), getTransactions: vi.fn() }));
 const telegram = vi.hoisted(() => ({ isConfigured: vi.fn(), send: vi.fn() }));
+// CamCow stock: without this stand-in the test read the real local database and sent an extra "held too long" message.
+const camcow = vi.hoisted(() => ({ all: vi.fn() }));
 vi.mock('../repositories/daily-alert-log.repository', () => ({ dailyAlertLogRepository: log }));
 vi.mock('../repositories/settings.repository', () => ({ settingsRepository: settings }));
 vi.mock('../repositories/stock.repository', () => ({ stockRepository: repo }));
@@ -11,6 +13,9 @@ vi.mock('../repositories/weight.repository', () => ({ weightRepository: { findAl
 vi.mock('../repositories/batch.repository', () => ({ batchRepository: { findAll: vi.fn().mockResolvedValue([]) } }));
 vi.mock('../repositories/feed.repository', () => ({ feedRepository: { getProducts: repo.getProducts, getTransactions: repo.getTransactions } }));
 vi.mock('../repositories/follow-up.repository', () => ({ followUpRepository: { findAll: vi.fn().mockResolvedValue([]) } }));
+vi.mock('../repositories/ops-program.repository', () => ({ opsProgramRepository: { programs: vi.fn().mockResolvedValue([]), tasks: vi.fn().mockResolvedValue([]) } }));
+vi.mock('../repositories/sales.repository', () => ({ salesRepository: { findAll: vi.fn().mockResolvedValue([]) } }));
+vi.mock('../repositories/camcow-holding.repository', () => ({ camcowHoldingRepository: camcow }));
 vi.mock('./telegram.service', () => ({ telegramService: telegram }));
 
 import { DailyAlertService } from './daily-alert.service';
@@ -24,7 +29,8 @@ const NO_PAUSE = { pauseMs: 0 };
 
 describe('DailyAlertService.run', () => {
   beforeEach(() => {
-    [log, settings, repo, telegram].forEach(o => Object.values(o).forEach(f => f.mockReset()));
+    [log, settings, repo, telegram, camcow].forEach(o => Object.values(o).forEach(f => f.mockReset()));
+    camcow.all.mockResolvedValue([]);
     repo.findAll.mockResolvedValue([cow('A1', 'SNR Farm', { purchaseDate: '2026-01-01' }), cow('P1', 'Pursat')]);
     repo.getProducts.mockResolvedValue([]);
     repo.getTransactions.mockResolvedValue([]);
@@ -52,6 +58,18 @@ describe('DailyAlertService.run', () => {
     repo.findAll.mockResolvedValue([cow('A1', 'SNR Farm', { healthStatus: 'sick' }), cow('P1', 'Pursat')]);
     await expect(service.run({ now: MORNING, ...NO_PAUSE })).resolves.toEqual({ sent: 0, skipped: 'nothing-new' });
     expect(telegram.send).not.toHaveBeenCalled();
+  });
+
+  it('warns once about cattle held in CamCow stock for more than 30 days', async () => {
+    repo.findAll.mockResolvedValue([cow('A1', 'SNR Farm'), cow('P1', 'Pursat')]);
+    const held = (cowId: string, collectedOn: string) => ({ cowId, sourceFarm: 'SNR Farm', collectedOn, collectionWeight: 400, collectionTotal: 4_000_000, status: 'Held', note: '' });
+    camcow.all.mockResolvedValue([held('C1', '2026-08-20'), held('C2', '2026-08-20'), held('C3', '2026-10-01')]);
+    await expect(service.run({ now: MORNING, ...NO_PAUSE })).resolves.toEqual({ sent: 1 });
+    expect(log.claim).toHaveBeenCalledWith('2026-10-06', 'camcow:CamCow stock');
+    const text = telegram.send.mock.calls[0][1] as string;
+    expect(text).toContain('Cattle held too long');
+    expect(text).toContain('SNR Farm: 2 animals, 47 days in stock');
+    expect(text).not.toContain('C3');
   });
 
   it('waits for the alert hour', async () => {

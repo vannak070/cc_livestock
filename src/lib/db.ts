@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { ERPLivestockData, BatchItem, HealthLogItem, MasterSetup } from './types';
 import { StockItem, WeightRecord, SalesRecord } from './xlsx-parser';
+import type { DataPart } from './data-parts';
 
 import { stockService } from '../services/stock.service';
 import { weightService } from '../services/weight.service';
@@ -96,24 +97,27 @@ async function requireDb<T>(operation: string, run: () => Promise<T>): Promise<T
  * never loaded. The db.json fallback is not scoped here; callers still run
  * scopeDataForActor over the result.
  */
-export async function getDbData(scope?: FarmScope): Promise<ERPLivestockData> {
+export async function getDbData(scope?: FarmScope, parts?: readonly DataPart[]): Promise<ERPLivestockData> {
+  // With `parts`, only those pieces are read; the others come back empty. Settings are always read because the
+  // farm scoping needs them. Without `parts` everything is read.
+  const want = <T>(part: DataPart, load: () => Promise<T>, empty: T): Promise<T> => (!parts || parts.includes(part) ? load() : Promise.resolve(empty));
   try {
     const [stock, weightTracking, salesTracking, batches, healthLogs, settings, feedProducts, feedTransactions, proposalPlans, farmCosts, farmLimitRequests, farmLimitChanges, cattleFollowUps] = await Promise.all([
-      stockService.getAllStock(scope),
-      weightService.getAllWeightRecords(scope),
-      salesService.getAllSales(scope),
-      batchService.getAllBatches(scope),
-      healthService.getAllHealthLogs(scope),
+      want('stock', () => stockService.getAllStock(scope), []),
+      want('weightTracking', () => weightService.getAllWeightRecords(scope), []),
+      want('salesTracking', () => salesService.getAllSales(scope), []),
+      want('batches', () => batchService.getAllBatches(scope), []),
+      want('healthLogs', () => healthService.getAllHealthLogs(scope), []),
       settingsService.getSettings(),
-      feedRepository.getProducts().catch(() => []),
-      feedRepository.getTransactions().catch(() => []),
-      proposalPlanRepository.findAll().catch(() => []),
+      want('feedProducts', () => feedRepository.getProducts().catch(() => []), []),
+      want('feedTransactions', () => feedRepository.getTransactions().catch(() => []), []),
+      want('proposalPlans', () => proposalPlanRepository.findAll().catch(() => []), []),
       // Empty until migration 008 has created the table.
-      farmCostService.getAll(scope).catch(() => []),
+      want('farmCosts', () => farmCostService.getAll(scope).catch(() => []), []),
       // Empty until migration 014 has created the tables.
-      farmLimitRepository.findRequests(scope).catch(() => []),
-      farmLimitRepository.findChanges(scope).catch(() => []),
-      followUpRepository.findAll(scope).catch(() => [])
+      want('farmLimitRequests', () => farmLimitRepository.findRequests(scope).catch(() => []), []),
+      want('farmLimitChanges', () => farmLimitRepository.findChanges(scope).catch(() => []), []),
+      want('cattleFollowUps', () => followUpRepository.findAll(scope).catch(() => []), [])
     ]);
 
     const common = {
@@ -211,8 +215,8 @@ export async function recordSale(cowId: string, unitPrice: number, saleType: 'We
   return requireDb('record sale', () => salesService.recordSale(cowId, unitPrice, saleType, salesDate, buyer));
 }
 
-export async function recordBatchSale(batchId: string, unitPrice: number, saleType: 'Weight' | 'Lumpsum', salesDate?: string): Promise<SalesRecord[]> {
-  return requireDb('record batch sale', () => salesService.recordBatchSale(batchId, unitPrice, saleType, salesDate));
+export async function recordBatchSale(batchId: string, unitPrice: number, saleType: 'Weight' | 'Lumpsum', salesDate?: string, buyer?: string): Promise<SalesRecord[]> {
+  return requireDb('record batch sale', () => salesService.recordBatchSale(batchId, unitPrice, saleType, salesDate, buyer));
 }
 
 export async function updateSalesRecord(cowId: string, updates: Partial<SalesRecord>): Promise<SalesRecord> {

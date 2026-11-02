@@ -21,8 +21,11 @@
 
 @theme {
   /* Brand */
-  --color-brand: #B3202F;          /* logo crimson: brand name, brand stripe */
-  --color-brand-dark: #8E1824;
+  --color-brand: #B42C31;          /* logo red (2026-10 logo): brand name, brand stripe */
+  --color-brand-dark: #8F2227;
+  --color-brand-navy: #231F59;     /* logo navy */
+  --color-brand-blue: #426AB3;     /* logo blue */
+  --color-brand-green: #37B44A;    /* logo green (accents only; buttons keep the darker emerald for contrast) */
   --color-canvas: #F7F6F3;         /* page background */
   --color-ink: #17201C;            /* body text */
   --color-ink-muted: #4B5852;      /* secondary text, 7:1 on white */

@@ -42,6 +42,8 @@ export function scopeFor(actor: { farmLocation?: string | null }): FarmScope | u
  * `column` must be a trusted identifier from our own code, never user input;
  * the farm name itself is always passed as a bind parameter. The parameter is
  * numbered `$<nextParam>` and returned in `params`.
+ * Migration 033 indexes `LOWER(BTRIM(location, E' \t\r\n'))` on stock: change this expression and the index stops
+ * being used (add a new migration with the new expression).
  */
 export function farmMatchSql(column: string, farmLocation: string, nextParam: number): { sql: string; params: unknown[] } {
   const f = normalise(farmLocation);

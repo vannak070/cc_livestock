@@ -1,0 +1,41 @@
+# HTTPS in front of CC Livestock (nginx on the same machine as the app). Replace farm.example.com and the
+# certificate paths (for example from certbot: sudo certbot --nginx -d farm.example.com). On Cloudways, turn on the
+# SSL certificate and "Force HTTPS redirection" in the panel instead; the app only needs the settings below.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name farm.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name farm.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/farm.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/farm.example.com/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    client_max_body_size 12M;   # receipts and photos travel as text, up to about 10 MB
+
+    location /api {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;   # not $proxy_add_x_forwarded_for: a caller must not be able to add its own
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

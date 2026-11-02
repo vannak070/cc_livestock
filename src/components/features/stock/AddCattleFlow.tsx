@@ -10,6 +10,8 @@ import { limitBlock, limitUsed, type LimitBlock } from '@/lib/farm-limit';
 import { Choice, FlowDone, FlowFooter, FlowShell, NUM, PickList, Question, money as fmtMoney, today } from '../flow/FlowShell';
 import { useText, useValueText } from '@/hooks/useText';
 import { shownDay } from '@/lib/khmer-date';
+import { PHOTO_MAX_SIDE, PHOTO_QUALITY } from '@/lib/cattle-photo';
+import { shrinkImage, toDataUrl } from '@/lib/image-resize';
 
 export type NewCattle = Omit<StockItem, 'no' | 'status'> & { imageUrl?: string };
 
@@ -29,6 +31,18 @@ interface AddCattleFlowProps {
   limitRequests?: FarmLimitRequest[];
   /** Opens "Ask for more cattle" for a farm (this dialog closes first). */
   onAskMore?: (farm: string) => void;
+  /** Opened from a farm task ("sell cattle to this farm"): the farm, the way the cattle came and the price are filled in. */
+  prefill?: AddCattlePrefill;
+}
+
+export interface AddCattlePrefill {
+  farm: string;
+  /** The origin to start with (the cattle are bought from CC Livestock). */
+  origin?: string;
+  /** Riel per kg the farm pays. */
+  pricePerKg?: number;
+  /** One line shown above the questions, for example the task. */
+  taskLine?: string;
 }
 
 type Step = 'origin' | 'tag' | 'kind' | 'where' | 'price' | 'review' | 'done';
@@ -49,7 +63,7 @@ export default function AddCattleFlow(props: AddCattleFlowProps) {
   );
 }
 
-function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFarm, onSave, registeredCattle = [], limitRequests = [], onAskMore }: AddCattleFlowProps) {
+function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFarm, onSave, registeredCattle = [], limitRequests = [], onAskMore, prefill }: AddCattleFlowProps) {
   const lockedFarm = currentUser?.farmLocation && !['Super Admin', 'Admin', 'Company'].includes(currentUser.role)
     ? currentUser.farmLocation
     : null;
@@ -66,8 +80,10 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFa
   const perKgType = common.buyTypes?.find(b => b === 'Weight') ?? 'Weight';
   const wholeType = common.buyTypes?.find(b => b !== 'Weight' && !KNOWN_ORIGINS.includes(b)) ?? 'Lumsum';
 
-  const [step, setStep] = useState<Step>('origin');
-  const [origin, setOrigin] = useState('');
+  // From a task the origin is already known, so the first question is skipped.
+  const prefillOrigin = prefill?.origin && (common.purchaseTypes?.length ? common.purchaseTypes : KNOWN_ORIGINS).includes(prefill.origin) ? prefill.origin : '';
+  const [step, setStep] = useState<Step>(prefillOrigin ? 'tag' : 'origin');
+  const [origin, setOrigin] = useState(prefillOrigin);
   const [tag, setTag] = useState('CC-');
   const [weight, setWeight] = useState('');
   // Sex, breed and payment start empty on purpose: a default could be saved unnoticed.
@@ -75,9 +91,9 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFa
   const [breed, setBreed] = useState('');
   const [age, setAge] = useState('');
   const [date, setDate] = useState(today());
-  const [farm, setFarm] = useState(lockedFarm ?? (defaultFarm && farmNames.includes(defaultFarm) ? defaultFarm : farmNames.length === 1 ? farmNames[0] : ''));
-  const [buyType, setBuyType] = useState(wholeType);
-  const [price, setPrice] = useState('');
+  const [farm, setFarm] = useState(lockedFarm ?? (prefill?.farm && farmNames.includes(prefill.farm) ? prefill.farm : defaultFarm && farmNames.includes(defaultFarm) ? defaultFarm : farmNames.length === 1 ? farmNames[0] : ''));
+  const [buyType, setBuyType] = useState(prefill?.pricePerKg ? perKgType : wholeType);
+  const [price, setPrice] = useState(prefill?.pricePerKg ? String(prefill.pricePerKg) : '');
   const [payment, setPayment] = useState('');
   const [seller, setSeller] = useState('');
   const [phone, setPhone] = useState('');
@@ -155,13 +171,18 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFa
   };
   const back = () => go(steps[stepIndex - 1]);
 
-  const onPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     if (file.size > MAX_PHOTO_BYTES) { setError(tx('ePhoto')); return; }
-    const reader = new FileReader();
-    reader.onload = () => setPhoto(reader.result as string);
-    reader.readAsDataURL(file);
+    try {
+      // Shrunk first, so the photo that is saved (and sent with every cattle page) is a few hundred KB.
+      setPhoto(await toDataUrl(await shrinkImage(file, PHOTO_MAX_SIDE, PHOTO_QUALITY)));
+      setError('');
+    } catch {
+      setError(tx('ePhoto'));
+    }
   };
 
   const register = async () => {
@@ -230,7 +251,7 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFa
       step={step}
       title={heading[step].title}
       subtitle={heading[step].sub}
-      summary={step !== 'done' && step !== 'review' ? summary : ''}
+      summary={step !== 'done' && step !== 'review' ? [prefill?.taskLine, summary].filter(Boolean).join(' · ') : ''}
       error={error}
       onSubmit={step === 'origin' || step === 'done' ? undefined : () => (step === 'review' ? register() : next())}
       footer={step === 'origin' || step === 'done' ? null : (
@@ -344,7 +365,7 @@ function AddCattleBody({ onClose, common, existingCattle, currentUser, defaultFa
               </Question>
               <Question label={tx('note')}><Input aria-label={tx('noteAria')} value={note} onChange={e => setNote(e.target.value)} /></Question>
               <div>
-                <input id="add-photo" type="file" accept="image/*" capture="environment" className="sr-only" onChange={onPhoto} />
+                <input id="add-photo" type="file" accept="image/*" capture="environment" className="sr-only" onChange={e => { void onPhoto(e); }} />
                 {photo ? (
                   <div className="flex items-center gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

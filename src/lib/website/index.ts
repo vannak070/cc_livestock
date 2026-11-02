@@ -7,5 +7,6 @@ export * from './listing';
 export * from './notify';
 export * from './places';
 export * from './rounding';
+export * from './site-images';
 export * from './snapshot';
 export * from './validation';

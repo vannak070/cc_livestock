@@ -1,4 +1,4 @@
-import * as xlsx from 'xlsx';
+import { loadXlsx } from './load-xlsx';
 
 export interface ExcelExportColumn<T = unknown> {
   header: string;
@@ -15,21 +15,39 @@ export interface ExportToExcelOptions<T = unknown> {
   sheetName?: string;
   data: T[];
   columns: ExcelExportColumn<T>[];
+  /** A heading block above the table (title, farm, period, date), the same on every export. Left out when no title is given. */
+  title?: string;
+  /** The farm the rows are for; 'All farms' when empty. */
+  farm?: string;
+  /** What the rows cover, for example from `periodText(start, end)`. */
+  period?: string;
+}
+
+/** "2026-01-01 to 2026-03-31", "From 2026-01-01", "Up to 2026-03-31" or 'All dates'. */
+export function periodText(start?: string, end?: string): string {
+  if (start && end) return `${start} to ${end}`;
+  if (start) return `From ${start}`;
+  if (end) return `Up to ${end}`;
+  return 'All dates';
 }
 
 /**
  * Export data array to a downloadable .xlsx Excel spreadsheet file
  */
-export function exportToExcel<T = unknown>({
+export async function exportToExcel<T = unknown>({
   filename,
   sheetName = 'Sheet1',
   data,
-  columns
+  columns,
+  title,
+  farm,
+  period
 }: ExportToExcelOptions<T>) {
   if (!data || data.length === 0) {
     alert('No data available to export.');
     return;
   }
+  const xlsx = await loadXlsx();
 
   // Map raw data array to formatted sheet rows
   const formattedRows = data.map(row => {
@@ -54,7 +72,11 @@ export function exportToExcel<T = unknown>({
   });
 
   // Create worksheet & workbook
-  const worksheet = xlsx.utils.json_to_sheet(formattedRows);
+  const head: string[][] = title
+    ? [['CC Livestock', title], ['Farm', farm || 'All farms'], ['Period', period || 'All dates'], ['Report date', new Date().toISOString().slice(0, 10)], []]
+    : [];
+  const worksheet = xlsx.utils.aoa_to_sheet(head);
+  xlsx.utils.sheet_add_json(worksheet, formattedRows, { header: columns.map(c => c.header), origin: head.length ? `A${head.length + 1}` : 'A1' });
 
   // Auto-calculate column widths
   const colWidths = columns.map(col => {

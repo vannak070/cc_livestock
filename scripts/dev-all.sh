@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Runs every piece of CC Livestock together for local development:
-#   1. Backend API          (Express, src/server/index.ts)   -> port 3002
+#   1. Backend API          (Express, src/server/index.ts)   -> port 3003
 #   2. Web app               (Next.js dev server)              -> port 3000
 #   3. Public CamCow website (website/, its own Next.js app)   -> port 3200
 #
@@ -42,7 +42,7 @@ npm run website:dev > "$LOG_DIR/website.log" 2>&1 &
 SITE_PID=$!
 
 # Stop everything when this script exits (Ctrl+C included) so nothing keeps
-# running on ports 3000/3002/3200 afterward.
+# running on ports 3000/3003/3200 afterward.
 cleanup() {
   echo
   echo "Stopping the API, web app and website..."
@@ -52,7 +52,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "Web app:  http://localhost:3000          (log: .dev-logs/web.log)"
-echo "API:      http://localhost:3002/api/v1   (log: .dev-logs/api.log)"
+echo "API:      http://localhost:3003/api/v1   (log: .dev-logs/api.log)"
 echo "Website:  http://localhost:3200          (log: .dev-logs/website.log)"
 echo "Press Ctrl+C to stop all three."
 wait

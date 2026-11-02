@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Download, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import PageTabs from '@/components/ui/page-tabs';
+import { Download, FileUp, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { CattleFollowUp, FarmItem, UserRoleItem } from '@/lib/types';
@@ -12,7 +13,7 @@ import type { StockItem, WeightRecord } from '@/lib/xlsx-parser';
 import { hasPermission, format2DecimalsWithCommas } from '@/lib/utils';
 import { sickCattle, weighSchedules } from '@/lib/attention';
 import { growth, weighPoints } from '@/lib/cattle-stats';
-import { exportToExcel } from '@/lib/excel-export';
+import { exportToExcel, periodText } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { FarmSelect } from '@/components/ui/listbox-select';
 import { useText, useValueText } from '@/hooks/useText';
@@ -22,6 +23,8 @@ interface CattleListProps {
   weightTracking: WeightRecord[];
   onViewDetails: (cowId: string) => void;
   onAddCowClick?: () => void;
+  /** Opens "register cattle from a receipt"; only given to a Super Admin or Admin. */
+  onUploadReceipt?: () => void;
   currentUser?: UserRoleItem;
   farms?: FarmItem[];
   /** Next actions for long-stay cattle and the "months on the farm" setting. */
@@ -41,9 +44,10 @@ const SELECT = 'h-12 w-full rounded-xl border-2 border-slate-200 bg-white px-3 t
 
 const TAB_KEY: Record<Status, string> = { Active: 'tabActive', Sold: 'tabSold', All: 'tabAll' };
 
-export default function CattleList({ stock, weightTracking, onViewDetails, onAddCowClick, currentUser, farms = [], followUps = [], longStayMonthsSetting, startLongStay = false }: CattleListProps) {
+export default function CattleList({ stock, weightTracking, onViewDetails, onAddCowClick, onUploadReceipt, currentUser, farms = [], followUps = [], longStayMonthsSetting, startLongStay = false }: CattleListProps) {
   const { tx, txn, language } = useText('cattlePage');
   const ls = useText('longStay');
+  const receipt = useText('receiptImport');
   const val = useValueText();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<Status>('Active');
@@ -140,6 +144,9 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
   const exportList = () => exportToExcel({
     filename: `CC_Livestock_Cattle_Herd_${new Date().toISOString().split('T')[0]}.xlsx`,
     sheetName: 'Cattle Herd Inventory',
+    title: 'Cattle list',
+    farm: farm,
+    period: periodText(startDate, endDate),
     data: filtered,
     columns: [
       { header: 'Cattle ID', key: 'id' },
@@ -165,12 +172,16 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
     <div className="mx-auto max-w-6xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
           <p className="text-base text-ink-muted">{tx('activeSold', { active: counts.Active, sold: counts.Sold })}</p>
         </div>
-        {onAddCowClick && hasPermission(currentUser, 'stock_create') && (
-          <Button size="lg" onClick={onAddCowClick}><Plus /> {tx('addCattle')}</Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {onUploadReceipt && hasPermission(currentUser, 'stock_create') && (
+            <Button size="lg" variant="outline" onClick={onUploadReceipt}><FileUp /> {receipt.tx('uploadButton')}</Button>
+          )}
+          {onAddCowClick && hasPermission(currentUser, 'stock_create') && (
+            <Button size="lg" onClick={onAddCowClick}><Plus /> {tx('addCattle')}</Button>
+          )}
+        </div>
       </div>
 
       {/* Search, then one row of simple choices. Everything else sits behind Filters. */}
@@ -181,20 +192,7 @@ export default function CattleList({ stock, weightTracking, onViewDetails, onAdd
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div role="tablist" aria-label={tx('showAria')} className="flex rounded-xl bg-slate-100 p-1">
-            {(['Active', 'Sold', 'All'] as Status[]).map(s => (
-              <button
-                key={s}
-                role="tab"
-                type="button"
-                aria-selected={status === s}
-                onClick={() => setStatus(s)}
-                className={`min-h-11 rounded-lg px-4 text-base font-medium ${status === s ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}
-              >
-                {tx(TAB_KEY[s])} ({counts[s]})
-              </button>
-            ))}
-          </div>
+          <PageTabs label={tx('showAria')} active={status} onChange={id => setStatus(id as Status)} tabs={(['Active', 'Sold', 'All'] as Status[]).map(s => ({ id: s, label: `${tx(TAB_KEY[s])} (${counts[s]})` }))} />
 
           {attentionCount > 0 && (
             <button

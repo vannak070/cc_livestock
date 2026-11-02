@@ -6,7 +6,9 @@ import { ProfileGallery } from '@/components/members/ProfileGallery';
 import { PageHead } from '@/components/shared/PageHead';
 import { Photo } from '@/components/shared/Photo';
 import { NotFoundContent } from '@/components/shared/NotFoundContent';
+import { breedName } from '@/lib/breeds';
 import { CONTACT } from '@/lib/contact';
+import { SalesCard } from '@/components/cattle/SalesCard';
 import { href } from '@/lib/i18n';
 import { pageLang } from '@/lib/page';
 import { getSnapshot } from '@/lib/snapshot/read';
@@ -38,10 +40,11 @@ export default async function FarmPage({ params }: { params: Params }) {
   const story = (km ? farm.storyKm : farm.storyEn) || farm.storyKm || farm.storyEn;
 
   const place = `${farm.district} · ${km ? farm.provinceKm : farm.province}`;
-  const askHref = `${href(lang, '/cattle')}${listings[0] ? `?about=${listings[0].listingId}` : ''}#inquiry`;
+  // Asking stays on this page: the sales card beside the details (on phones, below them).
+  const askHref = '#inquiry';
   const facts: [string, string][] = [
     [t.profile.size, t.values.size[farm.sizeRange] ?? farm.sizeRange],
-    [t.profile.breeds, farm.breeds.join(', ') || '—'],
+    [t.profile.breeds, [...new Set(farm.breeds.map(b => breedName(b, lang)))].join(', ') || '—'],
     ...(farm.memberSince ? [[t.profile.memberSinceShort, String(farm.memberSince)] as [string, string]] : []),
   ];
 
@@ -51,7 +54,7 @@ export default async function FarmPage({ params }: { params: Params }) {
         crumb={{ href: href(lang, '/members'), label: t.profile.back }}
         eyebrow={t.eyebrow.farm}
         title={farm.publicName}
-        aside={<ProfileGallery ids={farm.photoIds} alt={farm.publicName} label={t.profile.photos} />}
+        photo={farm.photoIds.length > 0 && <ProfileGallery ids={farm.photoIds} alt={farm.publicName} label={t.profile.photos} />}
       >
         <p className="prof-place rise d1">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><path d="M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /></svg>
@@ -65,7 +68,7 @@ export default async function FarmPage({ params }: { params: Params }) {
         )}
         {story && <p className="prof-story">{story}</p>}
         <div className="row" style={{ paddingTop: 4 }}>
-          <Link className="btn btn-green" href={askHref}>{t.profile.askCattle} <span aria-hidden="true">→</span></Link>
+          <a className="btn btn-red" href={askHref}>{t.profile.askCattle} <span aria-hidden="true">→</span></a>
           <a className="btn btn-line" href={`tel:${CONTACT.phoneTel}`}>{t.common.callUs}</a>
         </div>
       </PageHead>
@@ -85,24 +88,33 @@ export default async function FarmPage({ params }: { params: Params }) {
                   <div className="card stack" style={{ gap: 14 }}>
                     <FarmWindows windows={listings} t={t} lang={lang} />
                     <p className="small muted" style={{ margin: 0 }}>{t.cattle.vetChecked}</p>
-                    <Link className="btn btn-line" style={{ alignSelf: 'flex-start' }} href={`${href(lang, '/cattle')}?about=${listings[0].listingId}#inquiry`}>{t.cattle.askFarm} <span aria-hidden="true">→</span></Link>
                   </div>
                 )}
               </div>
-              <Link className="btn btn-line" style={{ alignSelf: 'flex-start' }} href={href(lang, '/members')}>← {t.profile.back}</Link>
+              {farm.badges.length > 0 && (
+                <div className="stack" style={{ gap: 14 }}>
+                  <h2 className="display h3"><KmWords text={t.profile.recordsTitle} /></h2>
+                  <p className="muted" style={{ margin: 0 }}>{t.profile.recordsIntro}</p>
+                  <ul className="prof-records">
+                    {farm.badges.map(b => (
+                      <li key={b}>
+                        <span className="pr-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12l5 5L20 6" /></svg></span>
+                        <span><b>{t.values.badge[b]}</b>{t.profile.records[b]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="stack" style={{ gap: 14 }}>
+                <h2 className="display h3"><KmWords text={t.profile.location} /></h2>
+                <div className="card stack" style={{ gap: 12 }}>
+                  <MembersMap farms={[farm]} selected={farm.slug} note={t.members.pinNote} height={300} />
+                  <p className="small muted" style={{ margin: 0 }}>{t.profile.locationNote}</p>
+                </div>
+              </div>
             </div>
-            <aside className="side stack" style={{ gap: 16 }}>
-              <div className="card stack" style={{ gap: 12 }}>
-                <h2 style={{ fontSize: 20 }}>{t.profile.location}</h2>
-                <MembersMap farms={[farm]} selected={farm.slug} note={t.members.pinNote} height={240} />
-                <p className="small muted" style={{ margin: 0 }}>{t.profile.locationNote}</p>
-              </div>
-              <div className="card stack" style={{ gap: 12 }}>
-                <h2 style={{ fontSize: 20 }}>{t.profile.contactTitle}</h2>
-                <p style={{ color: 'var(--ink-2)', margin: 0 }}>{t.profile.contactBody}</p>
-                <a className="btn btn-green" href={`tel:${CONTACT.phoneTel}`}>{t.common.callUs} {CONTACT.phone}</a>
-                {CONTACT.telegram && <a className="btn btn-line" href={CONTACT.telegram}>{t.common.telegram}</a>}
-              </div>
+            <aside className="side cc-side" id="inquiry">
+              <SalesCard t={t} asking={farm.publicName} note={t.profile.contactBody} callPrimary={false} />
             </aside>
           </div>
           {others.length > 0 && (
@@ -111,7 +123,10 @@ export default async function FarmPage({ params }: { params: Params }) {
               <div className="more-farms">
                 {others.map(f => (
                   <Link key={f.slug} href={href(lang, `/members/${f.slug}`)} className="more-farm">
-                    <Photo id={f.photoIds[0]} alt="" height={150} size="small" />
+                    <span className="mf-photo">
+                      <Photo id={f.photoIds[0]} alt="" height={150} size="small" />
+                      {f.hasCattleAvailable && <span className="sale-flag"><span className="win-dot win-now" aria-hidden="true" />{t.common.availNow}</span>}
+                    </span>
                     <b>{f.publicName}</b>
                     <span>{f.district} · {km ? f.provinceKm : f.province}</span>
                   </Link>

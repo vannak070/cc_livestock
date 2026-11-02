@@ -1,16 +1,21 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { Copy, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
 import type { ERPLivestockData, ProposalPlanParams, ProposalPlanRecord } from '@/types';
 import { MAX_PLANS } from '@/types';
 import { calculatePlan } from '@/lib/proposal-plan';
+import { planLoanInputs } from '@/lib/plan-loan';
+import { simulateLoan } from '@/lib/farm-loan';
 import { getErrorMessage } from '@/lib/utils';
 import PlanEditor from './PlanEditor';
 import PlanComparison from './PlanComparison';
 import { useText } from '@/hooks/useText';
+import { useOpsPrograms } from '@/hooks/useOpsPrograms';
+import { plansInUse } from '@/lib/ops-view';
 import { shownDay } from '@/lib/khmer-date';
 
 interface PlanningPageProps {
@@ -20,6 +25,8 @@ interface PlanningPageProps {
   onDeletePlan: (slot: number) => Promise<void>;
   /** The app's data, for the feed list. */
   data: ERPLivestockData;
+  /** Opens Action plans on the calendar and setup tab, to make a farm program from a plan. */
+  onOpenPrograms?: () => void;
 }
 
 type Tab = 'plans' | 'compare';
@@ -27,13 +34,16 @@ type View = { kind: 'list' } | { kind: 'edit'; slot: number; startFrom?: Proposa
 
 const riel = (n: number) => `${n < 0 ? '−' : ''}${Math.round(Math.abs(n)).toLocaleString()} ៛`;
 
-export default function PlanningPage({ plans, onSavePlan, onDeletePlan, data }: PlanningPageProps) {
+export default function PlanningPage({ plans, onSavePlan, onDeletePlan, data, onOpenPrograms }: PlanningPageProps) {
   const { tx, language } = useText('planning');
   const [tab, setTab] = useState<Tab>('plans');
   const [view, setView] = useState<View>({ kind: 'list' });
   const [confirm, setConfirm] = useState<null | { title: string; description: string; type: 'danger'; confirmText: string; onConfirm?: () => void }>(null);
   const [error, setError] = useState('');
 
+  // Which farms already run a program made from each plan (Planning is open to the same people who see programs).
+  const programs = useOpsPrograms();
+  const usedBy = useMemo(() => plansInUse(programs.data?.programs ?? []), [programs.data]);
   const bySlot = useMemo(() => new Map(plans.map(p => [p.slot, p])), [plans]);
   const saved = useMemo(() => [...plans].sort((a, b) => a.slot - b.slot), [plans]);
   // A new plan takes the lowest free slot, and only shows in the list once it is saved.
@@ -51,6 +61,8 @@ export default function PlanningPage({ plans, onSavePlan, onDeletePlan, data }: 
         onBack={() => setView({ kind: 'list' })}
         onSave={(name, params) => onSavePlan(slot, name, params)}
         products={data.feedProducts ?? []}
+        usedBy={usedBy.get(slot) ?? []}
+        onOpenPrograms={onOpenPrograms}
       />
     );
   }
@@ -80,20 +92,12 @@ export default function PlanningPage({ plans, onSavePlan, onDeletePlan, data }: 
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
-          <p className="text-base text-ink-muted">{tx('intro', { max: MAX_PLANS })}</p>
+          <p className="max-w-2xl text-base text-ink-muted">{tx('intro', { max: MAX_PLANS })}</p>
         </div>
         {firstEmpty !== undefined && <Button size="lg" onClick={() => setView({ kind: 'edit', slot: firstEmpty })}><Plus /> {tx('newPlan')}</Button>}
       </div>
 
-      <div role="tablist" aria-label={tx('title')} className="flex rounded-xl bg-slate-100 p-1 sm:w-fit">
-        {([['plans', tx('tabPlans', { n: plans.length, max: MAX_PLANS })], ['compare', tx('tabCompare')]] as [Tab, string][]).map(([k, label]) => (
-          <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-4 text-base font-medium sm:px-6 ${tab === k ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <PageTabs fit label={tx('title')} active={tab} onChange={id => setTab(id as Tab)} tabs={([['plans', tx('tabPlans', { n: plans.length, max: MAX_PLANS })], ['compare', tx('tabCompare')]] as [Tab, string][]).map(([k, label]) => ({ id: k, label }))} />
 
       {error && <p role="alert" className="text-base font-medium text-rose-700">{error}</p>}
 
@@ -107,18 +111,44 @@ export default function PlanningPage({ plans, onSavePlan, onDeletePlan, data }: 
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {saved.map(p => {
               const r = calculatePlan(p.params);
+              const { terms, assumptions } = planLoanInputs(p.params);
+              const payout = simulateLoan(terms, assumptions).months[0]?.drawKhr ?? 0;
+              const covers = terms.loanAmountKhr ? 'coverFixed' : terms.loanCovers === 'all' ? 'coverAll' : terms.loanCovers === 'start' ? 'coverStart' : 'coverCattle';
+              const farmsUsing = usedBy.get(p.slot) ?? [];
+              const stat = (label: string, value: string) => (
+                <div className="min-w-0"><dt className="text-xs text-ink-muted">{label}</dt><dd className="truncate text-base font-semibold tabular-nums text-ink">{value}</dd></div>
+              );
               return (
                 <li key={p.slot} className="flex flex-col rounded-2xl border border-slate-200 bg-white">
-                  <button type="button" onClick={() => setView({ kind: 'edit', slot: p.slot })} className="flex flex-1 flex-col gap-2 rounded-t-2xl p-4 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
-                    <span className="text-sm text-ink-muted">{tx('planN', { n: p.slot })}</span>
-                    <span className="break-words text-xl font-semibold text-ink">{p.name}</span>
+                  <button type="button" onClick={() => setView({ kind: 'edit', slot: p.slot })} className="flex flex-1 flex-col gap-3 rounded-t-2xl p-4 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
+                    <span className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-ink-muted">{tx('planN', { n: p.slot })}</span>
+                      {farmsUsing.length > 0 && (
+                        <span className="rounded-full bg-emerald-100 px-3 py-0.5 text-sm font-semibold text-emerald-900" title={farmsUsing.join(', ')}>
+                          {farmsUsing.length <= 2 ? tx('usedBy', { farms: farmsUsing.join(', ') }) : tx('usedByN', { n: farmsUsing.length })}
+                        </span>
+                      )}
+                    </span>
+                    <span className="break-words text-xl font-semibold leading-snug text-ink">{p.name}</span>
                     <span className={`text-2xl font-semibold ${r.annualProfitKhr < 0 ? 'text-rose-700' : 'text-emerald-800'}`}>{riel(r.annualProfitKhr)} <span className="text-base font-normal text-ink-muted">{tx('aYear')}</span></span>
-                    <span className="text-base text-ink-muted">{tx('cardLine', { pct: Math.round(r.annualRoiPercent * 10) / 10, n: p.params.targetStockLevel.toLocaleString(), days: p.params.fatteningPeriodDays })}</span>
-                    <span className="text-sm text-ink-muted">{p.updatedBy ? tx('savedBy', { day: shownDay(p.updatedAt, language), who: p.updatedBy }) : tx('savedOn', { day: shownDay(p.updatedAt, language) })}</span>
+                    <dl className="grid grid-cols-3 gap-3 border-t border-slate-100 pt-3">
+                      {stat(tx('statReturn'), `${Math.round(r.annualRoiPercent * 10) / 10}%`)}
+                      {stat(tx('statCattle'), p.params.targetStockLevel.toLocaleString())}
+                      {stat(tx('statDays'), String(p.params.fatteningPeriodDays))}
+                    </dl>
+                    <span className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-ink">
+                      <span className="font-semibold">{tx('statLoan')}: {riel(payout)}</span> <span className="text-ink-muted">· {tx(covers)}</span>
+                    </span>
+                    <span className="truncate text-sm text-ink-muted">{p.updatedBy ? tx('savedBy', { day: shownDay(p.updatedAt, language), who: p.updatedBy }) : tx('savedOn', { day: shownDay(p.updatedAt, language) })}</span>
                   </button>
                   <div className="flex justify-end gap-1 border-t border-slate-100 px-2 py-1">
                     <Button variant="ghost" onClick={() => duplicate(p)} disabled={firstEmpty === undefined} title={firstEmpty === undefined ? tx('allUsed') : undefined}><Copy /> {tx('copy')}</Button>
-                    <Button variant="ghost" aria-label={tx('deletePlanAria', { n: p.slot })} onClick={() => askDelete(p)}><Trash2 className="text-rose-700" /></Button>
+                    {farmsUsing.length > 0 ? (
+                      // A plan a farm's action plan is made from cannot be deleted (the server refuses too).
+                      <Button variant="ghost" disabled aria-label={tx('deleteBlockedAria', { n: p.slot, farms: farmsUsing.join(', ') })} title={tx('deleteBlocked', { farms: farmsUsing.join(', ') })}><Trash2 className="text-slate-400" /> <span className="text-sm text-ink-muted">{tx('inUse')}</span></Button>
+                    ) : (
+                      <Button variant="ghost" aria-label={tx('deletePlanAria', { n: p.slot })} onClick={() => askDelete(p)}><Trash2 className="text-rose-700" /></Button>
+                    )}
                   </div>
                 </li>
               );

@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import routes from '../routes';
+import { corsOrigins, trustProxySetting } from '../lib/server-security';
 import { errorHandler } from '../middleware/error.middleware';
 
 const app = express();
@@ -10,10 +11,15 @@ const app = express();
 app.use(helmet());
 
 // CORS configuration
+// Behind nginx on the same machine the caller's address comes from the proxy, never from a header the caller sent.
+app.set('trust proxy', trustProxySetting(process.env));
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: corsOrigins(process.env),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  // A renewed sign-in (src/middleware/auth.middleware.ts).
+  exposedHeaders: ['X-Session-Token']
 }));
 
 // Request body parser

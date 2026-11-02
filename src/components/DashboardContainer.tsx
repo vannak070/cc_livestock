@@ -1,12 +1,16 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   getLivestockDataAction, 
   addStockItemAction, 
+  readReceiptAction,
+  getLivestockPartsAction,
+  registerReceiptAction,
+  checkReceiptDuplicateAction,
   addWeightRecordAction, 
-  recordSaleAction, 
+  recordSaleAction, recordBatchSaleAction, 
   createBatchAction, 
   assignCowsToBatchAction, 
   addHealthLogAction, 
@@ -36,73 +40,123 @@ import {
   deleteFarmCostAction,
   logoutAction
 } from '@/app/actions';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import SidebarLayout, { ActiveTabType, RecordAction } from './layout/SidebarLayout';
 import TodayTab from './TodayTab';
-import SummaryPage from './features/summary/SummaryPage';
-import BatchesPage, { type Show as BatchesShow } from './features/batch/BatchesPage';
+import type { Show as BatchesShow } from './features/batch/BatchesPage';
 import type { SaleReviewInput } from '@/lib/sale-review';
-import FeedPage from './features/feed/FeedPage';
-import HealthPage from './features/health/HealthPage';
-import WeightsPage from './features/weight/WeightsPage';
-import SalesPage from './features/sales/SalesPage';
-import ReportsPage from './features/reports/ReportsPage';
-import PlanningPage from './features/planning/PlanningPage';
-import SettingsPage from './features/settings/SettingsPage';
-import FarmsPage from './features/farms/FarmsPage';
 import { LimitRequestFlow } from './features/farms/FarmLimitFlows';
 import FollowUpFlow from './features/cattle/FollowUpFlow';
-import BillingPage from './features/billing/BillingPage';
+import type { Tab as PlansTab } from './features/action-plans/ActionPlansPage';
+import { canSeeActionPlans } from '@/lib/action-plans';
 import { canSeeBilling } from '@/lib/billing';
-import WebsitePage from './features/website/WebsitePage';
 import { canOpenWebsitePage } from '@/lib/website/access';
 import type { FollowUpInput } from '@/lib/long-stay';
 import type { CattleFollowUp } from '@/lib/types';
-import { limitState } from '@/lib/farm-limit';
+import { canSetLimits, limitState } from '@/lib/farm-limit';
+import { RECEIPT_IMPORT_ENABLED, type ReceiptFile, type RegisterInput } from '@/lib/receipt-import';
+import type { DataPart } from '@/lib/data-parts';
 import { useOnChange } from '@/hooks/useOnChange';
 import CattleList from './features/cattle/CattleList';
-import CattleDetailPage from './features/cattle/CattleDetailPage';
 import FeedInFlow from './features/feed/FeedInFlow';
 import DailyFeedFlow from './features/feed/DailyFeedFlow';
 import type { DailyFeedInput } from '@/lib/daily-feed';
 import TreatFlow from './features/health/TreatFlow';
 import SellFlow from './features/sales/SellFlow';
+import BuybackFlow, { type BuybackTarget } from './features/sales/BuybackFlow';
+import { BUYBACK_BUYER } from '@/lib/buyback';
 import WeighFlow from './features/weigh/WeighFlow';
 import WeighGroupFlow from './features/batch/WeighGroupFlow';
 import { batchCattle } from '@/lib/batch-stats';
-import AddCattleFlow from './features/stock/AddCattleFlow';
-import CostsPage from './features/costs/CostsPage';
+import AddCattleFlow, { type AddCattlePrefill } from './features/stock/AddCattleFlow';
 import CostFlow from './features/costs/CostFlow';
 import { costCategoriesFrom, type FarmCostInput } from '@/lib/farm-costs';
 import { ERPLivestockData, FeedProductItem, FeedStockTransaction, UserRoleItem } from '@/lib/types';
 import { ProposalPlanParams } from '@/types';
 import { SalesRecord } from '@/lib/xlsx-parser';
-import { canUsePlanning, hasPermission } from '@/lib/utils';
+import { canOpenReports, canUsePlanning, hasPermission } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
 import { canOpenPeople } from '@/lib/user-admin';
 import { scopeDataToFarm } from '@/lib/farm-view';
-import { readFocus, saveFocus, validFocus } from '@/lib/working-on';
+import { focusKey, validFocus } from '@/lib/working-on';
+import { useStoredValue } from '@/hooks/useStoredValue';
 import WorkingOnSwitcher from './layout/WorkingOnSwitcher';
+import IdleSignOut from './providers/IdleSignOut';
 import { PermissionKey } from '@/types/settings.types';
 import { sickCattle, cattleWithDiseaseHistory } from '@/lib/attention';
 import { Scale, Syringe, PlusCircle, DollarSign, Package, Wheat, Receipt } from 'lucide-react';
+
+// Each page is its own download, fetched the first time its tab opens (the first screen stays small).
+const TabLoading = () => <div role="status" aria-busy="true" className="mx-auto h-64 max-w-5xl animate-pulse rounded-2xl bg-slate-100" />;
+const BatchesPage = dynamic(() => import('./features/batch/BatchesPage'), { loading: TabLoading });
+const FeedPage = dynamic(() => import('./features/feed/FeedPage'), { loading: TabLoading });
+const HealthPage = dynamic(() => import('./features/health/HealthPage'), { loading: TabLoading });
+const WeightsPage = dynamic(() => import('./features/weight/WeightsPage'), { loading: TabLoading });
+const SalesPage = dynamic(() => import('./features/sales/SalesPage'), { loading: TabLoading });
+const ReportsPage = dynamic(() => import('./features/reports/ReportsPage'), { loading: TabLoading });
+const PlanningPage = dynamic(() => import('./features/planning/PlanningPage'), { loading: TabLoading });
+const SettingsPage = dynamic(() => import('./features/settings/SettingsPage'), { loading: TabLoading });
+const FarmsPage = dynamic(() => import('./features/farms/FarmsPage'), { loading: TabLoading });
+const BillingPage = dynamic(() => import('./features/billing/BillingPage'), { loading: TabLoading });
+const ActionPlansPage = dynamic(() => import('./features/action-plans/ActionPlansPage'), { loading: TabLoading });
+const WebsitePage = dynamic(() => import('./features/website/WebsitePage'), { loading: TabLoading });
+const CostsPage = dynamic(() => import('./features/costs/CostsPage'), { loading: TabLoading });
+const CattleDetailPage = dynamic(() => import('./features/cattle/CattleDetailPage'), { loading: TabLoading });
+const ReceiptImportFlow = dynamic(() => import('./features/cattle/ReceiptImportFlow'), { loading: () => null });
+const MyAccountDialog = dynamic(() => import('./features/account/MyAccountDialog'), { loading: () => null });
+
+const TAB_PERMISSION: Partial<Record<ActiveTabType, PermissionKey>> = {
+  today: 'dashboard_view',
+  'cow-inventory': 'stock_view',
+  'batch-management': 'batch_view',
+  'health-tracking': 'health_view',
+  'weight-tracking': 'weight_view',
+  'sales-finance': 'sales_view',
+  farms: 'farms_manage',
+  'feed-inventory': 'feed_view',
+  costs: 'costs_view',
+};
+
+/** True when this person may not open the tab. Settings is also a farm owner's People page, and Planning is for a few roles only, so they have their own rules. */
+function isTabBlocked(tab: ActiveTabType, user: UserRoleItem): boolean {
+  if (tab === 'settings') return !canOpenPeople(user);
+  if (tab === 'analytics') return !canOpenReports(user);
+  if (tab === 'billing') return !canSeeBilling(user);
+  if (tab === 'action-plans') return !canSeeActionPlans(user);
+  if (tab === 'website') return !canOpenWebsitePage(user);
+  if (tab === 'proposal-plan') return !canUsePlanning(user);
+  const key = TAB_PERMISSION[tab];
+  return !!key && !hasPermission(user, key);
+}
 
 interface DashboardContainerProps {
   initialData: ERPLivestockData;
   // Verified server-side from the session cookie (see src/app/page.tsx).
   currentUser: UserRoleItem;
+  /** When the sign-in runs out without activity (src/lib/session-policy.ts). */
+  session: { expiresAt: number; idleMinutes: number };
 }
 
-export default function DashboardContainer({ initialData, currentUser }: DashboardContainerProps) {
+const signOutOnServer = async () => { await logoutAction(); };
+
+export default function DashboardContainer({ initialData, currentUser, session }: DashboardContainerProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { t } = useLanguage();
   // Management is read-only oversight: it starts on the Summary. Everyone else
   // starts on Today, the list of what needs doing.
-  const [activeTab, setActiveTab] = useState<ActiveTabType>(currentUser.role === 'Management' ? 'dashboard' : 'today');
+  // Which Action plans tab opens first (Planning's "Use for a farm" opens the calendar and setup).
+  const [plansTab, setPlansTab] = useState<PlansTab>('tasks');
+  // Real work started from a farm task: cattle sold to a farm are registered, a buy-back sells the batch to CC Livestock.
+  const [addForTask, setAddForTask] = useState<AddCattlePrefill | null>(null);
+  const [buybackTarget, setBuybackTarget] = useState<BuybackTarget | null>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<ActiveTabType>(currentUser.role === 'Management' ? 'analytics' : 'today');
 
   // Modal States
   const [isQuickEntryOpen, setIsQuickEntryOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
   const [quickEntryTab, setQuickEntryTab] = useState<'add' | 'weight' | 'sale' | 'treat' | 'feed'>('add');
   const [preselectedCowId, setPreselectedCowId] = useState<string | null>(null);
   const [weighBatchId, setWeighBatchId] = useState<string | null>(null);
@@ -110,7 +164,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   const [batchesShow, setBatchesShow] = useState<BatchesShow>('Active');
   // Today can open the Cattle page already showing the long-stay list.
   const [cattleLongStay, setCattleLongStay] = useState(false);
-  const changeTab = (tab: ActiveTabType) => { setBatchesShow('Active'); setCattleLongStay(false); setActiveTab(tab); };
+  const changeTab = (tab: ActiveTabType) => { setBatchesShow('Active'); setCattleLongStay(false); setPlansTab('tasks'); setActiveTab(tab); };
   const openLongStay = () => { setCattleLongStay(true); setSelectedCowDetailsId(null); setActiveTab('cow-inventory'); };
   // The "what happens next" dialog for a long-stay animal.
   const [followUpFor, setFollowUpFor] = useState<null | { cowId: string; months?: number; current?: CattleFollowUp }>(null);
@@ -139,8 +193,24 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       throw new Error(res.error || 'Failed to fetch data');
     },
     initialData: initialData,
+    // Coming back to the tab reloads only when the data is over 5 minutes old (other people's changes), not every time.
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
+
+  // After a save, load again only the pieces it changed and merge them in (not the whole database).
+  // The data keeps its old "last loaded" time, so a quick save does not hide other people's changes elsewhere.
+  const refreshParts = async (parts: DataPart[]) => {
+    const key = ['livestock'];
+    const res = await getLivestockPartsAction(parts);
+    if (!res.success) {
+      if (res.status === 401) router.refresh();
+      await queryClient.invalidateQueries({ queryKey: key });
+      return;
+    }
+    const updatedAt = queryClient.getQueryState(key)?.dataUpdatedAt;
+    queryClient.setQueryData<ERPLivestockData>(key, old => (old ? { ...old, ...res.data } : old), updatedAt ? { updatedAt } : undefined);
+  };
 
   // Already scoped to this user's farm on the server (src/lib/data-scope.ts).
   const fullData = rawDbData;
@@ -150,10 +220,8 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
   // a permission, and is remembered on this browser. Farms and Settings keep seeing everything.
   const farmNames = useMemo(() => (fullData.settings?.farms ?? []).map(f => f.name), [fullData.settings?.farms]);
   const canChooseFarm = !currentUser.farmLocation && farmNames.length > 1;
-  const [focus, setFocus] = useState('');
-  useEffect(() => { setFocus(readFocus(currentUser.id)); }, [currentUser.id]);
+  const [focus, chooseFarm] = useStoredValue(focusKey(currentUser.id), '');
   const focusFarm = canChooseFarm ? validFocus(focus, farmNames) : '';
-  const chooseFarm = (farm: string) => { setFocus(farm); saveFocus(currentUser.id, farm); };
   const dbData = useMemo(() => (focusFarm ? scopeDataToFarm(fullData, focusFarm, { includeFeed: true }) : fullData), [fullData, focusFarm]);
   // The same person, tied to the chosen farm, for the pages that hide their own farm filters for farm staff.
   const pageUser = useMemo(() => (focusFarm ? { ...currentUser, farmLocation: focusFarm } : currentUser), [currentUser, focusFarm]);
@@ -170,8 +238,28 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['stock', 'weightTracking']);
       queryClient.invalidateQueries({ queryKey: ['billing'] });
+    }
+  });
+
+  // Stable, so the upload screen's "was this receipt registered before?" check does not re-run on every render.
+  const checkReceiptDuplicate = useCallback(async (input: Pick<RegisterInput, 'invoiceNo' | 'seller' | 'date' | 'rows'>) => {
+    const res = await checkReceiptDuplicateAction(input);
+    if (!res.success) throw new Error(res.error);
+    return res.data;
+  }, []);
+
+  const registerReceiptMutation = useMutation({
+    mutationFn: async ({ input, options }: { input: RegisterInput; options: { file?: ReceiptFile | null; confirmedDifferent?: boolean } }) => {
+      const res = await registerReceiptAction(input, options);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      refreshParts(['stock', 'weightTracking']);
+      queryClient.invalidateQueries({ queryKey: ['billing'] });
+      queryClient.invalidateQueries({ queryKey: ['ops-programs'] });
     }
   });
 
@@ -182,7 +270,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['stock', 'weightTracking']);
     }
   });
 
@@ -193,7 +281,18 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['stock', 'salesTracking']);
+    }
+  });
+
+  const recordBuybackMutation = useMutation({
+    mutationFn: async ({ batchId, pricePerKg, date }: { batchId: string; pricePerKg: number; date: string }) => {
+      const res = await recordBatchSaleAction(batchId, pricePerKg, 'Weight', date, BUYBACK_BUYER);
+      if (!res.success) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      refreshParts(['stock', 'salesTracking', 'batches']);
     }
   });
 
@@ -204,7 +303,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['batches']);
     }
   });
 
@@ -215,7 +314,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['batches']);
     }
   });
 
@@ -226,7 +325,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['healthLogs', 'stock']);
     }
   });
 
@@ -237,7 +336,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['batches']);
     }
   });
 
@@ -248,7 +347,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['batches']);
     }
   });
 
@@ -259,7 +358,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['stock', 'weightTracking']);
     }
   });
 
@@ -270,7 +369,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['batches']);
     }
   });
 
@@ -281,7 +380,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['cattleFollowUps']);
     }
   });
 
@@ -291,7 +390,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       if (!res.success) throw new Error(res.error);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['cattleFollowUps']);
     }
   });
 
@@ -302,7 +401,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['stock', 'weightTracking', 'salesTracking', 'healthLogs', 'batches', 'cattleFollowUps']);
       queryClient.invalidateQueries({ queryKey: ['billing'] });
     }
   });
@@ -314,7 +413,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['batches']);
     }
   });
 
@@ -325,7 +424,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['healthLogs', 'stock']);
     }
   });
 
@@ -336,7 +435,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['healthLogs', 'stock']);
     }
   });
 
@@ -347,7 +446,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['stock', 'weightTracking']);
     }
   });
 
@@ -358,7 +457,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['stock', 'weightTracking']);
     }
   });
 
@@ -369,7 +468,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['stock', 'salesTracking']);
     }
   });
 
@@ -380,7 +479,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['stock', 'salesTracking']);
     }
   });
 
@@ -391,7 +490,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['feedProducts']);
     }
   });
 
@@ -402,7 +501,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['feedProducts', 'feedTransactions']);
     }
   });
 
@@ -413,7 +512,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['proposalPlans']);
     }
   });
 
@@ -424,7 +523,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['proposalPlans']);
     }
   });
 
@@ -435,7 +534,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['feedTransactions']);
     }
   });
 
@@ -445,7 +544,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
+    onSuccess: () => { refreshParts(['batches', 'stock']); }
   });
 
   const moveCowMutation = useMutation({
@@ -454,7 +553,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
+    onSuccess: () => { refreshParts(['batches']); }
   });
 
   const recordDailyFeedMutation = useMutation({
@@ -464,7 +563,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['livestock'] });
+      refreshParts(['feedTransactions']);
     }
   });
 
@@ -474,7 +573,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
+    onSuccess: () => { refreshParts(['farmCosts']); }
   });
 
   const deleteCostMutation = useMutation({
@@ -483,7 +582,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       if (!res.success) throw new Error(res.error);
       return res.data;
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['livestock'] }); }
+    onSuccess: () => { refreshParts(['farmCosts']); }
   });
 
   // Active cows list & health alert counters (strictly scoped to current user's farm)
@@ -521,31 +620,9 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
     router.refresh();
   };
 
-  React.useEffect(() => {
-    if (!currentUser) return;
-
-    let permissionKey: PermissionKey | null = null;
-    if (activeTab === 'today' || activeTab === 'dashboard') permissionKey = 'dashboard_view';
-    else if (activeTab === 'cow-inventory') permissionKey = 'stock_view';
-    else if (activeTab === 'batch-management') permissionKey = 'batch_view';
-    else if (activeTab === 'health-tracking') permissionKey = 'health_view';
-    else if (activeTab === 'weight-tracking') permissionKey = 'weight_view';
-    else if (activeTab === 'sales-finance') permissionKey = 'sales_view';
-    else if (activeTab === 'analytics') permissionKey = 'analytics_view';
-    else if (activeTab === 'farms') permissionKey = 'farms_manage';
-    else if (activeTab === 'feed-inventory') permissionKey = 'feed_view';
-    else if (activeTab === 'costs') permissionKey = 'costs_view';
-
-    // Settings is also a farm owner's People page, and Planning is for a few roles only, so they have their own rules.
-    const blocked = activeTab === 'settings' ? !canOpenPeople(currentUser)
-      : activeTab === 'billing' ? !canSeeBilling(currentUser)
-      : activeTab === 'website' ? !canOpenWebsitePage(currentUser)
-      : activeTab === 'proposal-plan' ? !canUsePlanning(currentUser)
-      : !!permissionKey && !hasPermission(currentUser, permissionKey);
-    if (blocked && activeTab !== 'today') {
-      setActiveTab('today');
-    }
-  }, [activeTab, currentUser]);
+  // A tab this person may not open falls back to Today. Adjusted while rendering (as
+  // useOnChange does), not in an effect that sets state after the render.
+  if (activeTab !== 'today' && isTabBlocked(activeTab, currentUser)) setActiveTab('today');
 
   return (
     <SidebarLayout
@@ -556,8 +633,10 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
       vaccineAlertsCount={vaccineAlertsCount}
       currentUser={currentUser}
       onLogout={handleLogout}
+      onOpenAccount={() => setAccountOpen(true)}
       workingOn={canChooseFarm ? <WorkingOnSwitcher farms={farmNames} value={focusFarm} onChange={chooseFarm} /> : undefined}
     >
+      <IdleSignOut expiresAt={session.expiresAt} idleMinutes={session.idleMinutes} onSignOut={signOutOnServer} />
       {/* Dynamic Tab Rendering */}
       {activeTab === 'today' && (
         <TodayTab
@@ -569,15 +648,6 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           onOpenLongStay={openLongStay}
           onRecordFeed={hasPermission(currentUser, 'feed_record') ? (farm, day) => setDailyFeed({ farm, day }) : undefined}
           onAskMore={canAskMoreCattle ? setAskLimitFarm : undefined}
-        />
-      )}
-
-      {activeTab === 'dashboard' && (
-        <SummaryPage
-          data={dbData}
-          onNavigateToTab={changeTab}
-          onOpenSaleReview={openSaleReview}
-          canSeeReports={hasPermission(currentUser, 'analytics_view')}
         />
       )}
 
@@ -611,6 +681,7 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           weightTracking={dbData.weightTracking}
           onViewDetails={handleViewDetails}
           onAddCowClick={() => handleOpenQuickEntry('add', null)}
+          onUploadReceipt={RECEIPT_IMPORT_ENABLED && canSetLimits(currentUser) ? () => setReceiptOpen(true) : undefined}
           currentUser={pageUser}
           farms={dbData.settings?.farms ?? []}
           followUps={dbData.cattleFollowUps}
@@ -745,6 +816,9 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
           data={dbData}
           currentUser={pageUser}
           farms={dbData.settings?.farms ?? []}
+          onOpenActionPlans={() => changeTab('action-plans')}
+          onNavigateToTab={changeTab}
+          onOpenSaleReview={openSaleReview}
         />
       )}
 
@@ -758,9 +832,25 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
             await deleteProposalPlanMutation.mutateAsync(slot);
           }}
           data={dbData}
+          onOpenPrograms={() => { setPlansTab('programs'); setActiveTab('action-plans'); }}
         />
       )}
 
+      {activeTab === 'action-plans' && canSeeActionPlans(currentUser) && (
+        <ActionPlansPage
+          currentUser={currentUser}
+          farms={focusFarm ? [focusFarm] : farmNames}
+          batches={dbData.batches}
+          stock={dbData.stock}
+          sales={dbData.salesTracking}
+          plans={dbData.proposalPlans ?? []}
+          farmItems={dbData.settings.farms || []}
+          initialTab={plansTab}
+          onOpenPlanning={canUsePlanning(currentUser) ? () => setActiveTab('proposal-plan') : undefined}
+          onAddCattleForTask={hasPermission(currentUser, 'stock_create') ? t => setAddForTask({ farm: t.farm, origin: 'Purchase', pricePerKg: t.pricePerKg, taskLine: t.title }) : undefined}
+          onBuyBackForTask={hasPermission(currentUser, 'sales_record') ? setBuybackTarget : undefined}
+        />
+      )}
       {activeTab === 'settings' && (
         <SettingsPage
           settings={dbData.settings}
@@ -813,8 +903,9 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         ) : null;
       })()}
       <AddCattleFlow
-        isOpen={isQuickEntryOpen && quickEntryTab === 'add'}
-        onClose={() => setIsQuickEntryOpen(false)}
+        isOpen={(isQuickEntryOpen && quickEntryTab === 'add') || !!addForTask}
+        onClose={() => { setIsQuickEntryOpen(false); setAddForTask(null); }}
+        prefill={addForTask ?? undefined}
         common={dbData.settings}
         existingCattle={activeCows}
         currentUser={currentUser}
@@ -826,6 +917,22 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         limitRequests={fullData.farmLimitRequests}
         onAskMore={canAskMoreCattle ? setAskLimitFarm : undefined}
       />
+      {accountOpen && <MyAccountDialog open onClose={() => setAccountOpen(false)} user={currentUser} />}
+      {receiptOpen && <ReceiptImportFlow
+        isOpen
+        onClose={() => setReceiptOpen(false)}
+        common={dbData.settings}
+        existingCattle={fullData.stock}
+        registeredCattle={fullData.stock}
+        defaultFarm={focusFarm || undefined}
+        onRead={async file => {
+          const res = await readReceiptAction(file);
+          if (!res.success) throw new Error(res.error);
+          return res.data;
+        }}
+        onCheckDuplicate={checkReceiptDuplicate}
+        onRegister={async (input, options) => { await registerReceiptMutation.mutateAsync({ input, options }); }}
+      />}
       <FollowUpFlow
         isOpen={!!followUpFor}
         onClose={() => setFollowUpFor(null)}
@@ -894,6 +1001,15 @@ export default function DashboardContainer({ initialData, currentUser }: Dashboa
         onSave={async log => {
           await addHealthLogMutation.mutateAsync(log);
         }}
+      />
+      <BuybackFlow
+        isOpen={!!buybackTarget}
+        onClose={() => setBuybackTarget(null)}
+        target={buybackTarget}
+        onThenAdd={next => { setBuybackTarget(null); setAddForTask({ farm: next.farm, origin: 'Purchase', pricePerKg: next.pricePerKg, taskLine: next.title }); }}
+        batches={fullData.batches}
+        stock={fullData.stock}
+        onBuyBack={async (batchId, pricePerKg, date) => { await recordBuybackMutation.mutateAsync({ batchId, pricePerKg, date }); }}
       />
       <SellFlow
         isOpen={isQuickEntryOpen && quickEntryTab === 'sale'}

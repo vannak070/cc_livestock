@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,13 +14,15 @@ import { areaClass, errorText, inputClass, ok, Pill, PhotoThumb, type Tone } fro
 const TONE: Record<string, Tone> = { new: 'amber', contacted: 'blue', accepted: 'green', declined: 'slate', closed: 'slate' };
 const APPLICATION_STATUSES: ApplicationStatus[] = ['new', 'contacted', 'accepted', 'declined'];
 const INQUIRY_STATUSES: InquiryStatus[] = ['new', 'contacted', 'closed'];
+const isInvestor = (i: WebsiteInquiry) => i.buyerType === 'investor';
+const isQuestion = (i: WebsiteInquiry) => i.buyerType === 'question';
 const when = (iso: string) => iso.slice(0, 16).replace('T', ' ');
 
-/** Applications to join and price inquiries sent from the website. */
+/** Applications to join, buyers' price inquiries, investors' requests and general questions sent from the website. */
 export function RequestsTab({ farms, canCreateFarms, listingNames, onChanged }: { farms: { farmId: string; farmName: string }[]; canCreateFarms: boolean; listingNames: Record<string, string>; onChanged: () => void }) {
   const { tx } = useText('websitePage');
   const queryClient = useQueryClient();
-  const [show, setShow] = useState<'applications' | 'inquiries'>('applications');
+  const [show, setShow] = useState<'applications' | 'inquiries' | 'investors' | 'questions'>('applications');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const query = useQuery({ queryKey: ['website', 'requests'], queryFn: async () => ok(await getWebsiteRequestsAction()), refetchOnMount: 'always' });
   const refresh = () => { queryClient.invalidateQueries({ queryKey: ['website', 'requests'] }); onChanged(); };
@@ -27,23 +30,37 @@ export function RequestsTab({ farms, canCreateFarms, listingNames, onChanged }: 
   if (query.isLoading) return <p role="status" className="text-lg text-ink-muted">{tx('loading')}</p>;
   if (query.isError || !query.data) return <p role="alert" className="rounded-xl bg-rose-50 p-4 text-base text-rose-800">{errorText(query.error, tx('loadFailed'))}</p>;
 
-  const { applications, inquiries } = query.data;
+  const { applications } = query.data;
+  const inquiries = query.data.inquiries.filter(i => !isInvestor(i) && !isQuestion(i));
+  const investors = query.data.inquiries.filter(isInvestor);
+  const questions = query.data.inquiries.filter(isQuestion);
   const openA = applications.filter(a => a.status === 'new').length;
   const openI = inquiries.filter(i => i.status === 'new').length;
+  const openV = investors.filter(i => i.status === 'new').length;
+  const openQ = questions.filter(i => i.status === 'new').length;
   const statuses = show === 'applications' ? APPLICATION_STATUSES : INQUIRY_STATUSES;
-  const list: { status: string }[] = show === 'applications' ? applications : inquiries;
+  const list: { status: string }[] = show === 'applications' ? applications : show === 'investors' ? investors : show === 'questions' ? questions : inquiries;
   const countOf = (s: string) => list.filter(r => r.status === s).length;
   const keep = <T extends { status: string }>(rows: T[]) => (statusFilter === 'all' ? rows : rows.filter(r => r.status === statusFilter));
   const shownA = keep(applications);
   const shownI = keep(inquiries);
-  const pick = (next: 'applications' | 'inquiries') => { setShow(next); setStatusFilter('all'); };
+  const shownV = keep(investors);
+  const shownQ = keep(questions);
+  const pick = (next: 'applications' | 'inquiries' | 'investors' | 'questions') => { setShow(next); setStatusFilter('all'); };
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label={tx('requestsTitle')}>
-        <Button role="tab" aria-selected={show === 'applications'} variant={show === 'applications' ? 'default' : 'outline'} size="sm" onClick={() => pick('applications')}>{tx('applicationsTab', { n: openA })}</Button>
-        <Button role="tab" aria-selected={show === 'inquiries'} variant={show === 'inquiries' ? 'default' : 'outline'} size="sm" onClick={() => pick('inquiries')}>{tx('inquiriesTab', { n: openI })}</Button>
-      </div>
+      <PageTabs
+        label={tx('requestsTitle')}
+        active={show}
+        onChange={id => pick(id as typeof show)}
+        tabs={[
+          { id: 'applications', label: tx('applicationsTab', { n: openA }) },
+          { id: 'inquiries', label: tx('inquiriesTab', { n: openI }) },
+          { id: 'investors', label: tx('investorsTab', { n: openV }) },
+          { id: 'questions', label: tx('questionsTab', { n: openQ }) },
+        ]}
+      />
       {list.length > 0 && (
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label={tx('filterStatus')}>
           <span className="text-sm text-ink-muted">{tx('filterStatus')}:</span>
@@ -63,6 +80,14 @@ export function RequestsTab({ farms, canCreateFarms, listingNames, onChanged }: 
         ? <p className="rounded-2xl bg-slate-50 p-6 text-lg text-ink-muted">{tx('noInquiries')}</p>
         : shownI.length === 0 ? <p className="rounded-2xl bg-slate-50 p-6 text-lg text-ink-muted">{tx('noneWithStatus')}</p>
         : <ul className="space-y-3">{shownI.map(i => <li key={i.id}><InquiryCard i={i} listingName={i.listingRef ? listingNames[i.listingRef] : undefined} onSaved={refresh} /></li>)}</ul>)}
+      {show === 'investors' && (investors.length === 0
+        ? <p className="rounded-2xl bg-slate-50 p-6 text-lg text-ink-muted">{tx('noInvestors')}</p>
+        : shownV.length === 0 ? <p className="rounded-2xl bg-slate-50 p-6 text-lg text-ink-muted">{tx('noneWithStatus')}</p>
+        : <ul className="space-y-3">{shownV.map(i => <li key={i.id}><InquiryCard i={i} onSaved={refresh} /></li>)}</ul>)}
+      {show === 'questions' && (questions.length === 0
+        ? <p className="rounded-2xl bg-slate-50 p-6 text-lg text-ink-muted">{tx('noQuestions')}</p>
+        : shownQ.length === 0 ? <p className="rounded-2xl bg-slate-50 p-6 text-lg text-ink-muted">{tx('noneWithStatus')}</p>
+        : <ul className="space-y-3">{shownQ.map(i => <li key={i.id}><InquiryCard i={i} onSaved={refresh} /></li>)}</ul>)}
     </div>
   );
 }
@@ -181,18 +206,24 @@ function InquiryCard({ i, listingName, onSaved }: { i: WebsiteInquiry; listingNa
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-lg font-semibold text-ink">{i.name}</p>
         <div className="flex flex-wrap gap-2">
+          {isInvestor(i) && <Pill tone="blue">{tx('investorLabel')}</Pill>}
+          {isQuestion(i) && <Pill tone="blue">{tx('questionLabel')}</Pill>}
           {i.kind === 'notify' && <Pill tone="blue">{tx('waitingForCattle')}</Pill>}
           <Pill tone={TONE[i.status]}>{tx(`status_${i.status}`)}</Pill>
         </div>
       </div>
       {i.kind === 'notify' && <p className="text-sm text-ink-muted">{tx('waitingHint')}</p>}
+      {isInvestor(i) && <p className="text-sm text-ink-muted">{tx('investorHint')}</p>}
+      {isQuestion(i) && <p className="text-sm text-ink-muted">{tx('questionHint')}</p>}
       <a href={`tel:${i.phone}`} className="inline-flex min-h-11 items-center gap-2 text-base font-medium text-emerald-700 underline"><Phone className="h-4 w-4" aria-hidden />{i.phone}</a>
       <dl className="grid gap-x-6 gap-y-1 text-base text-ink sm:grid-cols-2">
+        {!isInvestor(i) && !isQuestion(i) && (<>
         <div><dt className="inline text-ink-muted">{tx('buyerType')}: </dt><dd className="inline">{i.buyerType || '—'}</dd></div>
         <div><dt className="inline text-ink-muted">{tx('howMany')}: </dt><dd className="inline">{i.quantity ?? '—'}</dd></div>
         <div><dt className="inline text-ink-muted">{tx('weightClass')}: </dt><dd className="inline">{i.weightClass || '—'}</dd></div>
+        </>)}
         <div><dt className="inline text-ink-muted">{tx('sent')}: </dt><dd className="inline">{when(i.createdAt)}</dd></div>
-        {i.listingRef && <div><dt className="inline text-ink-muted">{tx('listing')}: </dt><dd className="inline">{listingName ?? i.listingRef}</dd></div>}
+        {!isInvestor(i) && !isQuestion(i) && i.listingRef && <div><dt className="inline text-ink-muted">{tx('listing')}: </dt><dd className="inline">{listingName ?? i.listingRef}</dd></div>}
       </dl>
       {i.message && <p className="rounded-xl bg-slate-50 p-3 text-base text-ink">{i.message}</p>}
       <div className="grid gap-3 sm:grid-cols-2">

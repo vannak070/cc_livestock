@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { Download, Pencil, Search, SlidersHorizontal, Syringe, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { ConfirmModal } from '@/components/ui/confirm-modal';
 import type { ERPLivestockData, FarmItem, HealthLogItem, UserRoleItem } from '@/lib/types';
 import { getErrorMessage, hasPermission, format2DecimalsWithCommas } from '@/lib/utils';
 import { sickCattle } from '@/lib/attention';
-import { exportToExcel } from '@/lib/excel-export';
+import { exportToExcel, periodText } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { Choice, NUM } from '../flow/FlowShell';
 import { FarmSelect } from '@/components/ui/listbox-select';
@@ -154,6 +155,9 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
   const exportHistory = () => exportToExcel({
     filename: `CC_Livestock_Health_Medical_Logs_${new Date().toISOString().split('T')[0]}.xlsx`,
     sheetName: 'Health Medical Logs',
+    title: 'Health records',
+    farm: farm,
+    period: periodText(startDate, endDate),
     data: history,
     columns: [
       { header: 'Log ID', key: 'id' },
@@ -203,7 +207,6 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
           <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
         {canTreat && <Button size="lg" onClick={() => onOpenTreat()}><Syringe /> {tx('treat')}</Button>}
@@ -216,20 +219,7 @@ export default function HealthPage({ data, onOpenTreat, onDeleteHealthLog, onUpd
       </section>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label={tx('tabsAria')} className="flex flex-1 rounded-xl bg-slate-100 p-1 sm:flex-none">
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              role="tab"
-              type="button"
-              aria-selected={tab === t.key}
-              onClick={() => setTab(t.key)}
-              className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-3 text-base font-medium sm:px-4 ${tab === t.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <PageTabs label={tx('tabsAria')} active={tab} onChange={id => setTab(id as Tab)} tabs={tabs.map(t => ({ id: t.key, label: t.label }))} />
         <button
           type="button"
           aria-expanded={showFilters}

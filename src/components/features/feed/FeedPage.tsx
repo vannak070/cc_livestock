@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { ArrowDownToLine, Download, Pencil, Plus, Search, Settings, SlidersHorizontal, Trash2, Wheat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,11 +12,12 @@ import { feedStockLevels } from '@/lib/attention';
 import { addDays, amountText, dailyFeedReport, farmToday, farmsToRecord, feedUnit, missedFeedDays, movementOnFarm, round1, type FeedDayStatus } from '@/lib/daily-feed';
 import { dayLabel, useFeedUnits } from './DailyFeedFlow';
 import { useText } from '@/hooks/useText';
-import { exportToExcel } from '@/lib/excel-export';
+import { exportToExcel, periodText } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import FeedProductFlow from './FeedProductFlow';
 import { FeedCategoryModal } from './FeedCategoryModal';
 import FeedInFlow from './FeedInFlow';
+import { dayRangesLabel } from '@/lib/day-ranges';
 import { canAddProduct, canEditProduct, isDefaultProduct } from '@/lib/feed-products';
 import { FarmSelect } from '@/components/ui/listbox-select';
 
@@ -160,6 +162,9 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
   const exportReport = () => exportToExcel({
     filename: `CC_Livestock_Daily_Feed_${todayDay}.xlsx`,
     sheetName: 'Daily Feed',
+    title: 'Daily feed',
+    farm: effectiveFarm,
+    period: `Last ${days} days`,
     data: report.map(r => ({ ...r, feed: r.items.map(i => `${amountText({ unit: i.unit }, i.units)} ${i.productName}`).join('; '), statusText: STATUS_TEXT[r.status] })),
     columns: [
       { header: 'Day', key: 'day' },
@@ -187,6 +192,9 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
   const exportMoves = () => exportToExcel({
     filename: `CC_Livestock_Feed_Movements_${new Date().toISOString().split('T')[0]}.xlsx`,
     sheetName: 'Feed Movements',
+    title: 'Feed movements',
+    farm: farm,
+    period: periodText(startDate, endDate),
     data: moves,
     columns: [
       { header: 'Date', key: 'date', formatter: (v) => (v ? new Date(v).toLocaleDateString() : 'N/A') },
@@ -228,7 +236,6 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
           <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
         {(canFeedIn || onRecordDay) && (
@@ -254,7 +261,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
         <div key={m.farm} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-300 bg-rose-50 p-4">
           <p className="text-lg text-ink">
             <span className="font-semibold">{effectiveFarm ? tx('notWritten') : tx('notWrittenAt', { farm: m.farm })}</span>
-            {txn(m.days.length, 'missedOne', 'missedMany', { days: m.days.map(d => dayLabel(d, language)).join(', ') })}
+            {txn(m.days.length, 'missedOne', 'missedMany', { days: dayRangesLabel(m.days, d => dayLabel(d, language)) })}
           </p>
           {onRecordDay && <Button onClick={() => onRecordDay(m.farm, m.days[0])}><Wheat /> {tx('recordDay', { day: dayLabel(m.days[0], language) })}</Button>}
         </div>
@@ -271,20 +278,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label={tx('tabsAria')} className="flex flex-1 rounded-xl bg-slate-100 p-1 sm:flex-none">
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              role="tab"
-              type="button"
-              aria-selected={tab === t.key}
-              onClick={() => setTab(t.key)}
-              className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-3 text-base font-medium sm:px-4 ${tab === t.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <PageTabs label={tx('tabsAria')} active={tab} onChange={id => setTab(id as Tab)} tabs={tabs.map(t => ({ id: t.key, label: t.label }))} />
         <button
           type="button"
           aria-expanded={showFilters}
@@ -343,11 +337,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
       {tab === 'daily' && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <div role="tablist" aria-label={tx('daysAria')} className="flex rounded-xl bg-slate-100 p-1">
-              {([7, 30] as const).map(n => (
-                <button key={n} role="tab" type="button" aria-selected={days === n} onClick={() => setDays(n)} className={`min-h-11 rounded-lg px-4 text-base font-medium ${days === n ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>{tx('lastNDays', { n })}</button>
-              ))}
-            </div>
+            <PageTabs fit label={tx('daysAria')} active={String(days)} onChange={id => setDays(Number(id) as 7 | 30)} tabs={([7, 30] as const).map(n => ({ id: String(n), label: tx('lastNDays', { n }) }))} />
             <Button variant="outline" className="ml-auto" onClick={exportReport} disabled={report.length === 0}><Download /> {tx('downloadExcel')}</Button>
           </div>
           {report.length === 0 ? (
@@ -436,11 +426,7 @@ export default function FeedPage({ data, onSaveProduct, onDeleteProduct, onAddTr
 
       {tab === 'moves' && (
         <div className="space-y-3">
-          <div role="tablist" aria-label={tx('showAria')} className="flex w-fit rounded-xl bg-slate-100 p-1">
-            {([['ALL', tx('moveAll')], ['STOCK_IN', tx('moveIn')], ['STOCK_OUT', tx('moveOut')]] as [Move, string][]).map(([k, label]) => (
-              <button key={k} role="tab" type="button" aria-selected={move === k} onClick={() => setMove(k)} className={`min-h-11 rounded-lg px-4 text-base font-medium ${move === k ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>{label}</button>
-            ))}
-          </div>
+          <PageTabs fit label={tx('showAria')} active={move} onChange={id => setMove(id as Move)} tabs={([['ALL', tx('moveAll')], ['STOCK_IN', tx('moveIn')], ['STOCK_OUT', tx('moveOut')]] as [Move, string][]).map(([k, label]) => ({ id: k, label }))} />
           {moves.length > 0 ? (
             <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
               {moves.slice(0, visible).map(t => {

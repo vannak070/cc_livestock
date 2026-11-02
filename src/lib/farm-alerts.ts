@@ -5,11 +5,19 @@ import { longStayCattle, longStayMonths } from './long-stay';
 import { prettyDay } from './sale-alerts';
 import { saleReviewRows, saleWindowDays } from './sale-review';
 import type { ERPLivestockData } from './types';
+import type { Task } from './ops-program';
+import { taskViews } from './ops-view';
+import { HELD_ALERT_DAYS, heldLots, type Holding } from './camcow-stock';
+import type { SalesRecord } from './xlsx-parser';
 
 export type DigestData = Pick<ERPLivestockData, 'stock' | 'batches' | 'weightTracking' | 'settings'> & {
   feedProducts: NonNullable<ERPLivestockData['feedProducts']>;
   feedTransactions: NonNullable<ERPLivestockData['feedTransactions']>;
   cattleFollowUps: NonNullable<ERPLivestockData['cattleFollowUps']>;
+  /** The farm programs and their tasks, with the sales the task evidence is matched against. */
+  /** The cattle CC Livestock holds after collecting them (CamCow stock). */
+  camcow?: Holding[];
+  ops?: { programs: { id: string; farm: string; status: string }[]; tasks: Task[]; sales: SalesRecord[] };
 };
 
 /**
@@ -17,11 +25,13 @@ export type DigestData = Pick<ERPLivestockData, 'stock' | 'batches' | 'weightTra
  * office looking at one farm) get exactly their own farm's news:
  *  - sale:     every morning while a batch is within its selling window or late
  *  - longstay: every morning while cattle have been on the farm a long time
+ *  - tasks:    every morning while a farm's task (sell cattle to the farm, buy back) is late
+ *  - camcow:   every morning while cattle have been in CamCow stock longer than HELD_ALERT_DAYS (one message for the whole stock site)
  * Low feed is its own instant alert (low-feed-alerts.ts). Pure: the service
  * gathers the data and sends; this decides what to say.
  */
 
-export type FarmAlertKind = 'sale' | 'longstay';
+export type FarmAlertKind = 'sale' | 'longstay' | 'tasks' | 'camcow';
 
 export interface FarmMessage {
   farm: string;
@@ -93,5 +103,52 @@ export function buildMorningMessages(data: DigestData, now: Date, opts: { appUrl
       out.push({ farm, kind: 'longstay', message: wrap('🐂', 'Long time on the farm', farm, today, body, opts.appUrl) });
     }
   }
+  out.push(...lateTaskMessages(data, today, opts));
+  out.push(...camcowHeldMessages(data.camcow ?? [], today, opts));
   return out;
+}
+
+/** CamCow's own stock: one message while cattle have been held longer than HELD_ALERT_DAYS without being sold. */
+export function camcowHeldMessages(holdings: Holding[], today: string, opts: { appUrl?: string } = {}): FarmMessage[] {
+  const late = heldLots(holdings, today).filter(l => l.daysHeld > HELD_ALERT_DAYS);
+  if (late.length === 0) return [];
+  const head = late.reduce((a, l) => a + l.head, 0);
+  const lines = late.slice(0, 8).map(l => `• ${escapeHtml(l.farm)}: ${plural(l.head, 'animal', 'animals')}, ${plural(l.daysHeld, 'day', 'days')} in stock (collected ${shortDay(l.collectedOn)})`);
+  const body = [
+    `${plural(head, 'animal has', 'animals have')} been in CamCow stock for more than ${HELD_ALERT_DAYS} days:`,
+    ...lines,
+    ...(late.length > 8 ? [`and ${late.length - 8} more lots`] : []),
+    '',
+    'Please sell them, or write down why they are kept.',
+  ];
+  return [{ farm: 'CamCow stock', kind: 'camcow', message: wrap('🏬', 'Cattle held too long', 'CamCow stock', today, body, opts.appUrl) }];
+}
+
+/** What a task asks for, in one plain line. */
+function taskLine(t: Task, batchName: string | undefined): string {
+  const head = t.plannedHead ?? 0;
+  return t.kind === 'sell_to_farm'
+    ? `Sell ${head} new cattle to the farm`
+    : `Collect ${head} finished cattle${batchName ? ` (${escapeHtml(batchName)})` : ''}`;
+}
+
+/** One message per farm that has a late task (an Active program only); the status comes from the same rules as the Tasks screen. */
+export function lateTaskMessages(data: DigestData, today: string, opts: { appUrl?: string } = {}): FarmMessage[] {
+  if (!data.ops) return [];
+  const farmOfProgram = new Map(data.ops.programs.filter(p => p.status === 'Active').map(p => [p.id, p.farm]));
+  const late = taskViews(data.ops.tasks, farmOfProgram, data.stock, data.ops.sales, today).filter(v => v.state.status === 'late');
+  const batchName = new Map(data.batches.map(b => [b.id, b.name]));
+  const farms = [...new Set(late.map(v => farmOfProgram.get(v.task.programId) ?? ''))].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  return farms.map(farm => {
+    const mine = late.filter(v => farmOfProgram.get(v.task.programId) === farm).sort((a, b) => b.state.daysLate - a.state.daysLate);
+    const lines = mine.slice(0, 6).map(v => `• ${taskLine(v.task, v.task.batchId ? batchName.get(v.task.batchId) : undefined)}: ${plural(v.state.daysLate, 'day', 'days')} late (due ${shortDay(v.task.dueDate)})`);
+    const body = [
+      `${plural(mine.length, 'task is', 'tasks are')} late:`,
+      ...lines,
+      ...(mine.length > 6 ? [`and ${mine.length - 6} more`] : []),
+      '',
+      'Please do it, or postpone it and say why.',
+    ];
+    return { farm, kind: 'tasks' as const, message: wrap('📋', 'Late farm tasks', farm, today, body, opts.appUrl) };
+  });
 }

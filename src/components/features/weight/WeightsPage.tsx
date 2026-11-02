@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { Download, Pencil, Scale, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,7 @@ import { getErrorMessage, hasPermission } from '@/lib/utils';
 import { weighSchedules } from '@/lib/attention';
 import { growth, weighPoints } from '@/lib/cattle-stats';
 import { batchWeighIns } from '@/lib/batch-stats';
-import { exportToExcel } from '@/lib/excel-export';
+import { exportToExcel, periodText } from '@/lib/excel-export';
 import { useOnChange } from '@/hooks/useOnChange';
 import { useText } from '@/hooks/useText';
 import { Choice, NUM } from '../flow/FlowShell';
@@ -147,6 +148,9 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
   const exportHistory = () => exportToExcel({
     filename: `CC_Livestock_Weight_Tracking_History_${new Date().toISOString().split('T')[0]}.xlsx`,
     sheetName: 'Weight Tracking History',
+    title: 'Weight history',
+    farm: farm,
+    period: periodText(startDate, endDate),
     data: history,
     columns: [
       { header: 'Cow ID', key: 'cowId' },
@@ -196,7 +200,6 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
     <div className="mx-auto max-w-5xl space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
           <p className="text-base text-ink-muted">{tx('intro')}</p>
         </div>
         {canWeigh && <Button size="lg" onClick={() => onOpenLogWeight()}><Scale /> {tx('weigh')}</Button>}
@@ -209,20 +212,7 @@ export default function WeightsPage({ data, onOpenLogWeight, onWeighBatch, onDel
       </section>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="tablist" aria-label={tx('tabsAria')} className="flex flex-1 rounded-xl bg-slate-100 p-1 sm:flex-none">
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              role="tab"
-              type="button"
-              aria-selected={tab === t.key}
-              onClick={() => setTab(t.key)}
-              className={`min-h-11 flex-1 whitespace-nowrap rounded-lg px-3 text-base font-medium sm:px-4 ${tab === t.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <PageTabs label={tx('tabsAria')} active={tab} onChange={id => setTab(id as Tab)} tabs={tabs.map(t => ({ id: t.key, label: t.label }))} />
         <button
           type="button"
           aria-expanded={showFilters}

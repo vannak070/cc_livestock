@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { getWebsiteOverviewAction } from '@/app/website-actions';
@@ -9,12 +10,13 @@ import { farmListingIdOf } from '@/lib/website';
 import { CattleTab } from './CattleTab';
 import { FarmsTab } from './FarmsTab';
 import { NewsTab } from './NewsTab';
+import { PicturesTab } from './PicturesTab';
 import { PreviewTab } from './PreviewTab';
 import { RequestsTab } from './RequestsTab';
 import { VisitorsTab } from './VisitorsTab';
 import { errorText, ok } from './parts';
 
-type Tab = 'farms' | 'cattle' | 'requests' | 'news' | 'preview' | 'visitors';
+type Tab = 'farms' | 'cattle' | 'requests' | 'news' | 'pictures' | 'preview' | 'visitors';
 
 const utc = (iso: string) => iso.slice(0, 16).replace('T', ' ');
 
@@ -47,7 +49,7 @@ export default function WebsitePage() {
   const tabs: { key: Tab; label: string }[] = [
     ...(o.canPublish ? [{ key: 'farms' as const, label: tx('tabFarms') }, { key: 'cattle' as const, label: tx('tabCattle') }] : []),
     ...(o.canHandleRequests ? [{ key: 'requests' as const, label: newCount ? tx('tabRequestsNew', { n: newCount }) : tx('tabRequests') }] : []),
-    ...(o.canPublish ? [{ key: 'news' as const, label: tx('tabNews') }, { key: 'preview' as const, label: tx('tabPreview') }, { key: 'visitors' as const, label: tx('tabVisitors') }] : []),
+    ...(o.canPublish ? [{ key: 'news' as const, label: tx('tabNews') }, { key: 'pictures' as const, label: tx('tabPictures') }, { key: 'preview' as const, label: tx('tabPreview') }, { key: 'visitors' as const, label: tx('tabVisitors') }] : []),
   ];
   const active = tab && tabs.some(t => t.key === tab) ? tab : tabs[0]?.key;
   // A price inquiry names a farm (older ones named a batch), so both kinds of reference are understood.
@@ -59,7 +61,6 @@ export default function WebsitePage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-10">
       <div>
-        <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
         <p className="text-base text-ink-muted">{tx('subtitle')}</p>
       </div>
       {o.publishHealth && (o.publishHealth.state === 'failing' || o.publishHealth.state === 'stale') && (
@@ -73,25 +74,13 @@ export default function WebsitePage() {
           <p className="text-sm">{tx('healthTry')}</p>
         </div>
       )}
-      <div role="tablist" aria-label={tx('title')} className="flex flex-wrap gap-2">
-        {tabs.map(t => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={active === t.key}
-            onClick={() => setTab(t.key)}
-            className={`min-h-11 rounded-xl px-4 text-base font-semibold transition-colors ${active === t.key ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-ink hover:bg-slate-200'}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {tabs.length > 1 && <PageTabs label={tx('title')} active={active ?? ''} onChange={id => setTab(id as Tab)} tabs={tabs.map(t => ({ id: t.key, label: t.label }))} />}
       <div role="tabpanel">
         {active === 'farms' && <FarmsTab farms={o.farms} onChanged={refresh} />}
         {active === 'cattle' && <CattleTab batches={o.batches} onChanged={refresh} />}
         {active === 'requests' && <RequestsTab farms={o.farmNames} canCreateFarms={o.canCreateFarms} listingNames={listingNames} onChanged={refresh} />}
         {active === 'news' && <NewsTab news={o.news} onChanged={refresh} />}
+        {active === 'pictures' && <PicturesTab siteImages={o.siteImages} onChanged={refresh} />}
         {active === 'preview' && <PreviewTab lastPublishedAt={o.lastPublishedAt} />}
         {active === 'visitors' && <VisitorsTab />}
       </div>

@@ -29,7 +29,7 @@ describe('calculatePlan with the standard plan', () => {
   });
   it('lists the batches in the plan', () => {
     expect(r.batches).toHaveLength(10);
-    expect(r.batches[0]).toMatchObject({ cattleCount: 40, purchaseMonth: 1, saleMonth: 5, cattleCostKhr: 132_000_000 });
+    expect(r.batches[0]).toMatchObject({ cattleCount: 40, purchaseMonth: 1, saleMonth: 4, cattleCostKhr: 132_000_000 });
   });
 });
 
@@ -91,5 +91,20 @@ describe('planName', () => {
     expect(planName('x'.repeat(80), 3)).toHaveLength(60);
     expect(planName('   ', 3)).toBe('Plan 3');
     expect(planName(undefined, 7)).toBe('Plan 7');
+  });
+});
+
+describe('a plan counts its fattening in whole months', () => {
+  it('gives the same per-animal figures for 110 days as for 120 (110 is counted as 4 months)', () => {
+    const a = calculatePlan({ ...DEFAULT_PLAN, fatteningPeriodDays: 110 });
+    const b = calculatePlan({ ...DEFAULT_PLAN, fatteningPeriodDays: 120 });
+    expect(a.finalWeightKgPerHead).toBe(b.finalWeightKgPerHead);
+    expect(a.perHeadFeedCostKhr).toBe(b.perHeadFeedCostKhr);
+    expect(a.profitPerHeadKhr).toBe(b.profitPerHeadKhr);
+  });
+  it('makes one animal, a batch and a year agree', () => {
+    const r = calculatePlan({ ...DEFAULT_PLAN, fatteningPeriodDays: 110 });
+    expect(r.annualProfitKhr).toBeCloseTo(r.monthlyProfitKhr * 12, 0);
+    expect(r.batchProfitKhr).toBeCloseTo(r.profitPerHeadKhr * DEFAULT_PLAN.cattlePerBatch, 0);
   });
 });

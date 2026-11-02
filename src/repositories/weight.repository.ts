@@ -35,8 +35,10 @@ export class WeightRepository {
     return res.rows.map(row => this.mapRowToWeightRecord(row));
   }
 
-  async findByCowId(cowId: string): Promise<WeightRecord[]> {
-    const res = await query('SELECT * FROM weight_tracking WHERE cow_id = $1 ORDER BY tracking_date ASC, id ASC', [cowId]);
+  /** An animal's weighings, OLDEST FIRST (the latest is the last item). */
+  async findByCowId(cowId: string, client?: PoolClient): Promise<WeightRecord[]> {
+    const sql = 'SELECT * FROM weight_tracking WHERE cow_id = $1 ORDER BY tracking_date ASC, id ASC';
+    const res = client ? await client.query(sql, [cowId]) : await query(sql, [cowId]);
     return res.rows.map(row => this.mapRowToWeightRecord(row));
   }
 

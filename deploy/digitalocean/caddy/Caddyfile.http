@@ -1,0 +1,36 @@
+# PHASE 1 (before the names point here): plain HTTP only, so Caddy never asks Let's Encrypt for certificates
+# (failed attempts get the names rate-limited). Test with the IP, or with the real names via curl --resolve / hosts.
+# Copied to /opt/cc-livestock/Caddyfile by `cc https off`.
+#   www.camcow.com.kh      the CamCow public website (main address)
+#   camcow.com.kh          forwards to www
+#   digital.camcow.com.kh  the CC Livestock system app
+{
+	auto_https off
+	# No admin API: change the config by editing Caddyfile and `cc restart caddy`.
+	admin off
+}
+
+(common) {
+	encode zstd gzip
+	header -Server
+}
+
+http://www.camcow.com.kh {
+	import common
+	reverse_proxy website:3200
+}
+
+http://camcow.com.kh {
+	redir http://www.camcow.com.kh{uri} permanent
+}
+
+http://digital.camcow.com.kh {
+	import common
+	reverse_proxy app:3000
+}
+
+# Anything else (e.g. http://157.245.148.58): the public website.
+:80 {
+	import common
+	reverse_proxy website:3200
+}

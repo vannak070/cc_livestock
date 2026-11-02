@@ -46,6 +46,13 @@ describe('public snapshot', () => {
     expect(fieldsOutsideAllowList(buildPublicSnapshot(input()))).toEqual([]);
   });
 
+  it('carries the replaced built-in pictures, only for real slots', () => {
+    const s = buildPublicSnapshot(input({ siteImages: { 'team-group': 'PHOTO-A', logo: 'PHOTO-B', 'farm-shed': '' } }));
+    expect(s.siteImages).toEqual({ 'team-group': 'PHOTO-A' });
+    expect(fieldsOutsideAllowList(s)).toEqual([]);
+    expect(fieldsOutsideAllowList({ ...s, siteImages: { logo: 'PHOTO-B' } as never })).toEqual(['siteImages.logo']);
+  });
+
   it('never contains prices, phones, names, internal ids, notes or exact weights', () => {
     const text = JSON.stringify(buildPublicSnapshot(input()));
     for (const secret of [String(SECRET.price), SECRET.phone, SECRET.owner, SECRET.seller, SECRET.cowId, SECRET.batchId, SECRET.farmId, String(SECRET.exactKg), 'confidential note', 'Batch secret']) {

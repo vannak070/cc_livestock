@@ -4,6 +4,8 @@ import localFont from "next/font/local";
 import "./globals.css";
 import ReactQueryProvider from "@/components/providers/ReactQueryProvider";
 import ServiceWorkerRegister from "@/components/providers/ServiceWorkerRegister";
+import UpdateBanner from "@/components/providers/UpdateBanner";
+import { currentAppVersion } from "@/lib/app-version";
 
 // One family for English and Khmer, so both scripts look consistent.
 const kantumruy = Kantumruy_Pro({
@@ -36,7 +38,7 @@ export const metadata: Metadata = {
   title: "CC Livestock",
   description: "Farm records for your cattle: weights, health, feed and sales.",
   icons: {
-    icon: "/logo.png",
+    icon: "/logo-2026.png",
     shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
@@ -52,7 +54,7 @@ export const viewport: Viewport = {
   themeColor: "#0E7A38",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -67,6 +69,7 @@ export default function RootLayout({
           {children}
         </ReactQueryProvider>
         <ServiceWorkerRegister />
+        <UpdateBanner version={await currentAppVersion()} />
       </body>
     </html>
   );

@@ -1,0 +1,92 @@
+#!/bin/sh
+# cc — everyday commands for CC Livestock on this server (installed as /usr/local/bin/cc). Run `cc` for the list.
+set -eu
+DIR=/opt/cc-livestock
+cd "$DIR"
+dc() { docker compose "$@"; }
+
+wait_healthy() {
+  i=0
+  while [ "$(docker inspect -f '{{.State.Health.Status}}' cc-livestock-app-1 2>/dev/null)" != healthy ]; do
+    i=$((i + 1)); [ "$i" -gt 40 ] && { echo "app is not healthy after 2 minutes: cc logs app"; exit 1; }
+    sleep 3
+  done
+  echo "app healthy"
+}
+
+env_val() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
+
+# Migrations and admin scripts run as the database owner; the app itself runs as the restricted account
+# (scripts/db-role.sh). The owner's name and password go to docker through the environment, not the command line.
+as_owner() {
+  ( DB_USER=$(env_val DB_USER); DB_PASSWORD=$(env_val DB_PASSWORD); export DB_USER DB_PASSWORD
+    dc run --rm -T -e DB_USER -e DB_PASSWORD app "$@" )
+}
+migrate() { as_owner node_modules/.bin/tsx src/db/migrate.ts; ./scripts/db-role.sh; }
+
+set_env() { # set_env KEY VALUE  (adds or replaces one line of .env)
+  if grep -q "^$1=" .env; then sed -i "s|^$1=.*|$1=$2|" .env; else echo "$1=$2" >> .env; fi
+}
+
+case "${1:-help}" in
+  status)
+    dc ps --format "table {{.Service}}\t{{.State}}\t{{.Status}}"
+    free -h | awk '/Mem:/{print "memory: "$3" used of "$2} /Swap:/{print "swap:   "$3" used of "$2}'
+    df -h / | awk 'NR==2{print "disk:   "$3" used of "$2" ("$5")"}'
+    echo "last backup: $(ls -t backups/*.dump 2>/dev/null | head -1 || echo none)"
+    echo "web server: $(grep -q auto_https Caddyfile && echo 'HTTP only (phase 1)' || echo HTTPS)"
+    ;;
+  logs) dc logs --tail 100 -f ${2:-} ;;
+  restart) dc restart ${2:-} ;;
+  backup) ./scripts/backup.sh ;;
+  migrate) migrate ;;
+  db-role) ./scripts/db-role.sh ;;
+  check) dc run --rm -T app node_modules/.bin/tsx src/db/check-production.ts ;;
+  update) # cc update TAG  — after loading cc-livestock-app:TAG and camcow-website:TAG
+    TAG=${2:?usage: cc update TAG}
+    docker image inspect "cc-livestock-app:$TAG" "camcow-website:$TAG" >/dev/null
+    ./scripts/backup.sh
+    OLD_APP=$(grep '^APP_TAG=' .env | cut -d= -f2); OLD_WEB=$(grep '^WEBSITE_TAG=' .env | cut -d= -f2)
+    set_env APP_TAG "$TAG"; set_env WEBSITE_TAG "$TAG"
+    migrate
+    dc up -d
+    wait_healthy
+    echo "updated to $TAG (was app $OLD_APP, website $OLD_WEB; go back with: cc rollback $OLD_APP)"
+    ;;
+  rollback) # cc rollback TAG — images only; restore a backup yourself if a migration must be undone
+    TAG=${2:?usage: cc rollback TAG}
+    set_env APP_TAG "$TAG"; set_env WEBSITE_TAG "$TAG"; dc up -d; wait_healthy ;;
+  https)
+    case "${2:-}" in
+      on)
+        for n in camcow.com.kh www.camcow.com.kh digital.camcow.com.kh; do
+          ip=$(getent ahostsv4 "$n" | awk 'NR==1{print $1}')
+          [ "$ip" = 157.245.148.58 ] || { echo "$n points to '${ip:-nothing}', not this server: wait for DNS (no certificates requested)"; exit 1; }
+        done
+        cp caddy/Caddyfile.https Caddyfile; set_env SESSION_COOKIE_SECURE true
+        dc up -d app; dc restart caddy; wait_healthy
+        echo "HTTPS on: Caddy fetches the certificates now (cc logs caddy)";;
+      off) cp caddy/Caddyfile.http Caddyfile; set_env SESSION_COOKIE_SECURE false; dc up -d app; dc restart caddy ;;
+      *) echo "usage: cc https on|off"; exit 1 ;;
+    esac ;;
+  admin) # cc admin EMAIL "Full Name" — first Super Admin; the password goes to a root-only file, never the screen
+    EMAIL=${2:?usage: cc admin EMAIL "Full Name"}; NAME=${3:-Administrator}
+    PW=$(openssl rand -base64 18 | tr -d '/+=' | cut -c1-20)
+    dc run --rm -T app node_modules/.bin/tsx src/db/migrations/create-admin.ts "$EMAIL" "$PW" "$NAME" | grep -v -i password || true
+    umask 077; printf 'CC Livestock first Super Admin\nemail: %s\npassword: %s\nChange it after the first sign-in, then delete this file.\n' "$EMAIL" "$PW" > /root/cc-livestock-admin.txt
+    echo "saved to /root/cc-livestock-admin.txt (root only): read it with  cat /root/cc-livestock-admin.txt" ;;
+  *)
+    cat <<'HELP'
+cc status                 containers, memory, disk, last backup, HTTP/HTTPS
+cc logs [service]         follow logs (app, website, db, caddy)
+cc restart [service]      restart one service or all
+cc backup                 database backup now (also runs every night at 02:00 Phnom Penh)
+cc migrate | cc check     run migrations (as the owner, then refresh the app account) | production settings check
+cc db-role                create/refresh the restricted database account the app runs as
+cc update TAG             backup, switch both images to TAG, migrate, start, wait until healthy
+cc rollback TAG           go back to older images
+cc https on|off           switch HTTPS on once DNS points here (checks DNS first) / back to HTTP
+cc admin EMAIL "Name"     create the first Super Admin (password saved to a root-only file)
+HELP
+    ;;
+esac

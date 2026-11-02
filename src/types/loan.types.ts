@@ -22,9 +22,10 @@ export interface FarmLoanTerms {
   /**
    * What a worked-out loan covers (missing = 'cattle'):
    * - cattle: the cattle bought until the first sale to CC Livestock;
+   * - start: those cattle, plus the feed and the interest of the first months, while the farm has no trade income;
    * - all: those cattle, plus the year's feed and the year's interest.
    */
-  loanCovers?: 'cattle' | 'all';
+  loanCovers?: 'cattle' | 'start' | 'all';
   /**
    * The bank pays the loan out ONCE, in month 1 of each loan year. This is that
    * amount; 0 or missing means: the financed share of the cattle bought until
@@ -55,16 +56,9 @@ export interface FarmLoanAssumptions {
   /** The farm's own money at the start. */
   openingCashKhr: number;
   /**
-   * How cattle are bought in a loan year (missing = 'monthly'):
-   * - monthly: stock up a share a month; then every month the cattle that are ready are sold to CC Livestock
-   *   and replaced from CC Livestock the same day, so the herd stays full (it carries on into the next loan year);
-   * - once: the whole herd in month 1, kept until month 12;
-   * - rounds: the whole herd in month 1; each time fattening ends it is sold to CC Livestock and a new
-   *   herd is taken from CC Livestock the same day, so the herd stays full; the last herd is sold in month 12;
-   * - split: part of the herd in month 1 (`firstBuyPct`), the rest in `secondBuyMonth`, all kept until month 12.
-   * In month 12 CC Livestock buys every animal still on the farm.
+   * The farm trades every month with CC Livestock (the only way cattle are bought): it stocks up a share a month,
+   * then each month the finished cattle are sold to CC Livestock and replaced the same day, so the herd stays full
+   * and carries on into the next loan year. Older plans may hold another value; it is read as 'monthly'.
    */
-  buyPlan?: 'monthly' | 'once' | 'rounds' | 'split';
-  firstBuyPct?: number;
-  secondBuyMonth?: number;
+  buyPlan?: 'monthly';
 }

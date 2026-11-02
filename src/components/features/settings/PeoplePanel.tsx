@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { Building, Copy, KeyRound, Lock, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
@@ -150,14 +151,7 @@ export default function PeoplePanel({ settings, actor, onChanged, farm, companyR
           <Input value={query} onChange={e => setQuery(e.target.value)} placeholder={tx('searchPeople')} aria-label={tx('searchPeopleAria')} className="h-14 pl-11 text-lg" />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div role="tablist" aria-label={tx('show')} className="flex rounded-xl bg-slate-100 p-1">
-            {(['All', 'Active', 'Inactive'] as const).map(s => (
-              <button key={s} role="tab" type="button" aria-selected={status === s} onClick={() => setStatus(s)}
-                className={`min-h-11 rounded-lg px-4 text-base font-medium ${status === s ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-                {s === 'Inactive' ? tx('turnedOff') : s === 'Active' ? tx('active') : tx('all')} ({counts[s]})
-              </button>
-            ))}
-          </div>
+          <PageTabs fit label={tx('show')} active={status} onChange={id => setStatus(id as typeof status)} tabs={(['All', 'Active', 'Inactive'] as const).map(s => ({ id: s, label: `${s === 'Inactive' ? tx('turnedOff') : s === 'Active' ? tx('active') : tx('all')} (${counts[s]})` }))} />
           {roleChoices.length > 1 && (
             <select aria-label={tx('role')} value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className={`${SELECT} ml-auto`}>
               <option value="">{tx('allRoles')}</option>

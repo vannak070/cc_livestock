@@ -32,11 +32,10 @@ export function JoinRoles({ title, roles, initial }: { title: string; roles: Joi
           ))}
         </div>
       </div>
-      <div id="role-panel" role="tabpanel" aria-labelledby={`role-${role.key}`} className="split">
+      <div id="role-panel" role="tabpanel" aria-labelledby={`role-${role.key}`} className="split join-split">
         <div key={`${role.key}-info`} className="side stack rise" style={{ gap: 36 }}>{role.info}</div>
         <div className="main" id="apply" style={{ scrollMarginTop: 96 }}>
           <div key={`${role.key}-form`} className="form-card jn-form rise">
-            <span className="head-rule" aria-hidden="true" />
             <h2 className="display h3"><KmWords text={role.formTitle} /></h2>
             {role.form}
           </div>

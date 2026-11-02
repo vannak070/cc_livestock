@@ -14,7 +14,7 @@ import type { ConsentInput, NewsInput, ProfileInput } from '@/lib/website';
 import type { ListingInput } from '@/repositories/website';
 import {
   websiteBatchListingService, websiteFarmProfileService, websiteNewsService, websiteOverviewService, websitePhotoService,
-  websiteRequestService, snapshotPublisherService, type PhotoUpload,
+  websiteRequestService, websiteSiteImageService, snapshotPublisherService, type PhotoUpload,
 } from '@/services/website';
 
 // Reads (no page refresh needed).
@@ -88,6 +88,11 @@ export async function uploadWebsitePhotoAction(input: PhotoUpload) {
 }
 
 // Publishing the public snapshot now (it also happens after every change above, and every 15 minutes).
+// Built-in pictures (Website -> Pictures): a photo id from uploadWebsitePhotoAction, or null for the original picture.
+export async function setWebsiteSiteImageAction(slot: string, photoId: string | null) {
+  return runAction('Failed to change the picture', [], actor => websiteSiteImageService.set(actor, slot, photoId), { revalidate: false });
+}
+
 export async function publishWebsiteNowAction() {
   return runAction('Failed to publish the website', [], actor => snapshotPublisherService.publishAs(actor), { revalidate: false });
 }

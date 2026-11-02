@@ -1,3 +1,6 @@
+import { mkdtempSync, readdirSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
@@ -8,6 +11,7 @@ const snap = (builtAt: string) => ({ version: 1, builtAt, summary: { memberFarms
 const json = (body: unknown, init: ResponseInit = {}) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) }, ...init });
 
 let fetchMock: ReturnType<typeof vi.fn>;
+let outbox = '';
 let warn: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
@@ -16,6 +20,9 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-10-07T00:00:00Z'));
   process.env.CAMCOW_API_URL = `${URL_BASE}/`;
   process.env.CAMCOW_API_KEY = KEY;
+  // Never the real website/.outbox: each test gets its own empty folder.
+  outbox = mkdtempSync(path.join(tmpdir(), 'camcow-outbox-'));
+  process.env.CAMCOW_OUTBOX_DIR = outbox;
   fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -28,6 +35,8 @@ afterEach(() => {
   vi.restoreAllMocks();
   delete process.env.CAMCOW_API_URL;
   delete process.env.CAMCOW_API_KEY;
+  delete process.env.CAMCOW_OUTBOX_DIR;
+  rmSync(outbox, { recursive: true, force: true });
 });
 
 describe('the gateway client', () => {
@@ -85,16 +94,14 @@ describe('the snapshot through the gateway', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('asks "has it changed?" afterwards and keeps its copy on 304', async () => {
-    fetchMock.mockResolvedValueOnce(json(snap('A'), { headers: { ETag: '"e1"' } }));
+  it('reads through the Next cache (so pre-built pages work), not no-store, and picks up a newer snapshot', async () => {
+    fetchMock.mockResolvedValueOnce(json(snap('A')));
     const { getSnapshot } = await import('./snapshot/read');
     await getSnapshot();
+    expect(fetchMock.mock.calls[0][1].next).toEqual({ revalidate: 30 });
+    expect(fetchMock.mock.calls[0][1].cache).toBeUndefined();
     await vi.advanceTimersByTimeAsync(31_000);
-    fetchMock.mockResolvedValueOnce(new Response(null, { status: 304 }));
-    expect((await getSnapshot()).builtAt).toBe('A');
-    expect(fetchMock.mock.calls[1][1].headers['If-None-Match']).toBe('"e1"');
-    await vi.advanceTimersByTimeAsync(31_000);
-    fetchMock.mockResolvedValueOnce(json(snap('B'), { headers: { ETag: '"e2"' } }));
+    fetchMock.mockResolvedValueOnce(json(snap('B')));
     expect((await getSnapshot()).builtAt).toBe('B');
   });
 
@@ -199,11 +206,32 @@ describe('form entries through the gateway', () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ kind: 'view', path: '/cattle', lang: 'en', referrer: '', device: 'phone' });
   });
 
-  it('fails (so the visitor sees "try again") when CC Livestock refuses or is down', async () => {
+  it('fails (so the visitor sees "try again") when CC Livestock refuses an entry', async () => {
     fetchMock.mockResolvedValueOnce(json({ ok: false, field: 'phone' }, { status: 400 }));
-    const { insertApplication, insertInquiry } = await import('./forms/db');
+    const { insertApplication } = await import('./forms/db');
     await expect(insertApplication(app)).rejects.toThrow('answered 400');
+    expect(readdirSync(outbox).filter(n => n.endsWith('.json'))).toHaveLength(0);
+  });
+
+  it('keeps an entry in the outbox while CC Livestock is down, and sends it once it answers', async () => {
+    const inquiry = { kind: 'notify', name: 'B', phone: '012345678', buyerType: '', quantity: null, weightClass: '', listingId: null, message: '', language: 'en' } as const;
     fetchMock.mockRejectedValueOnce(new Error('down'));
-    await expect(insertInquiry({ kind: 'notify', name: 'B', phone: '012345678', buyerType: '', quantity: null, weightClass: '', listingId: null, message: '', language: 'en' })).rejects.toThrow('Could not reach CC Livestock');
+    const { insertInquiry, flushOutbox } = await import('./forms/db');
+    await expect(insertInquiry(inquiry)).resolves.toBeUndefined();
+    expect(readdirSync(outbox).filter(n => n.endsWith('.json'))).toHaveLength(1);
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await flushOutbox(true);
+    expect(readdirSync(outbox).filter(n => n.endsWith('.json'))).toHaveLength(0);
+    expect(fetchMock.mock.calls.at(-1)?.[0]).toBe(`${URL_BASE}/inquiries`);
+  });
+
+  it('moves a waiting entry that CC Livestock refuses to failed/, instead of retrying it forever', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    const { insertInquiry, flushOutbox } = await import('./forms/db');
+    await insertInquiry({ kind: 'notify', name: 'B', phone: '012345678', buyerType: '', quantity: null, weightClass: '', listingId: null, message: '', language: 'en' });
+    fetchMock.mockResolvedValueOnce(json({ ok: false }, { status: 400 }));
+    await flushOutbox(true);
+    expect(readdirSync(outbox).filter(n => n.endsWith('.json'))).toHaveLength(0);
+    expect(readdirSync(path.join(outbox, 'failed'))).toHaveLength(1);
   });
 });

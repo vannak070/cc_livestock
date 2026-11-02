@@ -6,3 +6,4 @@ export { websiteRequestRepository } from './request.repository';
 export { websiteNewsRepository } from './news.repository';
 export { websitePhotoRepository } from './photo.repository';
 export { websiteEventRepository } from './event.repository';
+export { websiteSiteImageRepository } from './site-image.repository';

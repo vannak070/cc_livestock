@@ -1,7 +1,7 @@
 import { settingsRepository } from '../repositories/settings.repository';
 import { Actor, AuthzError, canManageUsers } from '../lib/authz';
 import { generateTempPassword } from '../lib/generate-temp-password';
-import { PRIVILEGED_ROLES, isFarmOwner, knownPermissions, validatePerson, type PersonInput } from '../lib/user-admin';
+import { PRIVILEGED_ROLES, isFarmOwner, knownPermissions, personFarm, validatePerson, type PersonInput } from '../lib/user-admin';
 import type { UserRoleItem } from '../lib/types';
 
 const STAFF_ROLES = ['Farm Staff', 'Veterinarian'];
@@ -36,7 +36,7 @@ async function validated(actor: Actor, input: PersonInput, editing: UserRoleItem
   const settings = await settingsRepository.getSettings();
   const own = isFarmOwner(actor) ? { ...input, farmLocation: actor.farmLocation ?? '' } : input;
   // Keys of removed features grant nothing: drop them instead of refusing the save.
-  const clean = { ...own, permissions: knownPermissions(own.permissions) };
+  const clean = { ...own, farmLocation: personFarm(own.role, own.farmLocation, editing, actor.id), permissions: knownPermissions(own.permissions) };
   const errors = validatePerson(settings, clean, editing, actor);
   const first = Object.values(errors)[0];
   if (first) throw new Error(first);

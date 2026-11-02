@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { InquiryForm } from '@/components/cattle/InquiryForm';
+import { SalesCard } from '@/components/cattle/SalesCard';
 import { ApplicationForm } from '@/components/join/ApplicationForm';
 import { JoinRoles } from '@/components/join/JoinRoles';
 import { PageHead } from '@/components/shared/PageHead';
@@ -9,6 +10,7 @@ import { href } from '@/lib/i18n';
 import { pageLang } from '@/lib/page';
 import { KmWords } from '@/components/shared/KmWords';
 import { markKmWords } from '@/lib/khmer-words';
+import { siteImages } from '@/lib/site-images';
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { t } = await pageLang(params);
@@ -28,6 +30,7 @@ const ICONS = {
 export default async function JoinPage({ params, searchParams }: { params: Promise<{ lang: string }>; searchParams: Promise<{ role?: string }> }) {
   const { lang, t } = await pageLang(params);
   const { role = 'farmer' } = await searchParams;
+  const img = await siteImages();
   const tabs = t.home.tabs;
   const ticks = (items: readonly string[]) => (
     <ul className="jn-get">
@@ -55,8 +58,8 @@ export default async function JoinPage({ params, searchParams }: { params: Promi
           {t.join.steps.map(i => <li key={i}>{i}</li>)}
         </ol>
       </div>
-      <div className="jn-look">
-        <h2>{t.join.lookTitle}</h2>
+      <div className="jn-look stack" style={{ gap: 14 }}>
+        <h2 className="display h3"><KmWords text={t.join.lookTitle} /></h2>
         <ul>
           {t.join.look.map(i => <li key={i}>{i}</li>)}
         </ul>
@@ -65,7 +68,7 @@ export default async function JoinPage({ params, searchParams }: { params: Promi
   );
   return (
     <>
-      <PageHead eyebrow={t.eyebrow.join} title={t.join.pageTitle} sub={t.join.pageSub} />
+      <PageHead eyebrow={t.eyebrow.join} title={t.join.pageTitle} sub={t.join.pageSub} photo={img['farm-shed']} />
       <section className="section" style={{ paddingTop: 40 }}>
         <div className="wrap">
           <JoinRoles
@@ -76,8 +79,8 @@ export default async function JoinPage({ params, searchParams }: { params: Promi
                 form: <ApplicationForm key="farmer-form" t={{ join: t.join, common: t.common }} lang={lang} membersHref={href(lang, '/members')} /> },
               { key: 'buyer', label: tabs.buyer.label, blurb: tabs.buyer.title, icon: ICONS.buyer,
                 info: about('buyer-info', tabs.buyer.title, tabs.buyer.body, tabs.buyer.points, { to: href(lang, '/cattle'), label: tabs.buyer.cta }),
-                formTitle: markKmWords(t.inquiry.title),
-                form: <InquiryForm key="buyer-form" t={{ inquiry: t.inquiry, common: t.common, values: t.values }} lang={lang} listings={[]} /> },
+                formTitle: markKmWords(t.contact.cardTitle),
+                form: <SalesCard key="buyer-contact" t={t} title={null} /> },
               { key: 'investor', label: tabs.investor.label, blurb: tabs.investor.title, icon: ICONS.investor,
                 info: about('investor-info', tabs.investor.title, tabs.investor.body, tabs.investor.points),
                 formTitle: markKmWords(t.inquiry.investorTitle),

@@ -19,9 +19,9 @@ export class AuthzError extends Error {
   }
 }
 
-export async function loadActor(userId: string | undefined): Promise<Actor | null> {
+export async function loadActor(userId: string | undefined, issuedAt?: number): Promise<Actor | null> {
   if (!userId) return null;
-  return settingsRepository.getActiveUserById(userId);
+  return settingsRepository.getActiveUserById(userId, issuedAt);
 }
 
 export function can(actor: Actor, key: PermissionKey): boolean {

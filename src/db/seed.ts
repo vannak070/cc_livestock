@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { pool, connectWithRetry } from '../config/database';
 import { resetDatabase } from './migrate';
 import { getDbData } from '../lib/db';

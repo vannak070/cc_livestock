@@ -5,7 +5,7 @@ import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { CcTradeRow, LoanMonth, bankSchedule, ccTrades } from '@/lib/farm-loan';
 import type { FarmLoanTerms, PlanFeedLine } from '@/lib/types';
-import * as xlsx from 'xlsx';
+import { loadXlsx } from '@/lib/load-xlsx';
 import { feedNeeds } from '@/lib/feed-lines';
 import { exportToExcel } from '@/lib/excel-export';
 import { useText } from '@/hooks/useText';
@@ -45,7 +45,8 @@ function termRows(name: string, terms: FarmLoanTerms, payments: Payments): [stri
 }
 
 /** Excel for the bank: the loan terms on one sheet, every month's payment on the next. */
-export function exportBankPlan(name: string, terms: FarmLoanTerms, payments: Payments) {
+export async function exportBankPlan(name: string, terms: FarmLoanTerms, payments: Payments) {
+  const xlsx = await loadXlsx();
   const header = ['Month', 'Owed at start (៛)', 'Borrowed (៛)', 'Interest (៛)', 'Paid back (៛)', 'Farm pays the bank (៛)', 'Owed at end (៛)', 'Farm cash after (៛)'];
   const rows: (string | number)[][] = [
     header,
@@ -245,6 +246,7 @@ export function CcTradesTable({ trades, onDownload }: { trades: Trades; onDownlo
               ))}
             </tfoot>
           </table>
+          {trades.rows.some(r => r.monthInYear === 12 && r.swap) && <p className="px-3 py-2 text-sm text-ink-muted">{tx('tradesYearNote')}</p>}
         </div>
       )}
     </section>

@@ -37,13 +37,21 @@ describe('passwords', () => {
 });
 
 describe('auth tokens', () => {
-  it('round-trips the payload', () => {
-    const token = signAuthToken({ sub: 'u1', email: 'a@x.test', role: 'Admin', farmLocation: 'Farm A' });
-    expect(verifyAuthToken(token)).toMatchObject({ sub: 'u1', role: 'Admin', farmLocation: 'Farm A' });
+  const now = () => Math.floor(Date.now() / 1000);
+
+  it('round-trips the payload, the sign-in time and the expiry', () => {
+    const at = now() - 600;
+    const token = signAuthToken({ sub: 'u1', email: 'a@x.test', role: 'Admin', farmLocation: 'Farm A', signedInAt: at }, now() + 3600);
+    expect(verifyAuthToken(token)).toMatchObject({ sub: 'u1', role: 'Admin', farmLocation: 'Farm A', signedInAt: at, exp: now() + 3600 });
   });
 
   it('rejects tampered tokens', () => {
-    const token = signAuthToken({ sub: 'u1', email: 'a@x.test', role: 'Admin' });
+    const token = signAuthToken({ sub: 'u1', email: 'a@x.test', role: 'Admin', signedInAt: now() }, now() + 3600);
     expect(() => verifyAuthToken(token.slice(0, -2) + 'xx')).toThrow();
+  });
+
+  it('rejects a token past its expiry', () => {
+    const token = signAuthToken({ sub: 'u1', email: 'a@x.test', role: 'Admin', signedInAt: now() - 7200 }, now() - 1);
+    expect(() => verifyAuthToken(token)).toThrow();
   });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronRight, Info } from 'lucide-react';
 import type { ERPLivestockData, UserRoleItem } from '@/lib/types';
 import { hasPermission } from '@/lib/utils';
@@ -17,9 +17,13 @@ import { SALE_WEEK_DAYS, saleWindowDays } from '@/lib/sale-review';
 import { farmToday, farmsToRecord, missedFeedDays, todayNotRecorded, unlinkedRationFeeds } from '@/lib/daily-feed';
 import { dayLabel } from './features/feed/DailyFeedFlow';
 import { useText } from '@/hooks/useText';
+import { dayRangesLabel } from '@/lib/day-ranges';
 import { canSetLimits, limitBlock, limitUsed } from '@/lib/farm-limit';
 import { capacityLevels, nearLimit } from '@/lib/capacity-alerts';
 import { longStayCattle, longStayMonths } from '@/lib/long-stay';
+import { useOpsPrograms } from '@/hooks/useOpsPrograms';
+import { canSeePrograms } from '@/lib/ops-program';
+import { taskViews, todayCounts } from '@/lib/ops-view';
 import type { ActiveTabType, RecordAction } from './layout/SidebarLayout';
 
 interface TodayTabProps {
@@ -68,7 +72,38 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
   const onFarm = activeCattle(data.stock).length;
   const firstName = (currentUser.name || '').split(' ')[0];
 
+  // The farm tasks (Super Admin, Admin, Management): what is late, and what is due in the next 7 days.
+  const canSeeTasks = canSeePrograms(currentUser);
+  const opsQuery = useOpsPrograms(canSeeTasks);
+  const opsCounts = useMemo(() => {
+    if (!opsQuery.data) return null;
+    const farmOf = new Map(opsQuery.data.programs.map(p => [p.id, p.farm]));
+    const views = taskViews(opsQuery.data.tasks, farmOf, data.stock, data.salesTracking ?? []);
+    return todayCounts(views, farmOf, farmToday());
+  }, [opsQuery.data, data.stock, data.salesTracking]);
+
   const items: AttentionItem[] = [];
+
+  if (opsCounts && opsCounts.late > 0) {
+    items.push({
+      key: 'ops-late',
+      severity: 'urgent',
+      title: txn(opsCounts.late, 'opsLateOne', 'opsLateMany'),
+      detail: tx('opsLateDetail', { farms: opsCounts.lateFarms.join(', ') }),
+      actionLabel: tx('opsOpen'),
+      onAction: () => onNavigate('action-plans')
+    });
+  }
+  if (opsCounts && opsCounts.week > 0) {
+    items.push({
+      key: 'ops-week',
+      severity: 'attention',
+      title: txn(opsCounts.week, 'opsWeekOne', 'opsWeekMany'),
+      detail: tx('opsWeekDetail'),
+      actionLabel: tx('opsOpen'),
+      onAction: () => onNavigate('action-plans')
+    });
+  }
 
   // Feed only leaves stock when someone writes the day down, so every missed day is flagged.
   if (onRecordFeed) {
@@ -84,7 +119,7 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
           key: `feed-missed-${farm}`,
           severity: 'urgent',
           title: many ? txn(missed.length, 'feedMissedOneAt', 'feedMissedManyAt', { farm }) : txn(missed.length, 'feedMissedOne', 'feedMissedMany'),
-          detail: tx('feedMissedDetail', { days: missed.map(d => dayLabel(d, language)).join(', ') }),
+          detail: tx('feedMissedDetail', { days: dayRangesLabel(missed, d => dayLabel(d, language)) }),
           actionLabel: tx('record'),
           onAction: () => onRecordFeed(farm, missed[0])
         });

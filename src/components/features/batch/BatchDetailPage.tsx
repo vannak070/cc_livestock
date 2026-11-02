@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { ArrowLeft, ArrowRightLeft, Download, Pencil, Plus, Scale, Syringe, Trash2, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
@@ -158,6 +159,9 @@ export default function BatchDetailPage({ batch, stock, weightTracking, feedProd
   const exportGrowth = () => exportToExcel({
     filename: `CC_Livestock_Batch_Growth_${batch.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`,
     sheetName: 'Batch Growth',
+    title: `Batch growth: ${batch.name}`,
+    farm: batch.farmLocation,
+    period: `Since ${batch.startDate}`,
     data: rows,
     columns: [
       { header: 'Cow ID', key: 'cow.id' },
@@ -204,14 +208,7 @@ export default function BatchDetailPage({ batch, stock, weightTracking, feedProd
         <Tile label={tx('feedCost')} value={summary.feedCostPerDay > 0 ? riel(summary.feedCostPerDay) : '—'} sub={tx('eachDay')} />
       </section>
 
-      <div role="tablist" aria-label={tx('detailsAria')} className="flex gap-1 border-b border-slate-200">
-        {TABS.map(t => (
-          <button key={t.key} role="tab" type="button" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
-            className={`min-h-12 flex-1 whitespace-nowrap border-b-4 px-2 text-base font-medium sm:px-4 sm:text-lg ${tab === t.key ? 'border-emerald-600 text-emerald-800' : 'border-transparent text-ink-muted hover:text-ink'}`}>
-            {tx(t.label)}
-          </button>
-        ))}
-      </div>
+      <PageTabs label={tx('detailsAria')} active={tab} onChange={id => setTab(id as typeof tab)} tabs={TABS.map(t => ({ id: t.key, label: tx(t.label) }))} />
 
       {tab === 'cattle' && (
         cattle.length === 0 ? (

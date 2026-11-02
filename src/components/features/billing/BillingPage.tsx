@@ -56,7 +56,6 @@ export default function BillingPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-10">
       <div>
-        <h2 className="text-2xl font-semibold text-ink">{tx('title')}</h2>
         <p className="text-base text-ink-muted">{tx('subtitle')}</p>
       </div>
 
@@ -66,6 +65,8 @@ export default function BillingPage() {
           <p className="text-base text-amber-900">{tx('noPriceBody')}</p>
         </section>
       )}
+      {/* With no price saved, the form is the first thing to do, so it comes first. */}
+      {!start && <PriceSection settings={settings} currentMonth={currentMonth} onChanged={refresh} />}
 
       {/* Which month */}
       <div className="flex flex-wrap items-center gap-2">
@@ -84,6 +85,15 @@ export default function BillingPage() {
           <p className="text-lg font-semibold text-ink">{tx('notStartedTitle', { month: monthLabel(start, language) })}</p>
           <p className="text-base text-ink-muted">{tx('notStartedBody')}</p>
         </div>
+      )}
+
+      {!st.billed && st.registered > 0 && (
+        <section className="space-y-2 rounded-2xl bg-white p-4 ring-1 ring-slate-200" aria-labelledby="unbilled">
+          <h3 id="unbilled" className="text-lg font-semibold text-ink">{tx('registeredUnbilled', { n: st.registered })}</h3>
+          <ul className="divide-y divide-slate-100">
+            {st.registeredFarms.map(f => <li key={f.farm} className="flex justify-between gap-3 py-2 text-base text-ink"><span>{f.farm}</span><span className="font-medium">{f.cattle}</span></li>)}
+          </ul>
+        </section>
       )}
 
       {st.billed && (
@@ -124,6 +134,11 @@ export default function BillingPage() {
             {st.removed > 0 && <p className="text-base text-ink-muted">{tx('removedNote', { n: st.removed })}</p>}
           </section>
 
+        </>
+      )}
+
+      {st.animals.length > 0 && (
+        <>
           {st.animals.length > 0 && (
             <section className="space-y-2">
               <Button variant="outline" aria-expanded={showAnimals} onClick={() => setShowAnimals(v => !v)}>
@@ -167,7 +182,7 @@ export default function BillingPage() {
                   <td className="px-4 py-2">
                     <button type="button" aria-label={tx('openMonth', { month: monthLabel(r.month, language) })} onClick={() => setMonth(r.month === currentMonth ? undefined : r.month)} className="min-h-11 text-left font-medium text-emerald-800 underline-offset-2 hover:underline">{monthLabel(r.month, language)}</button>
                   </td>
-                  <td className="px-4 py-2 text-right text-ink">{r.billed ? r.cattle : '—'}</td>
+                  <td className="px-4 py-2 text-right text-ink">{r.billed ? r.cattle : r.registered > 0 ? <span className="text-ink-muted">{r.registered}</span> : '—'}</td>
                   <td className="px-4 py-2 text-right text-ink">{r.billed ? riel(r.amount) : <span className="text-ink-muted">{tx('notBilled')}</span>}</td>
                 </tr>
               ))}
@@ -176,7 +191,7 @@ export default function BillingPage() {
         </div>
       </section>
 
-      <PriceSection settings={settings} currentMonth={currentMonth} onChanged={refresh} />
+      {start && <PriceSection settings={settings} currentMonth={currentMonth} onChanged={refresh} />}
     </div>
   );
 }

@@ -8,6 +8,6 @@ export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const s = await getSnapshot();
-  const paths = ['', '/members', '/cattle', '/join', '/news', '/contact', ...(ABOUT.ready ? ['/about'] : []), ...s.farms.map(f => `/members/${f.slug}`), ...s.news.map(n => `/news/${n.id}`)];
+  const paths = ['', '/members', '/cattle', '/join', '/news', '/for-farmers', '/contact', ...(ABOUT.ready ? ['/about'] : []), ...s.farms.map(f => `/members/${f.slug}`), ...s.news.map(n => `/news/${n.id}`)];
   return ENABLED_LANGS.flatMap(lang => paths.map(p => ({ url: `${siteUrl()}/${lang}${p}` })));
 }

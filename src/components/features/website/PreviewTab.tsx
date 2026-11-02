@@ -86,8 +86,9 @@ export function PreviewTab({ lastPublishedAt }: { lastPublishedAt: string | null
         <h3 className="text-lg font-semibold text-ink">{tx('previewCattle', { n: s.cattle.length })}</h3>
         {s.cattle.length === 0 ? <p className="text-base text-ink-muted">{tx('previewNoCattle')}</p> : (
           <ul className="grid gap-3 md:grid-cols-2">
-            {s.cattle.map(l => (
-              <li key={l.listingId} className="space-y-1 rounded-2xl border border-slate-200 bg-white p-4">
+            {/* A farm can have several entries (ready now, ready soon) that share its code, so the key adds the position. */}
+            {s.cattle.map((l, i) => (
+              <li key={`${l.listingId}-${i}`} className="space-y-1 rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="text-lg font-semibold text-ink">{s.farms.find(f => f.slug === l.farmSlug)?.publicName ?? '—'}</p>
                 <p className="text-base text-ink">{weightRangeLabel(l.weightFrom, l.weightTo)} · {l.headCount} · {km ? l.provinceKm : l.province}</p>
                 <Pill tone={l.availability === 'now' ? 'green' : 'amber'}>{l.availability === 'now' ? tx('availNow') : tx('availSoon')}</Pill>

@@ -1,0 +1,29 @@
+{
+  "feedLines": [
+    {
+      "name": "DSR-16 Cow Feed",
+      "productId": "PROD-F01",
+      "kgPerHeadDay": 8,
+      "pricePerKgKhr": 1250
+    },
+    {
+      "name": "Super Napier",
+      "productId": "PROD-F850911",
+      "kgPerHeadDay": 10,
+      "pricePerKgKhr": 150
+    }
+  ],
+  "cattlePerBatch": 20,
+  "initialWeightKg": 270,
+  "numberOfBatches": 4,
+  "targetStockLevel": 80,
+  "dailyWeightGainKg": 1.3,
+  "grassCostPerKgKhr": 200,
+  "grassKgPerHeadDay": 30,
+  "fatteningPeriodDays": 120,
+  "sellingPricePerKgKhr": 12500,
+  "purchasePricePerKgKhr": 12000,
+  "bankInterestRateAnnual": 6.5,
+  "concentrateCostPerKgKhr": 1200,
+  "concentrateKgPerHeadDay": 7
+}

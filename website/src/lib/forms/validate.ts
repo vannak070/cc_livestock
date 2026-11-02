@@ -7,7 +7,7 @@ import { PROVINCES } from '../places';
  */
 
 export const WEIGHT_CLASSES = ['Under 250 kg', '250–300 kg', '300–350 kg', '350–400 kg', '400 kg+'];
-export const BUYER_TYPES = ['trader', 'slaughterhouse', 'investor', 'other'];
+export const BUYER_TYPES = ['trader', 'slaughterhouse', 'investor', 'other', 'question'];
 
 export interface ApplicationIn {
   name: string;
@@ -77,6 +77,8 @@ export function checkInquiry(raw: Record<string, unknown>): Checked<InquiryIn> {
   if (weightClass && !WEIGHT_CLASSES.includes(weightClass)) return { ok: false, field: 'weightClass' };
   if (listingId && !/^l-[a-z0-9]{6}$/.test(listingId)) return { ok: false, field: 'listingId' };
   const message = typeof raw.message === 'string' ? raw.message.trim().slice(0, 1000) : '';
+  // A general question from the Contact page has nothing but its message, so the message is required.
+  if (buyerType === 'question' && message.length < 3) return { ok: false, field: 'message' };
   const kind = raw.kind === 'notify' ? 'notify' : 'price';
   return { ok: true, value: { kind, name, phone, buyerType, quantity, weightClass, listingId: kind === 'notify' ? null : listingId || null, message, language: lang(raw.language) } };
 }

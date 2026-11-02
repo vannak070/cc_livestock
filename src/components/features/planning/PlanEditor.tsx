@@ -1,14 +1,15 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import PageTabs from '@/components/ui/page-tabs';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { FeedProductItem, ProposalPlanParams, ProposalPlanRecord } from '@/types';
 import { DEFAULT_PLAN, calculatePlan } from '@/lib/proposal-plan';
 import { bankSchedule, ccTrades, simulateLoan } from '@/lib/farm-loan';
 import { planLoanInputs } from '@/lib/plan-loan';
-import { buyPlanLabel, buyingSentence } from './LoanParts';
+import { buyingSentence } from './LoanParts';
 import { BankPaymentsTable, CcTradesTable, FeedNeedsTable, exportBankPlan, exportFeedNeeds, exportTrades } from './LoanTables';
 import { useText } from '@/hooks/useText';
 import { monthLabel as shownMonth, shownDay } from '@/lib/khmer-date';
@@ -25,6 +26,10 @@ interface PlanEditorProps {
   onSave: (name: string, params: ProposalPlanParams) => Promise<void>;
   /** The feed list, to pick each feed from. */
   products?: FeedProductItem[];
+  /** Farms that run a program made from this plan. */
+  usedBy?: string[];
+  /** Opens Action plans on the calendar and setup tab. */
+  onOpenPrograms?: () => void;
 }
 
 type Tab = 'overview' | 'bank' | 'months' | 'batches' | 'feed' | 'numbers';
@@ -95,7 +100,7 @@ function Rows({ rows, total }: { rows: [string, string][]; total?: [string, stri
  * One fattening plan, read first: what it earns and how. Changing it is a
  * guided dialog (PlanFlow); the tabs below show the details.
  */
-export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, products = [] }: PlanEditorProps) {
+export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, products = [], usedBy = [], onOpenPrograms }: PlanEditorProps) {
   const { tx, language } = useText('planning');
   const monthLabel = (ym: string) => shownMonth(ym, language);
   const unit = (u: string) => (u.startsWith('u_') ? tx(u) : u);
@@ -132,16 +137,29 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, prod
           <h2 className="break-words text-2xl font-semibold text-ink">{name}</h2>
           {plan && <p className="text-sm text-ink-muted">{plan.updatedBy ? tx('savedBy', { day: shownDay(plan.updatedAt, language), who: plan.updatedBy }) : tx('savedOn', { day: shownDay(plan.updatedAt, language) })}</p>}
         </div>
-        <Button size="lg" onClick={() => setEditing(true)}><Pencil /> {plan ? tx('changePlan') : tx('setUpPlan')}</Button>
+        <div className="flex flex-wrap gap-2">
+          {plan && onOpenPrograms && <Button size="lg" variant="outline" onClick={onOpenPrograms}><ClipboardList /> {tx('useForFarm')}</Button>}
+          <Button size="lg" onClick={() => setEditing(true)}><Pencil /> {plan ? tx('changePlan') : tx('setUpPlan')}</Button>
+        </div>
       </div>
+      {usedBy.length > 0 && <p className="rounded-xl bg-emerald-50 p-3 text-base text-emerald-950">{tx('usedNote', { farms: usedBy.join(', ') })}</p>}
       {savedAt && <p role="status" className="text-base font-medium text-emerald-800">{tx('savedAt', { time: savedAt })}</p>}
 
-      <section className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 text-lg text-ink">
-        <h3 className="text-lg font-semibold">{tx('inShort')}</h3>
-        <p>{tx('short1', { n: r.totalCattle.toLocaleString(), days: params.fatteningPeriodDays, months: r.fatteningMonths, from: params.initialWeightKg, to: Math.round(r.finalWeightKgPerHead), perMonth: r.monthlyBatchQty.toLocaleString() })}</p>
-        <p className={r.profitPerHeadKhr < 0 ? 'text-rose-800' : undefined}>{tx(r.profitPerHeadKhr < 0 ? 'short2Loss' : 'short2Profit', { cost: riel(r.costPerHeadKhr), sell: riel(r.sellingPricePerHeadKhr), amount: riel(Math.abs(r.profitPerHeadKhr)) })}</p>
-        <p>{buyingSentence(loan.assumptions, loan.sim.months.filter(m => m.year === 1).reduce((s, m) => s + m.headBought, 0), tx)} {tx('short3', { amount: riel(loan.sim.years[0]?.drawnKhr ?? 0), month: monthLabel(loan.terms.startMonth), covers: loan.terms.loanCovers === 'all' && !loan.terms.loanAmountKhr ? tx('short3Covers') : '', paid: riel(loan.payments.years[0]?.totalKhr ?? 0) })}</p>
-        <p>{tx('short4', { profit: signedRiel(r.annualProfitKhr), start: riel(r.initialCattlePurchaseKhr), pct: Math.round(r.annualRoiPercent * 10) / 10 })}</p>
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 text-ink">
+        <h3 className="mb-1 text-lg font-semibold">{tx('inShort')}</h3>
+        <dl className="divide-y divide-slate-100 text-base">
+          {([
+            [tx('shortHerd'), `${tx('short1', { n: r.totalCattle.toLocaleString(), days: r.fatteningMonths * 30, months: r.fatteningMonths, from: params.initialWeightKg, to: Math.round(r.finalWeightKgPerHead), perMonth: r.monthlyBatchQty.toLocaleString() })} ${buyingSentence(loan.assumptions, loan.sim.months.filter(m => m.year === 1).reduce((s, m) => s + m.headBought, 0), tx)}`, false],
+            [tx('shortAnimal'), tx(r.profitPerHeadKhr < 0 ? 'short2Loss' : 'short2Profit', { cost: riel(r.costPerHeadKhr), sell: riel(r.sellingPricePerHeadKhr), amount: riel(Math.abs(r.profitPerHeadKhr)) }), r.profitPerHeadKhr < 0],
+            [tx('shortBank'), tx('short3', { amount: riel(loan.sim.years[0]?.drawnKhr ?? 0), month: monthLabel(loan.terms.startMonth), covers: loan.terms.loanAmountKhr ? '' : loan.terms.loanCovers === 'all' ? tx('short3Covers') : loan.terms.loanCovers === 'start' ? tx('short3CoversStart', { months: loan.sim.years[0]?.noTradeMonths ?? 0 }) : '', paid: riel(loan.payments.years[0]?.totalKhr ?? 0) }), false],
+            [tx('shortResult'), tx('short4', { profit: signedRiel(r.annualProfitKhr), start: riel(r.initialCattlePurchaseKhr), pct: Math.round(r.annualRoiPercent * 10) / 10 }), r.annualProfitKhr < 0],
+          ] as [string, string, boolean][]).map(([label, text, bad]) => (
+            <div key={label} className="grid gap-1 py-2.5 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4">
+              <dt className="font-semibold text-ink-muted">{label}</dt>
+              <dd className={bad ? 'text-rose-800' : undefined}>{text}</dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
       <section className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
@@ -150,17 +168,11 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, prod
         <Tile label={tx('tStart')} value={riel(r.initialCattlePurchaseKhr)} sub={tx('tStartSub', { n: r.totalCattle.toLocaleString() })} />
         <Tile label={tx('tReturn')} value={`${Math.round(r.annualRoiPercent * 10) / 10}%`} sub={tx('tReturnSub')} tone={r.annualRoiPercent < 0 ? 'bad' : undefined} />
       </section>
+      {params.fatteningPeriodDays % 30 !== 0 && <p className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">{tx('periodNote', { days: params.fatteningPeriodDays, months: r.fatteningMonths, full: r.fatteningMonths * 30 })}</p>}
       {mismatch && <p className="rounded-xl bg-amber-50 p-3 text-base text-amber-900">{tx('mismatch', { b: params.numberOfBatches, c: params.cattlePerBatch, total: (params.numberOfBatches * params.cattlePerBatch).toLocaleString(), keep: params.targetStockLevel.toLocaleString() })}</p>}
 
       {/* Six tabs: two rows of three on a phone, so none is hidden off the edge. */}
-      <div role="tablist" aria-label={tx('resultsAria')} className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 sm:flex sm:w-fit sm:gap-0">
-        {TABS.map(t => (
-          <button key={t.key} role="tab" type="button" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
-            className={`min-h-11 flex-1 rounded-lg px-2 text-base font-medium leading-tight sm:whitespace-nowrap sm:px-5 ${tab === t.key ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-            {tx(t.label)}
-          </button>
-        ))}
-      </div>
+      <PageTabs label={tx('resultsAria')} active={tab} onChange={id => setTab(id as typeof tab)} tabs={TABS.map(t => ({ id: t.key, label: tx(t.label) }))} />
 
       {tab === 'overview' && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -176,6 +188,7 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, prod
               ]}
               total={[tx('profit'), signedRiel(r.profitPerHeadKhr), r.profitPerHeadKhr < 0]}
             />
+            <p className="text-sm text-ink-muted">{tx('interestNote')}</p>
           </section>
           <section className="space-y-2">
             <h3 className="text-lg font-semibold text-ink">{tx('oneYear')}</h3>
@@ -189,7 +202,7 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, prod
               ]}
               total={[tx('profit'), signedRiel(r.annualProfitKhr), r.annualProfitKhr < 0]}
             />
-            <p className="text-base text-ink-muted">{tx('yearNote', { n: r.monthlyBatchQty.toLocaleString(), days: params.fatteningPeriodDays })}</p>
+            <p className="text-base text-ink-muted">{tx('yearNote', { n: r.monthlyBatchQty.toLocaleString(), days: r.fatteningMonths * 30 })}</p>
           </section>
         </div>
       )}
@@ -202,18 +215,16 @@ export default function PlanEditor({ slot, plan, startFrom, onBack, onSave, prod
             <Tile label={tx('tFeedY1')} value={riel(loan.sim.years[0]?.feedKhr ?? 0)} sub={tx('tCattleSub', { amount: riel(loan.sim.years[0]?.purchasesKhr ?? 0) })} />
             <Tile label={tx('tOwn')} value={loan.sim.moneyNeededKhr > 0 ? riel(loan.sim.moneyNeededKhr) : tx('none')} tone={loan.sim.moneyNeededKhr > 0 ? 'bad' : 'good'} />
           </section>
+          {loan.sim.years[0]?.loanParts && loan.terms.loanCovers !== 'cattle' && loan.terms.loanCovers !== undefined && (
+            <p className="rounded-xl bg-emerald-50 p-3 text-base text-emerald-900">
+              {tx(loan.terms.loanCovers === 'all' ? 'loanMadeAll' : 'loanMade', { cattle: riel(loan.sim.years[0].loanParts.cattleKhr), feed: riel(loan.sim.years[0].loanParts.feedKhr), interest: riel(loan.sim.years[0].loanParts.interestKhr), months: loan.sim.years[0].loanParts.interestMonths })}
+            </p>
+          )}
           <p className="text-base text-ink-muted">
-            {tx('repaidLine', { plan: buyPlanLabel(loan.assumptions.buyPlan ?? 'monthly', tx), list: loan.terms.repayments.map(x => tx('repaidItem', { pct: x.pct, month: x.month })).join(', '), renew: loan.terms.autoRenew ? tx('renewsY2') : '' })}{params.loan ? '' : tx('standardTerms')}
+            {tx('repaidLine', { plan: tx('b_monthly'), list: loan.terms.repayments.map(x => tx('repaidItem', { pct: x.pct, month: x.month })).join(', '), renew: loan.terms.autoRenew ? tx('renewsY2') : '' })}{params.loan ? '' : tx('standardTerms')}
             {tx('differNote')}
           </p>
-          <div role="tablist" aria-label={tx('loanDetailsAria')} className="flex rounded-xl bg-slate-100 p-1 sm:w-fit">
-            {([['payments', 'payments'], ['trades', 'trades']] as const).map(([k, label]) => (
-              <button key={k} role="tab" type="button" aria-selected={loanView === k} onClick={() => setLoanView(k)}
-                className={`min-h-11 flex-1 rounded-lg px-3 py-1 text-base font-medium leading-tight sm:whitespace-nowrap sm:px-4 ${loanView === k ? 'bg-white text-emerald-800 shadow-sm' : 'text-ink-muted hover:text-ink'}`}>
-                {tx(label)}
-              </button>
-            ))}
-          </div>
+          <PageTabs fit label={tx('loanDetailsAria')} active={loanView} onChange={id => setLoanView(id as typeof loanView)} tabs={([['payments', 'payments'], ['trades', 'trades']] as const).map(([k, label]) => ({ id: k, label: tx(label) }))} />
           {loanView === 'payments'
             ? <BankPaymentsTable payments={loan.payments} terms={loan.terms}  intro={tx('bankIntro')} onDownload={() => exportBankPlan(name, loan.terms, loan.payments)} />
             : <CcTradesTable trades={loan.trades} onDownload={() => exportTrades(name, loan.terms.startMonth, loan.trades)} />}

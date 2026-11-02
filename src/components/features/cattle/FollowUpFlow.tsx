@@ -35,7 +35,6 @@ export default function FollowUpFlow(props: FollowUpFlowProps) {
 
 function FollowUpBody({ onClose, cowId, months, current, onSave }: FollowUpFlowProps) {
   const { tx, language } = useText('longStay');
-  const flow = useText('flow');
   const today = farmToday();
   const [step, setStep] = useState<Step>('action');
   const [action, setAction] = useState<FollowUpAction | null>(current?.action ?? null);

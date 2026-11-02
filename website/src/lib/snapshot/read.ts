@@ -3,13 +3,15 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import { callGateway, gatewayOn } from '../gateway';
 import type { PublicSnapshot } from './types';
+import { guardStale } from './stale';
 
 /**
  * The latest public snapshot, from CC Livestock. Two ways, chosen by
  * CAMCOW_API_URL (see lib/gateway.ts):
- *  - API: asked from CC Livestock's website gateway; "has it changed?" is a
- *    cheap request (ETag). If CC Livestock cannot be reached, the last good
- *    copy keeps being shown, and a failed call is not repeated for a few seconds.
+ *  - API: asked from CC Livestock's website gateway (Next caches the answer for
+ *    30 s, so pages built ahead of time can use it). If CC Livestock cannot be
+ *    reached, the last good copy keeps being shown, and a failed call is not
+ *    repeated for a few seconds.
  *  - Folder: read from ../.website-snapshot (this app lives in CC Livestock's
  *    website/ folder), or CAMCOW_SNAPSHOT_DIR.
  * Either way it is cached for 30 seconds. With no snapshot yet, the site still
@@ -20,10 +22,14 @@ const CACHE_MS = 30_000;
 const RETRY_AFTER_FAILURE_MS = 10_000;
 
 let cache: { at: number; snapshot: PublicSnapshot } | null = null;
-let etag: string | null = null;
 let failedAt = 0;
 /** Whether the current outage has been reported, so it is logged once, not on every page. */
 let outageReported = false;
+/** When CC Livestock last answered (for the health check). */
+let lastReachedAt = 0;
+
+/** Whether the site can reach CC Livestock right now, as far as the last call knows (health check). */
+export const officeLink = () => ({ gateway: gatewayOn(), reachable: !gatewayOn() || failedAt === 0, lastReachedAt: lastReachedAt ? new Date(lastReachedAt).toISOString() : null });
 
 export const EMPTY_SNAPSHOT: PublicSnapshot = {
   version: 1,
@@ -46,12 +52,11 @@ export function snapshotDir(): string {
 }
 
 async function fromGateway(): Promise<PublicSnapshot> {
-  const res = await callGateway('/snapshot', { headers: etag && cache ? { 'If-None-Match': etag } : {} });
-  if (res.status === 304 && cache) return cache.snapshot;
+  // Next keeps the answer for 30 s itself (see callGateway), so pages built ahead of time can read it.
+  const res = await callGateway('/snapshot', { revalidate: 30 });
   if (!res.ok) throw new Error(`CC Livestock answered ${res.status}.`);
   const parsed: unknown = await res.json();
   if (!usable(parsed)) throw new Error('CC Livestock sent a snapshot this site does not understand.');
-  etag = res.headers.get('etag');
   return current(parsed);
 }
 
@@ -60,7 +65,12 @@ async function fromFolder(): Promise<PublicSnapshot> {
   return usable(parsed) ? current(parsed) : EMPTY_SNAPSHOT;
 }
 
+/** The snapshot the pages show: the latest copy, with cattle availability hidden once it is too old (see stale.ts). */
 export async function getSnapshot(): Promise<PublicSnapshot> {
+  return guardStale(await latestSnapshot());
+}
+
+async function latestSnapshot(): Promise<PublicSnapshot> {
   const now = Date.now();
   if (cache && now - cache.at < CACHE_MS) return cache.snapshot;
   if (gatewayOn()) {
@@ -69,6 +79,9 @@ export async function getSnapshot(): Promise<PublicSnapshot> {
       const snapshot = await fromGateway();
       cache = { at: Date.now(), snapshot };
       failedAt = 0;
+      lastReachedAt = Date.now();
+      // CC Livestock answers again: send any form entries that waited while it could not be reached.
+      void import('../forms/db').then(m => m.flushOutbox()).catch(() => undefined);
       if (outageReported) { outageReported = false; console.info('[snapshot] CC Livestock is reachable again.'); }
       return snapshot;
     } catch (err) {

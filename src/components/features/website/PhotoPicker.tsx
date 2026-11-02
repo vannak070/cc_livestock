@@ -8,8 +8,8 @@ import { PHOTO_LARGE_PX, PHOTO_SMALL_PX } from '@/lib/website';
 import { useText } from '@/hooks/useText';
 import { errorText, ok, PhotoThumb } from './parts';
 
-/** Largest file we send for the big copy; quality steps down until it fits (keeps uploads under the 1 MB action limit). */
-const TARGET_BYTES = 600_000;
+/** Largest file we send for the big copy; quality steps down until it fits (the server accepts up to 1.5 MB). */
+const TARGET_BYTES = 1_200_000;
 
 /**
  * Draws the photo again at a smaller size. Re-drawing keeps only the pixels,
@@ -23,13 +23,17 @@ async function encode(bitmap: ImageBitmap, maxPx: number, targetBytes: number): 
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, width, height);
+  const ctx = canvas.getContext('2d')!;
+  // Browsers shrink with 'low' smoothing by default, which blurs a big phone photo cut down to 1600 px.
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bitmap, 0, 0, width, height);
   const make = (type: string, q: number) => new Promise<Blob>((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Could not read the photo.'))), type, q));
   let type = 'image/webp';
-  for (const q of [0.82, 0.72, 0.62, 0.52]) {
+  for (const q of [0.9, 0.85, 0.78, 0.7, 0.6]) {
     let blob = await make(type, q);
     if (blob.type !== 'image/webp') { type = 'image/jpeg'; blob = await make(type, q); }
-    if (blob.size <= targetBytes || q === 0.52) return { blob, width, height };
+    if (blob.size <= targetBytes || q === 0.6) return { blob, width, height };
   }
   throw new Error('Could not read the photo.');
 }
@@ -41,7 +45,8 @@ const base64 = (blob: Blob) => new Promise<string>((resolve, reject) => {
   r.readAsDataURL(blob);
 });
 
-export function PhotoPicker({ ids, onChange, max }: { ids: string[]; onChange: (ids: string[]) => void; max: number }) {
+/** `addLabel` and `hint` replace the default button text and help line (the Pictures tab uses its own). */
+export function PhotoPicker({ ids, onChange, max, addLabel, hint }: { ids: string[]; onChange: (ids: string[]) => void; max: number; addLabel?: string; hint?: string }) {
   const { tx } = useText('websitePage');
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -87,13 +92,13 @@ export function PhotoPicker({ ids, onChange, max }: { ids: string[]; onChange: (
       </div>
       {ids.length < max && (
         <>
-          <input ref={input} type="file" accept="image/*" multiple className="sr-only" onChange={e => add(e.target.files)} aria-label={tx('photoAdd')} />
+          <input ref={input} type="file" accept="image/*" multiple={max > 1} className="sr-only" onChange={e => add(e.target.files)} aria-label={addLabel ?? tx('photoAdd')} />
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => input.current?.click()}>
-            <ImagePlus aria-hidden /> {busy ? tx('photoUploading') : tx('photoAdd')}
+            <ImagePlus aria-hidden /> {busy ? tx('photoUploading') : addLabel ?? tx('photoAdd')}
           </Button>
         </>
       )}
-      <p className="text-sm text-ink-muted">{tx('photoHint', { max })}</p>
+      <p className="text-sm text-ink-muted">{hint ?? tx('photoHint', { max })}</p>
       {error && <p role="alert" className="text-sm text-rose-800">{error}</p>}
     </div>
   );
