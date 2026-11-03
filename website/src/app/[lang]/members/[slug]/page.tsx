@@ -123,12 +123,19 @@ export default async function FarmPage({ params }: { params: Params }) {
               <div className="more-farms">
                 {others.map(f => (
                   <Link key={f.slug} href={href(lang, `/members/${f.slug}`)} className="more-farm">
+                    {/* The large copy: the small one was blurry at this width (user report 11-02). */}
                     <span className="mf-photo">
-                      <Photo id={f.photoIds[0]} alt="" height={150} size="small" />
+                      <Photo id={f.photoIds[0]} alt="" height={170} sizes="(max-width: 760px) calc(100vw - 48px), 380px" />
                       {f.hasCattleAvailable && <span className="sale-flag"><span className="win-dot win-now" aria-hidden="true" />{t.common.availNow}</span>}
                     </span>
-                    <b>{f.publicName}</b>
-                    <span>{f.district} · {km ? f.provinceKm : f.province}</span>
+                    <span className="more-farm-body">
+                      <span className="more-farm-text">
+                        <b>{f.publicName}</b>
+                        <span>{f.district} · {km ? f.provinceKm : f.province}</span>
+                        <span className="more-farm-facts">{[t.values.size[f.sizeRange] ?? f.sizeRange, f.memberSince ? t.members.memberSince.replace('{year}', String(f.memberSince)) : ''].filter(Boolean).join(' · ')}</span>
+                      </span>
+                      <span className="mf-card-arrow" aria-hidden="true">→</span>
+                    </span>
                   </Link>
                 ))}
               </div>

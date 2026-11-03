@@ -155,7 +155,7 @@ interface FarmSelectProps {
   className?: string;
 }
 
-const FIELD = 'flex h-12 w-full items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 text-lg text-ink hover:border-emerald-600 focus-visible:border-emerald-600 focus-visible:outline-none';
+export const LISTBOX_FIELD = 'flex h-12 w-full items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 text-lg text-ink hover:border-emerald-600 focus-visible:border-emerald-600 focus-visible:outline-none';
 const COMPACT = 'flex h-11 w-full min-w-[10rem] max-w-[16rem] items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 text-base text-ink hover:border-emerald-600 focus-visible:border-emerald-600 focus-visible:outline-none';
 
 /** The farm filter used across the pages: "All farms" and then each farm. */
@@ -174,7 +174,7 @@ export function FarmSelect({ farms, value, onChange, allLabel, label, size = 'fi
       value={value}
       onChange={onChange}
       label={label}
-      buttonClassName={size === 'field' ? FIELD : COMPACT}
+      buttonClassName={size === 'field' ? LISTBOX_FIELD : COMPACT}
       listClassName={list}
       separateFirst
       className={className}

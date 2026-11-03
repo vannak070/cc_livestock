@@ -138,6 +138,14 @@ export async function updateStockItemAction(id: string, updates: Partial<StockIt
   });
 }
 
+/** A Super Admin corrects an animal's details (stockService.editDetails checks the role and the values again). */
+export async function editCattleDetailsAction(cowId: string, details: Record<string, unknown>) {
+  return runAction('Failed to save the animal\'s details', ['stock_edit'], async actor => {
+    await farmGuard.cows(actor, [cowId]);
+    return stockService.editDetails(actor, cowId, details);
+  });
+}
+
 export async function deleteStockItemAction(cowId: string) {
   return runAction('Failed to delete stock item', ['stock_delete'], async actor => {
     await farmGuard.cows(actor, [cowId]);

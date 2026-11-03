@@ -10,3 +10,4 @@ export * from './rounding';
 export * from './site-images';
 export * from './snapshot';
 export * from './validation';
+export * from './photo-edges';

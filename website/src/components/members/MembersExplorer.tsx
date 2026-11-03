@@ -87,7 +87,10 @@ export function MembersExplorer({ farms, lang, t, profileHref, sizeText }: {
                   onFocus={() => setPicked(f.slug)}
                   className={`mf-card${picked === f.slug ? ' on' : ''}`}
                 >
-                  <span className="mf-card-photo"><Photo id={f.photoIds[0]} alt="" height={84} size="small" /></span>
+                  {/* Wide picture across the top: many farm pictures are posters (photo on top, text and logos below),
+                      which a small square shrank to an unreadable whole; this shows the photo part, sharp. */}
+                  <span className="mf-card-photo"><Photo id={f.photoIds[0]} alt="" height={150} sizes="(max-width: 760px) calc(100vw - 64px), 380px" /></span>
+                  <span className="mf-card-body">
                   <span className="mf-card-text">
                     <b>{f.publicName}</b>
                     <span className="mf-card-place">{f.district} · {lang === 'km' ? f.provinceKm : f.province}</span>
@@ -95,6 +98,7 @@ export function MembersExplorer({ farms, lang, t, profileHref, sizeText }: {
                     {f.hasCattleAvailable && <span className="mf-card-now"><span className="win-dot win-now" aria-hidden="true" />{t.cattleAvailable}</span>}
                   </span>
                   <span className="mf-card-arrow" aria-hidden="true">→</span>
+                  </span>
                 </Link>
               </li>
             ))}

@@ -29,6 +29,8 @@ export interface ReceiptRow {
   lineTotal: number;
   /** This animal's breed; when missing the list's breed is used. */
   breed?: string;
+  /** YYYY-MM-DD this animal arrived, when it differs from the receipt date (user request 2026-11-03). */
+  date?: string;
 }
 
 export interface ReceiptDraft {
@@ -188,7 +190,7 @@ export function draftFromSheet(grid: unknown[][]): ReceiptDraft {
 export const tagFor = (prefix: string, printed: string): string => `${prefix.trim()}${printed.trim()}`;
 
 /** A reason a row cannot be saved. */
-export type RowProblem = 'tag' | 'tagTwice' | 'tagUsed' | 'sex' | 'weight' | 'price' | 'lineTotal';
+export type RowProblem = 'tag' | 'tagTwice' | 'tagUsed' | 'sex' | 'weight' | 'price' | 'date' | 'lineTotal';
 
 export interface TotalCheck { printed: number; counted: number; ok: boolean }
 
@@ -212,7 +214,11 @@ export interface CheckInput {
   printedHead: number;
   printedKg: number;
   printedTotal: number;
+  /** The farm's today (YYYY-MM-DD): an animal cannot arrive later than this. */
+  today?: string;
 }
+
+const isDay = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));
 
 const lineOf = (r: ReceiptRow) => r.weightKg * r.pricePerKg;
 
@@ -233,6 +239,7 @@ export function checkReceipt(input: CheckInput): ReceiptCheck {
     if (!r.sex) out.push('sex');
     if (!(r.weightKg > 0)) out.push('weight');
     if (!(r.pricePerKg > 0)) out.push('price');
+    if (r.date !== undefined && (!isDay(r.date) || (input.today && r.date > input.today))) out.push('date');
     if (r.weightKg > 0 && r.pricePerKg > 0 && Math.abs(lineOf(r) - r.lineTotal) > MONEY_SLACK) out.push('lineTotal');
     return out;
   });
@@ -274,7 +281,7 @@ export function stockFromReceipt(input: RegisterInput): Omit<StockItem, 'no'>[] 
     totalPrice: Math.round(lineOf(r)),
     healthStatus: input.health,
     status: 'Active',
-    purchaseDate: input.date,
+    purchaseDate: r.date || input.date,
     remark: input.invoiceNo.trim() ? `Receipt ${input.invoiceNo.trim()}` : '',
     purchaseType: 'Purchase',
     paymentMethod: 'N/A',
@@ -282,12 +289,12 @@ export function stockFromReceipt(input: RegisterInput): Omit<StockItem, 'no'>[] 
 }
 
 /** Why a request to register cannot go ahead, or null. The server uses it as its own check. */
-export function registerProblem(input: RegisterInput, existingTags: Iterable<string>): string | null {
+export function registerProblem(input: RegisterInput, existingTags: Iterable<string>, today?: string): string | null {
   if (!input.farm.trim()) return 'Choose the farm the cattle go to.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) return 'Enter the date the cattle arrived.';
   if (input.rows.length === 0) return 'The list has no cattle.';
   if (input.rows.length > RECEIPT_MAX_ROWS) return `A receipt can have at most ${RECEIPT_MAX_ROWS} cattle.`;
-  const check = checkReceipt({ rows: input.rows, prefix: input.prefix, existingTags, printedHead: 0, printedKg: 0, printedTotal: 0 });
+  const check = checkReceipt({ rows: input.rows, prefix: input.prefix, existingTags, printedHead: 0, printedKg: 0, printedTotal: 0, today });
   const bad = check.rows.findIndex(p => p.some(x => x !== 'lineTotal'));
   if (bad >= 0) return `Row ${bad + 1} needs fixing (${check.rows[bad].filter(x => x !== 'lineTotal').join(', ')}).`;
   return null;

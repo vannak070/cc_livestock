@@ -93,7 +93,7 @@ function Body({ onClose, common, existingCattle, registeredCattle, defaultFarm, 
 
   const check = useMemo(() => checkReceipt({
     rows, prefix, existingTags: existingCattle.map(c => c.id),
-    printedHead: printed.head, printedKg: printed.kg, printedTotal: printed.total,
+    printedHead: printed.head, printedKg: printed.kg, printedTotal: printed.total, today: today(),
   }), [rows, prefix, existingCattle, printed]);
 
   // The farm's cattle limit for the whole list; the server checks it again when saving.
@@ -227,7 +227,7 @@ function Body({ onClose, common, existingCattle, registeredCattle, defaultFarm, 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block"><span className="mb-1 block text-base font-medium text-ink">{tx('receiptNo')}</span><Input value={invoiceNo} onChange={e => setInvoiceNo(e.target.value)} className="h-12 text-lg" /></label>
               <label className="block"><span className="mb-1 block text-base font-medium text-ink">{tx('seller')}</span><Input value={seller} onChange={e => setSeller(e.target.value)} className="h-12 text-lg" /></label>
-              <label className="block"><span className="mb-1 block text-base font-medium text-ink">{tx('dateArrived')}</span><Input type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-12 text-lg" /></label>
+              <label className="block"><span className="mb-1 block text-base font-medium text-ink">{tx('dateArrived')}</span><Input type="date" value={date} max={today()} onChange={e => setDate(e.target.value)} className="h-12 text-lg" /><span className="mt-1 block text-sm text-ink-muted">{tx('dateAllHint')}</span></label>
               <label className="block"><span className="mb-1 block text-base font-medium text-ink">{tx('farm')}</span>
                 <select value={farm} onChange={e => setFarm(e.target.value)} className={SELECT}>
                   <option value="">{tx('chooseFarm')}</option>
@@ -277,12 +277,13 @@ function Body({ onClose, common, existingCattle, registeredCattle, defaultFarm, 
 
             {rows.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-center text-lg text-ink-muted">{tx('noRows')}</p> : (
               <div className="overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full min-w-[44rem] text-left">
+                <table className="w-full min-w-[60rem] text-left">
                   <thead className="bg-slate-50 text-sm text-ink-muted">
                     <tr>
                       <th className="px-2 py-2 font-medium">{tx('colNo')}</th>
                       <th className="px-2 py-2 font-medium">{tx('colTag')}</th>
                       {breeds.length > 0 && <th className="px-2 py-2 font-medium">{tx('colBreed')}</th>}
+                      <th className="px-2 py-2 font-medium">{tx('colDate')}</th>
                       <th className="px-2 py-2 font-medium">{tx('colSex')}</th>
                       <th className="px-2 py-2 font-medium">{tx('colKg')}</th>
                       <th className="px-2 py-2 font-medium">{tx('colPrice')}</th>
@@ -304,14 +305,18 @@ function Body({ onClose, common, existingCattle, registeredCattle, defaultFarm, 
                             </td>
                             {breeds.length > 0 && (
                               <td className="px-2 py-2">
-                                <select aria-label={`${tx('colBreed')} ${i + 1}`} value={r.breed ?? breed} onChange={e => change(i, { breed: e.target.value })} className={CELL}>
+                                <select aria-label={`${tx('colBreed')} ${i + 1}`} value={r.breed ?? breed} onChange={e => change(i, { breed: e.target.value })} className={`${CELL} min-w-[8rem]`}>
                                   <option value="">{tx('chooseBreed')}</option>
                                   {breeds.map(b => <option key={b} value={b}>{b}</option>)}
                                 </select>
                               </td>
                             )}
                             <td className="px-2 py-2">
-                              <select aria-label={`${tx('colSex')} ${i + 1}`} value={r.sex} onChange={e => change(i, { sex: e.target.value as ReceiptRow['sex'] })} className={CELL}>
+                              {/* Each animal starts on the receipt date; change it when one arrived on another day. */}
+                              <input aria-label={`${tx('colDate')} ${i + 1}`} type="date" value={r.date ?? date} max={today()} onChange={e => change(i, { date: e.target.value === date ? undefined : e.target.value })} className={`${CELL} min-w-[9.5rem]`} />
+                            </td>
+                            <td className="px-2 py-2">
+                              <select aria-label={`${tx('colSex')} ${i + 1}`} value={r.sex} onChange={e => change(i, { sex: e.target.value as ReceiptRow['sex'] })} className={`${CELL} min-w-[6.5rem]`}>
                                 <option value="">{tx('chooseSex')}</option>
                                 <option value="Male">{val('Male')}</option>
                                 <option value="Female">{val('Female')}</option>
@@ -325,7 +330,7 @@ function Body({ onClose, common, existingCattle, registeredCattle, defaultFarm, 
                           {problems.length > 0 && (
                             <tr className={bad ? 'bg-rose-50' : 'bg-amber-50'}>
                               <td />
-                              <td colSpan={breeds.length > 0 ? 7 : 6} className={`px-2 pb-2 text-sm font-medium ${bad ? 'text-rose-800' : 'text-amber-900'}`}>{problems.map(p => problemText(p, r)).join(' · ')}</td>
+                              <td colSpan={breeds.length > 0 ? 8 : 7} className={`px-2 pb-2 text-sm font-medium ${bad ? 'text-rose-800' : 'text-amber-900'}`}>{problems.map(p => problemText(p, r)).join(' · ')}</td>
                             </tr>
                           )}
                         </React.Fragment>

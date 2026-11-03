@@ -194,3 +194,16 @@ describe('the same receipt twice', () => {
   });
 });
 
+
+describe('arrival date per animal (user request 2026-11-03)', () => {
+  const row = (printed: string, date?: string) => ({ printed, sex: 'Male' as const, weightKg: 300, pricePerKg: 12500, lineTotal: 3_750_000, ...(date !== undefined ? { date } : {}) });
+  const input = { farm: 'A', date: '2026-06-25', seller: '', invoiceNo: '', prefix: 'CC-', breed: '', health: 'Good', rows: [row('1', '2026-06-20'), row('2')] };
+  it('uses the animal\'s own date and falls back to the receipt date', () => {
+    expect(stockFromReceipt(input).map(c => c.purchaseDate)).toEqual(['2026-06-20', '2026-06-25']);
+  });
+  it('refuses a date in the future or one that is not a date', () => {
+    expect(registerProblem(input, [], '2026-06-30')).toBeNull();
+    expect(registerProblem({ ...input, rows: [row('1', '2026-07-02')] }, [], '2026-06-30')).toMatch(/Row 1 .*date/);
+    expect(registerProblem({ ...input, rows: [row('1', '')] }, [], '2026-06-30')).toMatch(/Row 1 .*date/);
+  });
+});

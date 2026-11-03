@@ -21,6 +21,7 @@ import {
   recordFollowUpAction,
   finishFollowUpAction,
   deleteStockItemAction,
+  editCattleDetailsAction,
   deleteBatchAction,
   deleteHealthLogAction,
   updateHealthLogAction,
@@ -55,6 +56,7 @@ import { canOpenWebsitePage } from '@/lib/website/access';
 import type { FollowUpInput } from '@/lib/long-stay';
 import type { CattleFollowUp } from '@/lib/types';
 import { canSetLimits, limitState } from '@/lib/farm-limit';
+import { canEditCattleDetails } from '@/lib/cattle-edit';
 import { RECEIPT_IMPORT_ENABLED, type ReceiptFile, type RegisterInput } from '@/lib/receipt-import';
 import type { DataPart } from '@/lib/data-parts';
 import { useOnChange } from '@/hooks/useOnChange';
@@ -394,6 +396,16 @@ export default function DashboardContainer({ initialData, currentUser, session }
     }
   });
 
+  const editCattleMutation = useMutation({
+    mutationFn: async ({ cowId, details }: { cowId: string; details: Record<string, unknown> }) => {
+      const res = await editCattleDetailsAction(cowId, details);
+      if (!res.success) throw new Error(res.error);
+    },
+    onSuccess: () => {
+      refreshParts(['stock']);
+    }
+  });
+
   const deleteStockItemMutation = useMutation({
     mutationFn: async (cowId: string) => {
       const res = await deleteStockItemAction(cowId);
@@ -672,6 +684,9 @@ export default function DashboardContainer({ initialData, currentUser, session }
           onDelete={async cowId => {
             await deleteStockItemMutation.mutateAsync(cowId);
           }}
+          onEditDetails={canEditCattleDetails(currentUser) ? async (cowId, details) => { await editCattleMutation.mutateAsync({ cowId, details }); } : undefined}
+          breeds={dbData.settings?.breeds ?? []}
+          paymentMethods={dbData.settings?.paymentMethods ?? []}
         />
       )}
 

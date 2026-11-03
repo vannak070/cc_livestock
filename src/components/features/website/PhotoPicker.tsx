@@ -4,7 +4,7 @@ import React, { useRef, useState } from 'react';
 import { ImagePlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { uploadWebsitePhotoAction } from '@/app/website-actions';
-import { PHOTO_LARGE_PX, PHOTO_SMALL_PX } from '@/lib/website';
+import { PHOTO_LARGE_PX, PHOTO_SMALL_PX, plainEdgeCrop, scaleCrop, type CropBox } from '@/lib/website';
 import { useText } from '@/hooks/useText';
 import { errorText, ok, PhotoThumb } from './parts';
 
@@ -16,10 +16,10 @@ const TARGET_BYTES = 1_200_000;
  * so GPS position, camera details and other EXIF data are left behind.
  * WebP where the browser can make it, else JPEG (Safari).
  */
-async function encode(bitmap: ImageBitmap, maxPx: number, targetBytes: number): Promise<{ blob: Blob; width: number; height: number }> {
-  const scale = Math.min(1, maxPx / Math.max(bitmap.width, bitmap.height));
-  const width = Math.round(bitmap.width * scale);
-  const height = Math.round(bitmap.height * scale);
+async function encode(bitmap: ImageBitmap, crop: CropBox, maxPx: number, targetBytes: number): Promise<{ blob: Blob; width: number; height: number }> {
+  const scale = Math.min(1, maxPx / Math.max(crop.width, crop.height));
+  const width = Math.round(crop.width * scale);
+  const height = Math.round(crop.height * scale);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -27,7 +27,7 @@ async function encode(bitmap: ImageBitmap, maxPx: number, targetBytes: number): 
   // Browsers shrink with 'low' smoothing by default, which blurs a big phone photo cut down to 1600 px.
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(bitmap, 0, 0, width, height);
+  ctx.drawImage(bitmap, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height);
   const make = (type: string, q: number) => new Promise<Blob>((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Could not read the photo.'))), type, q));
   let type = 'image/webp';
   for (const q of [0.9, 0.85, 0.78, 0.7, 0.6]) {
@@ -36,6 +36,27 @@ async function encode(bitmap: ImageBitmap, maxPx: number, targetBytes: number): 
     if (blob.size <= targetBytes || q === 0.6) return { blob, width, height };
   }
   throw new Error('Could not read the photo.');
+}
+
+/**
+ * The part of the photo to keep: plain white or black strips around it are cut off (photo-edges.ts), looked for on a
+ * small copy so a big phone photo stays quick. The whole photo when there are none, or when cutting would leave it
+ * smaller than the website accepts.
+ */
+function keptPart(bitmap: ImageBitmap): CropBox {
+  const whole = { x: 0, y: 0, width: bitmap.width, height: bitmap.height };
+  const scale = Math.min(1, 400 / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale)), h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return whole;
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  const box = plainEdgeCrop(ctx.getImageData(0, 0, w, h).data, w, h);
+  if (!box) return whole;
+  const crop = scaleCrop(box, w, h, bitmap.width, bitmap.height);
+  return crop.width >= 200 && crop.height >= 200 ? crop : whole;
 }
 
 const base64 = (blob: Blob) => new Promise<string>((resolve, reject) => {
@@ -60,8 +81,9 @@ export function PhotoPicker({ ids, onChange, max, addLabel, hint }: { ids: strin
     try {
       for (const file of Array.from(files).slice(0, max - ids.length)) {
         const bitmap = await createImageBitmap(file);
-        const large = await encode(bitmap, PHOTO_LARGE_PX, TARGET_BYTES);
-        const small = await encode(bitmap, PHOTO_SMALL_PX, 200_000);
+        const crop = keptPart(bitmap);
+        const large = await encode(bitmap, crop, PHOTO_LARGE_PX, TARGET_BYTES);
+        const small = await encode(bitmap, crop, PHOTO_SMALL_PX, 200_000);
         bitmap.close();
         if (large.blob.type !== small.blob.type) throw new Error(tx('photoFailed'));
         const info = await ok(await uploadWebsitePhotoAction({

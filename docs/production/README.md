@@ -82,9 +82,11 @@ Internet ──443/80──► caddy ──► app      (digital.camcow.com.kh)
 - **Cookie:** `SESSION_COOKIE_SECURE`
 - **Release versions:** `APP_TAG`, `WEBSITE_TAG`
 
+**Set by the owner:**
+- `ANTHROPIC_API_KEY` (2026-11-03, a new key, added on the server by the owner): reading PDF and photo receipts in Cattle → Upload is on. To change it: replace the line in `.env`, then `docker compose up -d app` (a plain `cc restart` does not re-read `.env`).
+
 **Not set yet:**
 - `TELEGRAM_BOT_TOKEN`: alerts are off until it is set
-- `ANTHROPIC_API_KEY`: reading PDF and photo receipts in Cattle → Upload is off; Excel upload works without it
 
 ---
 
@@ -198,6 +200,13 @@ Send:
 2. Even read-only checks on the server (logs, status) are done only with the owner's OK.
 3. Nothing about production is shared. Passwords, keys and tokens never go in chat, email, screenshots, documents or code. They live only in the server's `.env` (root only).
 
+**Fixing a production problem**
+1. A request to fix a live problem is not permission to work on the server. The work starts on the Mac.
+2. Reproduce the problem on the Mac: recreate the situation in the local data (for example an Admin account tied to a farm) instead of looking into production.
+3. Fix it and test it on the Mac (see below), then show the owner the result.
+4. Release only after the owner says yes to the release itself. When it is done, production is hands-off again.
+5. If the cause cannot be found on the Mac, ask the owner before any look at the server, even a read-only one.
+
 **Every change (after approval)**
 1. **Test on the Mac first,** never on live data: tests, typecheck and lint pass, and a browser check in Khmer and English at phone and computer size.
 2. **Temporary admin accounts:** a test that needs an admin uses a temporary account on the Mac, only after the owner agrees. It is deleted afterwards, together with its password file.
@@ -289,6 +298,11 @@ Send:
 
 | Tag | Date | Change |
 |---|---|---|
+| 20261103a | 2026-11-03 | Cattle → Upload: arrival date per animal in the check list (starts at the receipt date); wider Breed/Sex boxes |
+| 20261102d | 2026-11-02 | Office app: plain white/black strips are cut off website photos when they are added (new uploads only) |
+| 20261102c | 2026-11-02 | Website: member list and "Other member farms" cards with a wide, sharp picture on top (posters show their photo part) |
+| 20261102b | 2026-11-02 | Common server messages (own-farm, no permission, session expired) shown in Khmer when Khmer is chosen |
+| 20261102a | 2026-11-02 | Fix: Admin could not add a farm (office roles were tied to the only farm); migration 038 removes farms from office accounts |
 | 20261030e | 2026-10-30 | Sign-out after 60 minutes without activity (5-minute warning, 12-hour longest sign-in, Super Admin can change it in Settings → Sign-in); everyone signed in again once |
 | 20261030d | 2026-10-30 | Sharper website images (quality 85), sharper photo uploads |
 | 20261030c | 2026-10-30 | Website pages always fresh (no hard refresh), map start fix |

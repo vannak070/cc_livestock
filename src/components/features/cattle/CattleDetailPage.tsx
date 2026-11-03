@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCattlePhotoAction, getCattleReceiptAction, getReceiptFileAction } from '@/app/actions';
 import PageTabs from '@/components/ui/page-tabs';
-import { ArrowLeft, Beef, Scale, Syringe, DollarSign, Trash2 } from 'lucide-react';
+import { ArrowLeft, Beef, Scale, Syringe, DollarSign, Trash2, Pencil } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { ConfirmModal } from '@/components/ui/confirm-modal';
@@ -17,6 +17,10 @@ import { daysOnFarm, growth, money, weighPoints } from '@/lib/cattle-stats';
 import { useText, useValueText } from '@/hooks/useText';
 import LongStaySection from './LongStaySection';
 import { canSetLimits } from '@/lib/farm-limit';
+import dynamic from 'next/dynamic';
+import { canEditCattleDetails, type CattleDetails } from '@/lib/cattle-edit';
+
+const EditCattleDialog = dynamic(() => import('./EditCattleDialog'));
 
 interface CattleDetailPageProps {
   cowId: string;
@@ -39,6 +43,10 @@ interface CattleDetailPageProps {
   onTreat: (cowId: string) => void;
   onSell: (cowId: string) => void;
   onDelete?: (cowId: string) => Promise<void>;
+  /** Saves corrected details (Super Admin only); `breeds` and `paymentMethods` are the settings lists for the form. */
+  onEditDetails?: (cowId: string, details: Partial<CattleDetails>) => Promise<void>;
+  breeds?: string[];
+  paymentMethods?: string[];
 }
 
 type Tab = 'overview' | 'weight' | 'health' | 'money';
@@ -75,7 +83,8 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export default function CattleDetailPage({ cowId, stock, weightTracking, salesTracking, healthLogs, feedTransactions = [], batches = [], followUps = [], longStayMonthsSetting, currentUser, onRecordFollowUp, onFinishFollowUp, onBack, onWeigh, onTreat, onSell, onDelete }: CattleDetailPageProps) {
+export default function CattleDetailPage({ cowId, stock, weightTracking, salesTracking, healthLogs, feedTransactions = [], batches = [], followUps = [], longStayMonthsSetting, currentUser, onRecordFollowUp, onFinishFollowUp, onBack, onWeigh, onTreat, onSell, onDelete, onEditDetails, breeds = [], paymentMethods = [] }: CattleDetailPageProps) {
+  const [editing, setEditing] = useState(false);
   const { tx } = useText('cattlePage');
   const val = useValueText();
   const [tab, setTab] = useState<Tab>('overview');
@@ -164,6 +173,7 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
   const canDelete = !!onDelete && hasPermission(currentUser, 'stock_delete') && canSetLimits(currentUser);
   // Prices and profit only for people who see sales or costs; vets see neither.
   const canSeeMoney = hasPermission(currentUser, 'sales_view') || hasPermission(currentUser, 'costs_view');
+  const canEdit = !!onEditDetails && canEditCattleDetails(currentUser);
 
   const statusStyle = isActive ? 'bg-emerald-100 text-emerald-800' : status === 'dead' ? 'bg-rose-100 text-rose-800' : 'bg-slate-200 text-ink';
 
@@ -264,6 +274,9 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
           )}
         </dl>
       )}
+      {tab === 'overview' && canEdit && (
+        <Button type="button" variant="outline" onClick={() => setEditing(true)}><Pencil /> {tx('editDetails')}</Button>
+      )}
 
       {tab === 'weight' && (
         <div className="space-y-4">
@@ -345,6 +358,10 @@ export default function CattleDetailPage({ cowId, stock, weightTracking, salesTr
         <div className="border-t border-slate-200 pt-6">
           <Button variant="destructive" onClick={askDelete}><Trash2 /> {tx('deleteAnimal')}</Button>
         </div>
+      )}
+
+      {editing && onEditDetails && (
+        <EditCattleDialog cow={cow} breeds={breeds} paymentMethods={paymentMethods} showMoney={canSeeMoney} onSave={details => onEditDetails(cow.id, details)} onClose={() => setEditing(false)} />
       )}
 
       {confirm && (

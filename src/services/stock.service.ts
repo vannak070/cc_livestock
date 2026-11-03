@@ -9,6 +9,8 @@ import { registrationRepository } from '../repositories/registration.repository'
 import { Actor, AuthzError } from '../lib/authz';
 import { canSetLimits } from '../lib/farm-limit';
 import { photoProblem } from '../lib/cattle-photo';
+import { CATTLE_EDIT_TEXT, canEditCattleDetails, cattleEditProblem, cleanCattleDetails } from '../lib/cattle-edit';
+import { farmToday } from '../lib/daily-feed';
 
 const checkPhoto = (url?: string | null): void => {
   const problem = photoProblem(url);
@@ -137,6 +139,19 @@ export class StockService {
 
       return updatedStock;
     });
+  }
+
+  /**
+   * A Super Admin corrects an animal's details (src/lib/cattle-edit.ts). Only those fields change; no weighing is
+   * recorded, and the registration (the bill) is untouched.
+   */
+  async editDetails(actor: Actor, id: string, input: Partial<Record<string, unknown>>): Promise<StockItem> {
+    if (!canEditCattleDetails(actor)) throw new AuthzError('Only a Super Admin can change an animal\'s details.', 403);
+    const details = cleanCattleDetails(input);
+    const problem = cattleEditProblem(details, farmToday());
+    if (problem) throw new Error(CATTLE_EDIT_TEXT[problem]);
+    if (!(await stockRepository.findById(id))) throw new Error('That animal no longer exists.');
+    return stockRepository.update(id, details);
   }
 
   /**

@@ -4,6 +4,7 @@ import {
   duplicateProblem, invoiceKey, receiptTotals, registerProblem, stockFromReceipt,
   type DuplicateCheck, type EarlierReceipt, type ReceiptDraft, type ReceiptFile, type RegisterInput,
 } from '../lib/receipt-import';
+import { farmToday } from '../lib/daily-feed';
 import type { StockItem } from '../lib/xlsx-parser';
 import { receiptImportRepository } from '../repositories/receipt-import.repository';
 import { extractReceipt } from './receipt-extract.service';
@@ -57,7 +58,7 @@ export class ReceiptImportService {
    */
   async register(actor: Actor, input: RegisterInput, options: { file?: ReceiptFile | null; confirmedDifferent?: boolean } = {}): Promise<StockItem[]> {
     assertCanImportReceipts(actor);
-    const problem = registerProblem(input, []);
+    const problem = registerProblem(input, [], farmToday());
     if (problem) throw new Error(problem);
     const file = decodeFile(options.file);
     const key = invoiceKey(input.invoiceNo, input.seller);
