@@ -294,10 +294,17 @@ Send:
 | Code structure and commands | `CLAUDE.md` |
 | E-commerce project (planned) | `docs/ecommerce/business-requirements.md` |
 
+### Data patches
+
+| Date | Change | How |
+|---|---|---|
+| 2026-11-03 | Breed of all 59 cattle on farm សៀង ណៃ set to កាត់ Brahman (35 had no breed, 24 already had it); their weighing records too | Owner's request; `cc backup` first, then a checked SQL patch (dry run, then one transaction) |
+
 ### Release history (recent)
 
 | Tag | Date | Change |
 |---|---|---|
+| 20261103b | 2026-11-03 | Cattle: Super Admin can edit an animal's details (breed, sex, age, seller, phone, arrival date, payment, prices, note) |
 | 20261103a | 2026-11-03 | Cattle → Upload: arrival date per animal in the check list (starts at the receipt date); wider Breed/Sex boxes |
 | 20261102d | 2026-11-02 | Office app: plain white/black strips are cut off website photos when they are added (new uploads only) |
 | 20261102c | 2026-11-02 | Website: member list and "Other member farms" cards with a wide, sharp picture on top (posters show their photo part) |

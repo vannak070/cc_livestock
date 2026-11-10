@@ -79,7 +79,7 @@ import { ProposalPlanParams } from '@/types';
 import { SalesRecord } from '@/lib/xlsx-parser';
 import { canOpenReports, canUsePlanning, hasPermission } from '@/lib/utils';
 import { useLanguage } from '@/context/LanguageContext';
-import { canOpenPeople } from '@/lib/user-admin';
+import { canOpenPeople, isFarmOwner } from '@/lib/user-admin';
 import { scopeDataToFarm } from '@/lib/farm-view';
 import { focusKey, validFocus } from '@/lib/working-on';
 import { useStoredValue } from '@/hooks/useStoredValue';
@@ -228,7 +228,7 @@ export default function DashboardContainer({ initialData, currentUser, session }
   // The same person, tied to the chosen farm, for the pages that hide their own farm filters for farm staff.
   const pageUser = useMemo(() => (focusFarm ? { ...currentUser, farmLocation: focusFarm } : currentUser), [currentUser, focusFarm]);
   // Who may ask for a higher cattle limit (same rule as farm-limit.service request()); admins set limits themselves.
-  const canAskMoreCattle = hasPermission(currentUser, 'stock_create') || hasPermission(currentUser, 'farms_manage');
+  const canAskMoreCattle = (!!currentUser && isFarmOwner(currentUser)) || hasPermission(currentUser, 'stock_create') || hasPermission(currentUser, 'farms_manage');
   // Who records next actions for long-stay cattle (same permission as the batch sale review).
   const canReviewLongStay = hasPermission(currentUser, 'batch_review');
 

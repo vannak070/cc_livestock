@@ -61,3 +61,21 @@ describe('canOpenReports', () => {
     expect(canOpenReports(undefined)).toBe(false);
   });
 });
+
+describe('farm accounts only view cattle registration and sales (user rule 2026-11-04)', () => {
+  const office = ['stock_create', 'sales_record', 'sales_delete'] as const;
+  it('refuses them for farm roles, even with stored custom access', () => {
+    for (const role of ['Farm Owner', 'Farm Staff', 'Veterinarian']) {
+      for (const key of office) expect(hasPermission({ role, permissions: [...office] }, key)).toBe(false);
+    }
+    for (const key of office) expect(hasPermission({ role: 'Farm Owner' }, key)).toBe(false);
+  });
+  it('keeps viewing for the Farm Owner', () => {
+    expect(hasPermission({ role: 'Farm Owner' }, 'stock_view')).toBe(true);
+    expect(hasPermission({ role: 'Farm Owner' }, 'sales_view')).toBe(true);
+  });
+  it('leaves the office alone', () => {
+    expect(hasPermission({ role: 'Admin' }, 'sales_record')).toBe(true);
+    expect(hasPermission({ role: 'Company', permissions: ['stock_create'] }, 'stock_create')).toBe(true);
+  });
+});

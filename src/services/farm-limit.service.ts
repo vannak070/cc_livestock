@@ -7,6 +7,7 @@ import { settingsRepository } from '../repositories/settings.repository';
 import { telegramService } from './telegram.service';
 import { Actor, AuthzError, can } from '../lib/authz';
 import { farmGuard } from '../lib/farm-guard';
+import { isFarmOwner } from '../lib/user-admin';
 import { alertSettings, escapeHtml } from '../lib/alerts';
 import { canSetLimits, limitBlock, limitBlockMessage, limitDecisionProblem, limitOf, limitRequestProblem, type LimitRequestInput } from '../lib/farm-limit';
 import type { FarmItem, FarmLimitRequest } from '../lib/types';
@@ -36,7 +37,7 @@ export class FarmLimitService {
 
   /** A farm asks for a higher limit. Farm accounts ask for their own farm only; one request can wait per farm. */
   async request(actor: Actor, input: LimitRequestInput): Promise<FarmLimitRequest> {
-    if (!can(actor, 'stock_create') && !can(actor, 'farms_manage')) throw new AuthzError('You do not have permission to ask for more cattle.', 403);
+    if (!isFarmOwner(actor) && !can(actor, 'stock_create') && !can(actor, 'farms_manage')) throw new AuthzError('You do not have permission to ask for more cattle.', 403);
     const settings = await settingsRepository.getSettings();
     const problem = limitRequestProblem(input, settings.farms || []);
     if (problem) throw new Error(problem);

@@ -1,4 +1,4 @@
-import { ALL_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS, type CustomRoleDefinition, type MasterSetup, type PermissionKey, type UserRoleItem } from '@/types/settings.types';
+import { ALL_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS, FARM_ROLES, type CustomRoleDefinition, type MasterSetup, type PermissionKey, type UserRoleItem } from '@/types/settings.types';
 import { hasPermission } from './utils';
 import { validatePinStrength } from './pin';
 
@@ -10,7 +10,7 @@ import { validatePinStrength } from './pin';
 
 export const PRIVILEGED_ROLES = ['Super Admin', 'Admin'];
 /** Roles that belong to one farm: without a farm the person would see every farm. */
-export const FARM_ROLES = ['Farm Owner', 'Farm Staff', 'Veterinarian'];
+export { FARM_ROLES };
 export const MIN_PASSWORD_LENGTH = 8;
 
 /** The built-in roles. Their descriptions are plain English; the screens show them in the chosen language (roles.desc_<name>). */

@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { DEFAULT_ROLE_PERMISSIONS, PermissionKey } from "../types/settings.types"
+import { DEFAULT_ROLE_PERMISSIONS, FARM_ROLES, OFFICE_ONLY_PERMISSIONS, PermissionKey } from "../types/settings.types"
 import { noteStaleApp, STALE_APP_MESSAGE } from "./app-update"
 
 export function cn(...inputs: ClassValue[]) {
@@ -32,6 +32,7 @@ export function hasPermission(
 ): boolean {
   if (!currentUser) return false;
   if (currentUser.role === 'Super Admin' || currentUser.role === 'Admin') return true;
+  if (FARM_ROLES.includes(currentUser.role ?? '') && OFFICE_ONLY_PERMISSIONS.includes(key)) return false;
 
   if (currentUser.permissions && Array.isArray(currentUser.permissions)) {
     return currentUser.permissions.includes(key);

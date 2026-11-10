@@ -140,11 +140,19 @@ export const PERMISSION_MODULES: PermissionCategory[] = [
 
 export const ALL_PERMISSIONS: PermissionKey[] = PERMISSION_MODULES.flatMap(m => m.items.map(i => i.key));
 
+/** The roles of people who work on one farm. */
+export const FARM_ROLES = ['Farm Owner', 'Farm Staff', 'Veterinarian'];
+/**
+ * Farm accounts view cattle registrations and sales but never make them: the office does (user rule 2026-11-04).
+ * hasPermission refuses these for farm roles whatever is stored, so custom access cannot give them back.
+ */
+export const OFFICE_ONLY_PERMISSIONS: PermissionKey[] = ['stock_create', 'sales_record', 'sales_delete'];
+
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionKey[]> = {
   'Super Admin': ALL_PERMISSIONS,
   'Admin': ALL_PERMISSIONS,
   'Company': [...ALL_PERMISSIONS.filter(p => p !== 'settings_manage'), 'settings_manage'],
-  'Farm Owner': ALL_PERMISSIONS.filter(p => p !== 'settings_manage' && p !== 'farms_manage' && p !== 'feed_manage' && p !== 'website_requests'),
+  'Farm Owner': ALL_PERMISSIONS.filter(p => p !== 'settings_manage' && p !== 'farms_manage' && p !== 'feed_manage' && p !== 'website_requests' && !OFFICE_ONLY_PERMISSIONS.includes(p)),
   'Farm Staff': ['dashboard_view', 'stock_view', 'batch_view', 'weight_view', 'weight_record', 'health_view', 'health_record', 'feed_view', 'feed_record', 'costs_view', 'costs_record'],
   'Veterinarian': ['dashboard_view', 'stock_view', 'stock_edit', 'weight_view', 'weight_record', 'health_view', 'health_record', 'health_delete', 'feed_view'],
   // Read-only oversight: sees every report, changes nothing. It holds no

@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronRight, Info } from 'lucide-react';
 import type { ERPLivestockData, UserRoleItem } from '@/lib/types';
+import { isFarmOwner } from '@/lib/user-admin';
 import { hasPermission } from '@/lib/utils';
 import {
   activeCattle,
@@ -294,7 +295,7 @@ export default function TodayTab({ data, currentUser, recordActions, onNavigate,
         onAction: () => onNavigate('farms')
       });
     }
-  } else if (currentUser.farmLocation && can('stock_create')) {
+  } else if (currentUser.farmLocation && (isFarmOwner(currentUser) || can('stock_create'))) {
     const farmName = currentUser.farmLocation;
     const same = (a: string) => a.trim().toLowerCase() === farmName.trim().toLowerCase();
     const farm = (data.settings?.farms ?? []).find(f => same(f.name));
